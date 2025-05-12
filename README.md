@@ -1,6 +1,6 @@
-# 🗺️ BC Government Map Viewer
+# 🗺️ BC Government Burn Severity Map
 
-This is a lightweight web mapping application built with **React**, **Leaflet**, and **React Router**, featuring BCGov-branded UI components. It includes a simple landing page and an interactive map page with a responsive layout and clean structure.
+This is a GeoBC lightweight web mapping application demo built with **React**, **Leaflet**, and **React Router**, featuring BCGov-branded UI components. It includes a simple landing page and an interactive map page with a responsive layout and clean structure.
 
 ## 🚀 Features
 
