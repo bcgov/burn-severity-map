@@ -1,0 +1,19 @@
+@import '~leaflet/dist/leaflet.css';
+
+.map-page-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.map-page-container > a {
+	margin-left: 15px;
+}
+
+#map-container {
+	flex-grow: 1;
+    position: relative;
+	margin: 5px;
+	border-radius: 10px;
+	border: 2px solid #CCCCCC;
+}
