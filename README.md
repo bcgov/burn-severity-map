@@ -2,7 +2,7 @@
 
 This is a GeoBC lightweight web mapping application demo built with **React**, **Leaflet**, and **React Router**, featuring BCGov-branded UI components. It includes a simple landing page and an interactive map page with a responsive layout and clean structure.
 
-## 🚀 Features
+## 🚀 Frontend Features
 
 - 🔁 Client-side routing with React Router  
 - 🗺️ Interactive map powered by Leaflet  
@@ -10,9 +10,13 @@ This is a GeoBC lightweight web mapping application demo built with **React**, *
 - 🎨 BCGov-branded layout with header and footer  
 - 📦 SCSS support for modular styling  
 
+## 🚀 Backend Features
+
+- 🧭 Super clean slate (maybe fastapi, sqlalchemy, pydantic)
+
 ## 📁 Project Structure
 ```
-src/
+frontend/src/                    # Frontend component
 │
 ├── components/
 │   └── bcgov-components.tsx     # PageHeader and PageFooter components
@@ -29,14 +33,31 @@ src/
 │
 ├── style.scss                   # Global SCSS styling
 ├── index.tsx                    # Main entry point and route setup
+|
+backend/                         # Backend component
+|── 
+|── 
+charts/                          # Helm deployment charts
+|── templates
+│   ├── backend
+│       ├── _helpers.yaml
+│       ├── deployment.yaml
+│       ├── hpa.yaml
+│       ├── pdb.yaml
+│       ├── service.yaml
+│   ├── frontend
+│       ├── *.yaml
+|   ├── chart.yaml
+|   ├── values.yaml
+|── 
 ```
-## 📦 Installation
+## 📦 Frontend Dev Installation
 
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-org/leaflet-map-viewer.git
-cd leaflet-map-viewer
+git clone https://github.com/bcgov/burn-severity-map.git
+cd burn-severity-map/frontend
 ```
 
 2. **Install dependencies**
