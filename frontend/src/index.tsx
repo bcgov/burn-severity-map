@@ -23,17 +23,20 @@ if (appElement) {
       {/* BCGov-branded page header */}
       <PageHeader />
 
-      {/* Route configuration: defines what component to show for each URL path */}
-      <Routes>
-        {/* Home/landing page route */}
-        <Route path="/" element={<LandingPage />} />
+      {/* Main content area */}
+      <main className="bcgov-main">
+        {/* Route configuration: defines what component to show for each URL path */}
+        <Routes>
+          {/* Home/landing page route */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* Map page route */}
-        <Route path="/map" element={<MapPage />} />
+          {/* Map page route */}
+          <Route path="/map" element={<MapPage />} />
 
-        {/* NBR Map route */}
-        <Route path="/nbr" element={<NBRMap />} />
-      </Routes>
+          {/* NBR Map route */}
+          <Route path="/nbr" element={<NBRMap />} />
+        </Routes>
+      </main>
 
       {/* BCGov-branded page footer */}
       <PageFooter />

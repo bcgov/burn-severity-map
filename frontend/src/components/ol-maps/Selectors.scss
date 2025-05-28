@@ -1,0 +1,158 @@
+// Common styles for selectors
+@mixin control-container {
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+@mixin input-base {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--bcgov-primary);
+    box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.1);
+  }
+}
+
+// Fire Selector
+.bcgov-fire-selector {
+  width: 100%;
+
+  &-header {
+    margin-bottom: 15px;
+  }
+
+  &-label {
+    h4 {
+      margin: 0 0 5px;
+      color: var(--bcgov-primary);
+      font-size: 16px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+    }
+  }
+
+  &-input-container {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  &-input {
+    @include input-base;
+    flex: 1;
+    width: 100%;
+  }
+
+  &-toggle {
+    @include input-base;
+    padding: 8px 12px;
+    background: white;
+    cursor: pointer;
+    
+    &:hover {
+      background: #f5f5f5;
+    }
+  }
+
+  &-dropdown {
+    @include control-container;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+  }
+
+  &-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 14px;
+    
+    &:hover {
+      background-color: rgba(0, 51, 102, 0.05);
+    }
+
+    &.selected {
+      background-color: var(--bcgov-primary);
+      color: white;
+
+      &:hover {
+        background-color: var(--bcgov-secondary);
+      }
+    }
+  }
+
+  &-no-results {
+    padding: 12px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    font-size: 14px;
+  }
+}
+
+// Basemap Selector
+.bcgov-basemap-selector {
+  @include control-container;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  padding: 12px;
+
+  h4 {
+    color: var(--bcgov-primary);
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+.bcgov-basemap-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  
+  input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--bcgov-primary);
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:checked {
+      border-width: 5px;
+    }
+  }
+
+  label {
+    font-size: 14px;
+    color: #444;
+    cursor: pointer;
+    user-select: none;
+  }
+}

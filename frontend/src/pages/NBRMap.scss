@@ -1,117 +1,578 @@
 .App {
-  height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
+/* Removed absolute positioning from ol-map-container */
+.ol-map-container {
+  width: 100%;
+  height: 100%;
+  position: relative; // Changed from absolute to relative
+}
+
+.basemap-option {
+  margin-bottom: 5px;
+
+  label {
+    margin-left: 5px;
+  }
+}
+
+/* Map container styles */
+.map-container {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Popup styles */
+.ol-popup {
+  position: absolute;
+  background-color: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #cccccc;
+  bottom: 12px;
+  left: -50px;
+  min-width: 280px;
+  z-index: 1000;
+
+  &:after, &:before {
+    top: 100%;
+    border: solid transparent;
+    content: " ";
+    height: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+  }
+
+  &:after {
+    border-top-color: white;
+    border-width: 10px;
+    left: 48px;
+    margin-left: -10px;
+  }
+
+  &:before {
+    border-top-color: #cccccc;
+    border-width: 11px;
+    left: 48px;
+    margin-left: -11px;
+  }
+}
+
+.ol-popup-closer {
+  text-decoration: none;
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  color: #999;
+  font-size: 18px;
+
+  &:after {
+    content: "✖";
+  }
+}
+
+.ol-popup-content {
+  min-width: 250px;
+  max-width: 350px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Fire popup content */
+.fire-popup-content {
+  h3 {
+    margin-top: 0;
+    color: #003366;
+    font-size: 16px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  td {
+    padding: 3px 5px;
+    border-bottom: 1px solid #eee;
+
+    &:first-child {
+      font-weight: bold;
+      width: 40%;
+    }
+  }
+}
+
+/* Loading indicator */
+.loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 4px;
+  z-index: 1000;
+}
+
+/* Satellite info panel */
+.satellite-info {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 8px 12px;
+  border-radius: 4px;
+  max-width: 300px;
+  font-size: 12px;
+  z-index: 800;
+
+  h4 {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+/* Main layout */
+.App {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Info section at the top */
+.info-section {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  padding: 20px;
+  flex-shrink: 0;
+
+  h2 {
+    color: var(--bcgov-primary);
+    margin: 0 0 15px;
+    font-size: 22px;
+  }
+
+  p {
+    margin: 0 0 15px;
+    line-height: 1.5;
+  }
+}
+
+/* Info Section - Collapsible panel */
+.info-section-container {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+}
+
+.info-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+
+  &:hover {
+    background-color: rgba(0, 51, 102, 0.03);
+  }
+
+  h2 {
+    color: var(--bcgov-primary);
+    margin: 0;
+    font-size: 20px;
+    transition: color 0.2s ease;
+  }
+
+  .info-toggle-button {
+    background: none;
+    border: none;
+    color: var(--bcgov-primary);
+    font-size: 14px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+}
+
+.info-section-content {
+  padding: 0 20px 20px;
+  animation: slideDown 0.3s ease-out;
+
+  p {
+    margin: 0 0 15px;
+    line-height: 1.5;
+  }
+}
+
+.info-columns {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .info-column {
+    flex: 1;
+    
+    h3 {
+      color: var(--bcgov-primary);
+      margin: 0 0 15px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    ol, ul {
+      padding-left: 20px;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      
+      li {
+        margin-bottom: 8px;
+      }
+    }
+    
+    p {
+      margin-bottom: 10px;
+    }
+  }
+}
+
+/* Animation for collapsible panel */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Three-column layout */
 .app-layout {
   display: flex;
   flex: 1;
-  height: 100%;
-  padding: 10px;
-  gap: 10px;
+  width: 100%;
+  min-height: 0; // Important for flex child
 }
 
+/* Panel layouts */
 .left-panel {
   width: 300px;
+  flex: 0 0 300px; // Fixed width
   background: white;
   padding: 20px;
-  border-radius: 5px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  border-right: 1px solid #ddd;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+
+  h3 {
+    color: var(--bcgov-primary);
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+  }
 }
 
 .center-panel {
   flex: 1;
   position: relative;
-  border-radius: 5px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  min-width: 0; // Critical for flex child
+  background: #f5f5f5;
 }
 
+/* Right panel with map */
+.right-panel {
+  width: 300px;
+  flex: 0 0 300px; // Fixed width
+  background: white;
+  padding: 20px;
+  overflow-y: auto;
+  border-left: 1px solid #ddd;
+  z-index: 2;
+
+  h3 {
+    color: var(--bcgov-primary);
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .no-fire-selected {
+    color: #777;
+    font-style: italic;
+    text-align: center;
+    margin-top: 50px;
+  }
+
+  .fire-details-content {
+    p {
+      margin-bottom: 15px;
+    }
+  }
+}
+
+/* Fire detail panel */
+.fire-detail-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  h3 {
+    margin-top: 0;
+    color: #003366;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+  }
+}
+
+.fire-details {
+  font-size: 14px;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  td {
+    padding: 6px 5px;
+    border-bottom: 1px solid #eee;
+
+    &:first-child {
+      font-weight: bold;
+      width: 40%;
+    }
+  }
+}
+
+/* Map controls */
+.bcgov-map-controls {
+  position: relative;
+  z-index: 1;
+}
+
+/* Legend */
 .bcgov-map-legend {
   margin-top: 20px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 4px;
-  border: 1px solid #ddd;
-}
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #eee;
 
-.bcgov-legend-item {
-  display: flex;
-  align-items: center;
-  margin: 8px 0;
-  gap: 10px;
-}
+  h3 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
 
-.bcgov-legend-symbol {
-  width: 20px;
-  height: 20px;
-  border-radius: 3px;
+  .bcgov-legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .bcgov-legend-symbol {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border-radius: 4px;
+    }
+
+    span {
+      font-size: 0.9rem;
+      color: #444;
+    }
+  }
 }
 
 /* Fire Selector Styles */
 .bcgov-fire-selector {
   position: relative;
+  width: 100%;
+
+  &-header {
+    margin-bottom: 10px;
+  }
+
+  &-label {
+    h4 {
+      margin: 0 0 5px 0;
+      color: var(--bcgov-primary);
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+    }
+  }
+
+  &-input-container {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+  }
+
+  &-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--bcgov-primary);
+    }
+  }
+
+  &-toggle {
+    padding: 0 8px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f5f5;
+    }
+  }
+
+  &-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+
+  &-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+
+    &:hover {
+      background-color: rgba(0, 51, 102, 0.1);
+    }
+
+    &.selected {
+      background-color: var(--bcgov-primary);
+      color: white;
+
+      &:hover {
+        background-color: var(--bcgov-secondary);
+      }
+    }
+  }
+
+  &-no-results {
+    padding: 12px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+  }
 }
 
-.bcgov-fire-selector-header {
-  margin-bottom: 10px;
-}
-
-.bcgov-fire-selector-input-container {
-  display: flex;
-  gap: 5px;
-}
-
-.bcgov-fire-selector-input {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.bcgov-fire-selector-dropdown {
+/* Enhanced control styling */
+.bcgov-basemap-selector {
   position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  max-height: 300px;
-  overflow-y: auto;
+  top: 10px;
+  right: 10px;
   z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+  h4 {
+    color: var(--bcgov-primary);
+    margin: 0 0 10px 0;
+    font-size: 14px;
+  }
 }
 
-.bcgov-fire-selector-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+/* Ensure OpenLayers controls are properly positioned */
+.ol-control {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  padding: 2px;
 
-  &:hover {
-    background-color: #f0f0f0;
-  }
-
-  &.selected {
-    background-color: #003366;
+  button {
+    display: block;
+    margin: 1px;
+    padding: 0;
     color: white;
+    font-size: 1.14em;
+    font-weight: bold;
+    text-decoration: none;
+    text-align: center;
+    height: 1.375em;
+    width: 1.375em;
+    line-height: .4em;
+    background-color: var(--bcgov-primary);
+    border: none;
+    border-radius: 2px;
   }
 }
 
-/* Toggle Styles */
-.bcgov-satellite-toggle {
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
-  gap: 10px;
+.ol-zoom {
+  top: .5em;
+  left: .5em;
 }
 
-.bcgov-satellite-toggle input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+.ol-rotate {
+  top: .5em;
+  right: .5em;
+}
+
+.ol-attribution {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+}
+
+/* Ensure the map takes up the correct space */
+.ol-map {
+  width: 100%;
+  height: 100%;
 }
