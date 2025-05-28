@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../style.scss';
 import './NBRMap.scss';
 import OLMap from '../components/ol-maps/OLMap';
@@ -13,6 +13,7 @@ interface Fire {
   fireNumber: string;
   geometry: any;
   extent: number[];
+  properties?: any; // Add properties to store fire attributes
 }
 
 function NBRMap() {
@@ -21,6 +22,7 @@ function NBRMap() {
   const [zoom] = useState(10);
   const [fires, setFires] = useState<Fire[]>([]);
   const [selectedFire, setSelectedFire] = useState<string | null>(null);
+  const [selectedFireDetails, setSelectedFireDetails] = useState<any>(null);
   const [showSatelliteImagery, setShowSatelliteImagery] = useState<boolean>(false);
   const [showNBR, setShowNBR] = useState<boolean>(false);
   const [isNBRLoading, setIsNBRLoading] = useState<boolean>(false);
@@ -36,6 +38,15 @@ function NBRMap() {
 
   const handleFireSelect = (fireNumber: string | null) => {
     setSelectedFire(fireNumber);
+    
+    // Find the selected fire details
+    if (fireNumber) {
+      const fireDetails = fires.find(fire => fire.fireNumber === fireNumber);
+      setSelectedFireDetails(fireDetails?.properties || null);
+    } else {
+      setSelectedFireDetails(null);
+    }
+    
     // Reset satellite imagery and NBR when fire changes
     if (fireNumber !== selectedFire) {
       setShowSatelliteImagery(false);
@@ -62,6 +73,14 @@ function NBRMap() {
   const toggleInfoPanel = () => {
     setIsInfoExpanded(!isInfoExpanded);
   };
+
+  // Effect to update selectedFireDetails when fires array updates and a fire is already selected
+  useEffect(() => {
+    if (selectedFire && fires.length > 0) {
+      const fireDetails = fires.find(fire => fire.fireNumber === selectedFire);
+      setSelectedFireDetails(fireDetails?.properties || null);
+    }
+  }, [fires, selectedFire]);
 
   return (
     <div className="App">
@@ -198,13 +217,52 @@ function NBRMap() {
           </div>
         </div>
 
-        {/* Right Panel - Fire Details (currently blank) */}
+        {/* Right Panel - Fire Details with Table */}
         <div className="right-panel">
           <h3>Fire Details</h3>
           {selectedFire ? (
             <div className="fire-details-content">
-              <p>Details for fire <strong>{selectedFire}</strong> will be displayed here.</p>
-              {/* Future fire details content will go here */}
+              {selectedFireDetails ? (
+                <table className="fire-details-table">
+                  <tbody>
+                    <tr>
+                      <th>Fire Number</th>
+                      <td>{selectedFireDetails.FIRE_NUMBER || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <th>Fire Status</th>
+                      <td>{selectedFireDetails.FIRE_STATUS || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <th>Fire Size (ha)</th>
+                      <td>{selectedFireDetails.FIRE_SIZE_HECTARES !== undefined ? 
+                          selectedFireDetails.FIRE_SIZE_HECTARES.toLocaleString(undefined, {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1
+                          }) : 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <th>Fire URL</th>
+                      <td>
+                        {selectedFireDetails.FIRE_URL ? (
+                          <a href={selectedFireDetails.FIRE_URL} target="_blank" rel="noopener noreferrer">
+                            View fire details
+                          </a>
+                        ) : 'N/A'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Load Date</th>
+                      <td>
+                        {selectedFireDetails.LOAD_DATE ? 
+                          new Date(selectedFireDetails.LOAD_DATE).toLocaleString() : 'N/A'}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              ) : (
+                <p>Loading fire details...</p>
+              )}
             </div>
           ) : (
             <div className="no-fire-selected">
