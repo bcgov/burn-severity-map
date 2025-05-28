@@ -1,0 +1,150 @@
+.ol-profile {
+  position: relative;
+  user-select: none;
+}
+.ol-control.ol-profile {
+  position: absolute;
+  top: 0.5em;
+  right: 3em;
+  text-align: right;
+  overflow: hidden;
+}
+.ol-profile .ol-zoom-out {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 1em;
+  height: 1em;
+  padding: 0;
+  border: 1px solid #000;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.ol-profile .ol-zoom-out:before {
+  content: '';
+  height: 2px;
+  width: 60%;
+  background: currentColor;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.ol-profile .ol-inner  {
+  position: relative;
+  padding: 0.5em;
+  font-size: 0.8em;
+}
+.ol-control.ol-profile .ol-inner {
+  display: block;
+  background-color: rgba(255,255,255,0.7);
+  margin: 2.3em 2px 2px;
+}
+.ol-control.ol-profile.ol-collapsed .ol-inner {
+  display: none;
+}
+
+.ol-profile canvas {
+  display: block;
+}
+.ol-profile button {
+  display: block;
+  position: absolute;
+  right: 0;
+  overflow: hidden;
+}
+.ol-profile button i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+}
+.ol-profile button i:before,
+.ol-profile button i:after {
+  content: "";
+  position: absolute;
+  display: block;
+  background-color: currentColor;
+  width: 1em;
+  height: .9em;
+  transform: scaleX(.8) translate(-.25em, .5em) rotate(45deg);
+}
+.ol-profile button i:after {
+  transform: scaleX(.8) translate(.35em, .7em) rotate(45deg);
+}
+
+.ol-profile.ol-collapsed button {
+  position: static;
+}
+
+.ol-profile .ol-profilebar,
+.ol-profile .ol-profilecursor {
+  position:absolute;
+  pointer-events: none;
+  width: 1px;
+  display: none;
+}
+.ol-profile .ol-profilecursor {
+  width: 0;
+  height: 0;
+}
+.ol-profile .ol-profilecursor:before {
+  content:"";
+  pointer-events: none;
+  display: block;
+  margin: -2px;
+  width:5px;
+  height:5px;
+}
+.ol-profile .ol-profilebar,
+.ol-profile .ol-profilecursor:before {
+  background: red;
+}
+
+.ol-profile table {
+  text-align: center;
+  width: 100%;
+}
+
+.ol-profile table span {
+  display: block;
+}
+
+.ol-profilepopup {
+  background-color: rgba(255, 255, 255, 0.5);
+  margin: 0.5em;
+  padding: 0 0.5em;
+  position: absolute;
+  top:-1em;
+  white-space: nowrap;
+}
+.ol-profilepopup.ol-left {
+  right:0;
+}
+
+
+.ol-profile table td {
+  padding: 0 2px;
+}
+
+.ol-profile table .track-info {
+  display: table-row;
+}
+.ol-profile table .point-info {
+  display: none;
+}
+.ol-profile .over table .track-info {
+  display: none;
+}
+.ol-profile .over table .point-info {
+  display: table-row;
+}
+
+.ol-profile p {
+  text-align: center;
+  margin:0;
+}

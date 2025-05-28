@@ -1,0 +1,80 @@
+.ol-input-hidden {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  padding: 0;
+  margin: 0;
+  display: block;
+}
+
+.ol-input-popup {
+  display: inline-block;
+  position: relative;
+}
+.ol-input-popup .ol-popup {
+  position: absolute;
+  box-shadow: 1px 1px 3px 1px #999;
+  background-color: #fff;
+  z-index: 1;
+  display: none;
+  left: -5px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+.ol-input-popup.ol-hover:hover .ol-popup,
+.ol-input-popup.ol-focus .ol-popup {
+  display: block;
+}
+.ol-input-popup.ol-right .ol-popup {
+  left: auto;
+  right: -5px;
+}
+.ol-input-popup.ol-middle .ol-popup {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ol-input-popup .ol-popup li {
+  position: relative;
+  padding: 10px 5px;
+}
+
+.ol-input-popup li:hover {
+  background-color: #ccc;
+}
+.ol-input-popup li.ol-selected {
+  background-color: #ccc;
+}
+
+.ol-input-popup.ol-fixed:hover .ol-popup,
+.ol-input-popup.ol-fixed .ol-popup {
+  position: relative;
+  left: 0;
+  box-shadow: unset;
+  background-color: transparent;
+  display: inline-block;
+  vertical-align: middle;
+}
+.ol-input-popup.ol-fixed.ol-left .ol-popup {
+  float: left;
+}
+
+.ol-input-popup > div {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  border: 1px solid #999;
+  padding: 3px 20px 3px 10px
+}
+.ol-input-popup > div:before {
+  position: absolute;
+  content: "";
+  right: 5px;
+  top: 50%;
+  border: 5px solid transparent;
+  border-top: 5px solid #999;
+}

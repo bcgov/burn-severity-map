@@ -1,0 +1,16 @@
+.ol-viewport .ol-scale {
+	left: .5em;
+	bottom: 2.5em;
+	text-align: center;
+	-webkit-transform: scaleX(.8);
+	-webkit-transform-origin: 0 0;
+	transform: scaleX(.8);
+	transform-origin: 0 0;
+	background-color: rgba(255, 255, 255, 0.75);
+}
+.ol-viewport .ol-scale input {
+	background: none;
+    border: 0;
+    width: 8em;
+    text-align: center;
+}

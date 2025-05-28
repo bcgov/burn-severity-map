@@ -1,0 +1,23 @@
+.ol-perspective-map {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200%;
+  height: 200%;
+  transform: translate(-50%, -50%);
+}
+.ol-perspective-map .ol-layer {
+  z-index: -1!important; /* bug using Chrome ? */
+}
+.ol-perspective-map .ol-layers {
+  transform: translateY(0) perspective(200px) rotateX(0deg) scaleY(1);
+}
+
+.ol-perspective-map .ol-overlaycontainer,
+.ol-perspective-map .ol-overlaycontainer-stopevent {
+  width: 50%!important;
+  height: 50%!important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}

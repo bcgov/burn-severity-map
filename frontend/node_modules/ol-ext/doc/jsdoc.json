@@ -1,0 +1,26 @@
+{
+    "tags": {
+      "allowUnknownTags": true
+    },
+    "opts": {
+      "destination": "./doc/doc-pages"
+    },
+    "plugins": [
+      "plugins/markdown"
+    ],
+    "templates": {
+      "cleverLinks": false,
+      "monospaceLinks": false,
+      "default": {
+        "outputSourceFiles": true,
+        "useLongnameInNav": true
+      },
+      "logoFile": "https://openlayers.org/theme/img/logo-dark.svg",
+      "systemName": "ol-ext",
+      "path": "ink-docstrap",
+      "theme": "cosmo",
+      "navType": "vertical",
+      "linenums": true,
+      "includeDate": false
+    }
+  }
