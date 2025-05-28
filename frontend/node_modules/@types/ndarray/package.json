@@ -1,0 +1,35 @@
+{
+    "name": "@types/ndarray",
+    "version": "1.0.14",
+    "description": "TypeScript definitions for ndarray",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/ndarray",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Giff Song",
+            "githubUsername": "pawsong",
+            "url": "https://github.com/pawsong"
+        },
+        {
+            "name": "taoqf",
+            "githubUsername": "taoqf",
+            "url": "https://github.com/taoqf"
+        },
+        {
+            "name": "Axel Bocciarelli",
+            "githubUsername": "axelboc",
+            "url": "https://github.com/axelboc"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/ndarray"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "527d0a858b7e3680db44121c544e038bedd33f3da1deaff22f80c5af67691283",
+    "typeScriptVersion": "4.5"
+}
