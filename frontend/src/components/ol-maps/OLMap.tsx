@@ -726,9 +726,38 @@ const OLMap: React.FC<OLMapProps> = ({
         mapInstanceRef.current.removeLayer(satelliteLayerRef.current);
         satelliteLayerRef.current = null;
         setShowMetadata(false);
+        
+        // Release resources when satellite imagery is toggled off
+        setSentinelUrl(null);
+        // Clear NIR and SWIR URLs to free up memory
+        setNirUrl(null);
+        setSwirUrl(null);
+        
+        console.log("Released satellite imagery resources from memory");
       }
     }
   }, [showSatelliteImagery, selectedFire, fires, currentMapExtent, fetchSentinelImagery]);
+  
+  // Effect to handle NBR toggle visibility
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    
+    // Find and handle NBR layers when visibility changes
+    const layers = mapInstanceRef.current.getLayers().getArray();
+    const nbrLayer = layers.find(layer => layer.get('name') === 'NBRLayer');
+    
+    if (!showNBR && nbrLayer) {
+      // Remove NBR layer when toggled off
+      mapInstanceRef.current.removeLayer(nbrLayer);
+      console.log("Removed NBR layer from map");
+      
+      // Release resources when NBR is toggled off
+      if (onNbrLoadingChange) {
+        onNbrLoadingChange(false);
+      }
+    }
+    
+  }, [showNBR, onNbrLoadingChange]);
 
   // Effect to handle fire selection
   useEffect(() => {
