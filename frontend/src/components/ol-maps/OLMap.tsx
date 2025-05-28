@@ -881,7 +881,7 @@ const OLMap: React.FC<OLMapProps> = ({
   }, [selectedFire, fires]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
       <StacMetadataDisplay 
         isVisible={showMetadata}

@@ -1,91 +1,138 @@
 /* NBR Toggle Container */
 .nbr-toggle-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    flex-wrap: wrap;
-  }
-  
-  /* NBR Spinner Container */
-  .nbr-spinner-container {
-    display: flex;
-    align-items: center;
-    margin-left: 12px;
-    animation: fadeIn 0.3s ease-in;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  /* NBR Spinner */
-  .nbr-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(0, 51, 102, 0.2);
-    border-top-color: var(--bcgov-secondary);
-    border-radius: 50%;
-    animation: nbr-spin 1.2s linear infinite;
-    margin-right: 8px;
-  }
-  
-  @keyframes nbr-spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  /* NBR Loading Text */
-  .nbr-loading-text {
-    font-size: 0.85rem;
-    color: var(--bcgov-secondary);
-    font-weight: 500;
-  }
-  
-  /* Enhanced disabled message styling */
-  .bcgov-toggle-disabled-message {
-    margin-top: 6px;
-    width: 100%;
-    text-align: center;
-  }
-  
-  /* Ensure the NBR toggle aligns well with the satellite toggle */
-  .bcgov-satellite-toggle + .bcgov-satellite-toggle {
-    margin-top: 5px;
-  }
-  
-  /* Flame Spinner Container */
-  .flame-spinner-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-  }
-  
-  /* Flame Spinner */
-  .flame-spinner {
-    width: 100px;
-    height: 100px;
-    background: radial-gradient(circle, orange, red);
-    border-radius: 50%;
-    animation: grow-shrink 1.5s infinite ease-in-out;
-  }
-  
-  @keyframes grow-shrink {
-    0%, 100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.5);
-    }
-  }
-  
-  /* Adjusted processing text styling */
-  .processing-text {
-    margin-top: 120px; /* Move text further down to avoid overlap with spinner */
-    color: white;
-    font-weight: bold;
-    text-shadow: 0 0 5px red, 0 0 10px red;
-    text-align: center;
-  }
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  width: 100%;
+}
+
+/* NBR Spinner Container */
+.nbr-spinner-container {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* NBR Spinner */
+.nbr-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 51, 102, 0.2);
+  border-top-color: var(--bcgov-primary);
+  border-radius: 50%;
+  animation: nbr-spin 1s linear infinite;
+  margin-right: 6px;
+}
+
+@keyframes nbr-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* NBR Loading Text */
+.nbr-loading-text {
+  font-size: 0.85rem;
+  color: var(--bcgov-primary);
+  font-weight: 500;
+}
+
+/* Enhanced disabled message styling */
+.bcgov-toggle-disabled-message {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+  padding-left: 26px;
+  font-style: italic;
+}
+
+/* Ensure the NBR toggle aligns well with the satellite toggle */
+.bcgov-satellite-toggle + .bcgov-satellite-toggle {
+  margin-top: 12px;
+}
+
+/* Flame Spinner Container */
+.flame-spinner-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  text-align: center;
+}
+
+/* Flame Spinner */
+.flame-spinner {
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, #ff7300, #ff0000);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(255, 115, 0, 0.5);
+  animation: grow-shrink 1.5s infinite ease-in-out;
+}
+
+@keyframes grow-shrink {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* Adjusted processing text styling */
+.processing-text {
+  margin-top: 20px;
+  color: white;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(255, 0, 0, 0.8);
+  font-size: 16px;
+}
+
+/* Checkbox styling */
+.bcgov-satellite-toggle input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--bcgov-primary);
+  border-radius: 3px;
+  margin-right: 8px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bcgov-satellite-toggle input[type="checkbox"]:checked {
+  background-color: var(--bcgov-primary);
+}
+
+.bcgov-satellite-toggle input[type="checkbox"]:checked::after {
+  content: "✓";
+  color: white;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+}
+
+.bcgov-satellite-toggle input[type="checkbox"]:disabled {
+  border-color: #ccc;
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* Label styling */
+.bcgov-satellite-toggle-label {
+  font-size: 14px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+}
+
+input[type="checkbox"]:disabled + .bcgov-satellite-toggle-label {
+  color: #999;
+  cursor: not-allowed;
+}

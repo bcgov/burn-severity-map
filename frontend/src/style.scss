@@ -1,22 +1,237 @@
+// Import external dependencies
 @import '~leaflet/dist/leaflet.css';
 @import '~@bcgov/bc-sans/css/BCSans.css';
+@import '~ol/ol.css';
 
-html, body {
-  font-family: 'BCSans', sans-serif;
+// CSS Custom Properties (Variables)
+:root {
+  // Colors
+  --bcgov-primary: #003366;
+  --bcgov-secondary: #002142;
+  --bcgov-accent: #fcba19;
+  --bcgov-link: #1a5a96;
+  --bcgov-text: #313132;
+  --bcgov-background: #f2f2f2;
+  
+  // Layout
+  --bcgov-header-height: 65px;
+  --bcgov-footer-height: 46px;
+  
+  // Shadows
+  --bcgov-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --bcgov-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.15);
+  --bcgov-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
+  
+  // Border radius
+  --bcgov-radius-sm: 3px;
+  --bcgov-radius-md: 4px;
+  --bcgov-radius-lg: 8px;
+}
+
+// Reset and base styles
+html, body, #root, #app {
   margin: 0;
+  padding: 0;
+  width: 100%;
   height: 100%;
-  min-height: 100%;
-  background: #f5f5f5;
 }
 
 body {
+  font-family: 'BCSans', 'Noto Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--bcgov-text);
+  background: var(--bcgov-background);
+  overflow: hidden;
+}
+
+// Root layout
+#root, #app {
   display: flex;
   flex-direction: column;
 }
 
-#app {
+// Header & Footer
+.bcgov-header {
+  flex: 0 0 auto;
+  height: var(--bcgov-header-height);
+  z-index: 100;
+}
+
+.bcgov-footer {
+  flex: 0 0 auto;
+  height: var(--bcgov-footer-height);
+  z-index: 100;
+}
+
+// Special case for hiding footer on map page but preserving layout
+.bcgov-footer-map-page {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+// Main content area
+.bcgov-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  height: calc(100vh - var(--bcgov-header-height) - var(--bcgov-footer-height));
+}
+
+// Map page specific styling
+.bcgov-main-map-page {
+  height: calc(100vh - var(--bcgov-header-height));
+}
+
+// App Container
+.App {
   height: 100%;
-  min-height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+// Three-column layout
+.app-layout {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+// Links
+a {
+  color: var(--bcgov-link);
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// OpenLayers map styles
+.ol-map {
+  width: 100%;
+  height: 100%;
+}
+
+// OpenLayers controls
+.ol-control {
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: var(--bcgov-radius-md);
+  padding: 2px;
+
+  button {
+    background-color: var(--bcgov-primary) !important;
+    color: white;
+    border: none;
+    margin: 1px;
+    border-radius: var(--bcgov-radius-sm);
+    transition: background-color 0.2s ease;
+
+    &:hover,
+    &:focus {
+      background-color: var(--bcgov-secondary) !important;
+    }
+  }
+}
+
+.ol-attribution {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: var(--bcgov-radius-md);
+}
+
+// Utility classes
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Fire Selector Styles */
+.bcgov-fire-selector {
+  position: relative;
+  width: 100%;
+  
+  &-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: fit-content;
+    min-width: 100%;
+    max-height: 300px;
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    overflow-y: auto;
+  }
+
+  &-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+
+    &:hover {
+      background-color: rgba(0, 51, 102, 0.1);
+    }
+
+    &.selected {
+      background-color: var(--bcgov-primary);
+      color: white;
+
+      &:hover {
+        background-color: var(--bcgov-secondary);
+      }
+    }
+  }
+}
+
+/* Toggle Styles */
+.bcgov-satellite-toggle {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  input[type="checkbox"] {
+    margin-right: 8px;
+  }
+
+  &-label {
+    font-size: 14px;
+    color: #444;
+    cursor: pointer;
+    user-select: none;
+  }
+}
+
+/* Toggle when disabled */
+input[type="checkbox"]:disabled + .bcgov-satellite-toggle-label {
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* Toggle container */
+.nbr-toggle-container {
+  margin: 10px 0;
+  padding: 5px 0;
 }

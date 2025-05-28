@@ -1,4 +1,5 @@
 import React from 'react';
+import './Selectors.scss';
 
 interface BasemapSelectorProps {
   selectedBasemap: string;
