@@ -118,7 +118,11 @@ uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 4. **Install front end dependencies**
 ```bash
+<<<<<<< HEAD
 npm install 
+=======
+npm install --legacy-peer-deps
+>>>>>>> c117813b (Update README.md)
 ```
 
 5. **Start the development server**
