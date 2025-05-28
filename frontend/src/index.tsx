@@ -10,6 +10,7 @@ import { PageHeader, PageFooter } from "./components/bcgov-components";
 // Import the two main pages of the app
 import LandingPage from "./pages/LandingPage";
 import MapPage from "./pages/MapPage";
+import NBRMap from "./pages/NBRMap";
 
 // Get the root HTML element where the React app will be mounted
 const appElement = document.getElementById("app"); 
@@ -29,6 +30,9 @@ if (appElement) {
 
         {/* Map page route */}
         <Route path="/map" element={<MapPage />} />
+
+        {/* NBR Map route */}
+        <Route path="/nbr" element={<NBRMap />} />
       </Routes>
 
       {/* BCGov-branded page footer */}

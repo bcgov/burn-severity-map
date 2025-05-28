@@ -1,0 +1,91 @@
+/* NBR Toggle Container */
+.nbr-toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  /* NBR Spinner Container */
+  .nbr-spinner-container {
+    display: flex;
+    align-items: center;
+    margin-left: 12px;
+    animation: fadeIn 0.3s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* NBR Spinner */
+  .nbr-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0, 51, 102, 0.2);
+    border-top-color: var(--bcgov-secondary);
+    border-radius: 50%;
+    animation: nbr-spin 1.2s linear infinite;
+    margin-right: 8px;
+  }
+  
+  @keyframes nbr-spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  /* NBR Loading Text */
+  .nbr-loading-text {
+    font-size: 0.85rem;
+    color: var(--bcgov-secondary);
+    font-weight: 500;
+  }
+  
+  /* Enhanced disabled message styling */
+  .bcgov-toggle-disabled-message {
+    margin-top: 6px;
+    width: 100%;
+    text-align: center;
+  }
+  
+  /* Ensure the NBR toggle aligns well with the satellite toggle */
+  .bcgov-satellite-toggle + .bcgov-satellite-toggle {
+    margin-top: 5px;
+  }
+  
+  /* Flame Spinner Container */
+  .flame-spinner-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+  }
+  
+  /* Flame Spinner */
+  .flame-spinner {
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, orange, red);
+    border-radius: 50%;
+    animation: grow-shrink 1.5s infinite ease-in-out;
+  }
+  
+  @keyframes grow-shrink {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.5);
+    }
+  }
+  
+  /* Adjusted processing text styling */
+  .processing-text {
+    margin-top: 120px; /* Move text further down to avoid overlap with spinner */
+    color: white;
+    font-weight: bold;
+    text-shadow: 0 0 5px red, 0 0 10px red;
+    text-align: center;
+  }

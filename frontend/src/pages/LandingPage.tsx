@@ -8,6 +8,7 @@ const LandingPage = () => {
     <div className="home-container">
       {/* Link to navigate to the map page without a full page reload */}
       <Link to="/map">Go to Map</Link>
+      <Link to="/nbr">Burn Severity Analysis</Link>
     </div>
   );
 };
