@@ -25,6 +25,7 @@ function NBRMap() {
   const [showNBR, setShowNBR] = useState<boolean>(false);
   const [isNBRLoading, setIsNBRLoading] = useState<boolean>(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState<boolean>(false);
+  const [fireProperties, setFireProperties] = useState<any | null>(null); // Add state for fire properties
 
   const handleBasemapChange = (newBasemap: string) => {
     setBasemap(newBasemap);
@@ -36,11 +37,17 @@ function NBRMap() {
 
   const handleFireSelect = (fireNumber: string | null) => {
     setSelectedFire(fireNumber);
-    // Reset satellite imagery and NBR when fire changes
+    // Reset other states when fire changes
     if (fireNumber !== selectedFire) {
       setShowSatelliteImagery(false);
       setShowNBR(false);
+      setFireProperties(null); // Reset fire properties when fire selection changes
     }
+  };
+  
+  // New handler for receiving fire properties
+  const handleFireProperties = (properties: any | null) => {
+    setFireProperties(properties);
   };
 
   const handleSatelliteToggle = () => {
@@ -121,12 +128,8 @@ function NBRMap() {
           <div className="bcgov-map-legend">
             <h3>Legend</h3>
             <div className="bcgov-legend-item">
-              <div className="bcgov-legend-symbol" style={{ backgroundColor: 'red' }}></div>
-              <span>Active Wildfires</span>
-            </div>
-            <div className="bcgov-legend-item">
-              <div className="bcgov-legend-symbol" style={{ backgroundColor: 'yellow' }}></div>
-              <span>Selected Fire</span>
+              <div className="bcgov-legend-symbol bcgov-fire-perimeter-symbol"></div>
+              <span>Active Wildfire Perimeters</span>
             </div>
             {showSatelliteImagery && (
               <div className="bcgov-legend-item">
@@ -189,6 +192,7 @@ function NBRMap() {
               showSatelliteImagery={showSatelliteImagery}
               showNBR={showNBR}
               onNbrLoadingChange={handleNBRLoadingChange}
+              onFireSelect={handleFireProperties} // Add the new callback
             />
           </div>
           
@@ -198,13 +202,41 @@ function NBRMap() {
           </div>
         </div>
 
-        {/* Right Panel - Fire Details (currently blank) */}
+        {/* Right Panel - Fire Details (updated) */}
         <div className="right-panel">
           <h3>Fire Details</h3>
-          {selectedFire ? (
+          {selectedFire && fireProperties ? (
             <div className="fire-details-content">
-              <p>Details for fire <strong>{selectedFire}</strong> will be displayed here.</p>
-              {/* Future fire details content will go here */}
+              <table className="fire-details-table">
+                <tbody>
+                  <tr>
+                    <th>Fire Number</th>
+                    <td>{fireProperties.FIRE_NUMBER || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <th>Fire Status</th>
+                    <td>{fireProperties.FIRE_STATUS || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <th>Fire Size (ha)</th>
+                    <td>{fireProperties.FIRE_SIZE_HECTARES ? fireProperties.FIRE_SIZE_HECTARES.toFixed(2) : 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <th>Fire URL</th>
+                    <td>
+                      {fireProperties.FIRE_URL ? (
+                        <a href={fireProperties.FIRE_URL} target="_blank" rel="noopener noreferrer">
+                          View Fire Info
+                        </a>
+                      ) : 'N/A'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Load Date</th>
+                    <td>{fireProperties.LOAD_DATE || 'N/A'}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="no-fire-selected">
