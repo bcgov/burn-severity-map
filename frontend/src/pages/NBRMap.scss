@@ -336,6 +336,51 @@
     p {
       margin-bottom: 15px;
     }
+    
+    .fire-details-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      
+      th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      
+      th {
+        width: 40%;
+        background-color: #f7f7f7;
+        color: var(--bcgov-primary);
+        font-weight: 600;
+        font-size: 14px;
+      }
+      
+      td {
+        font-size: 14px;
+        
+        a {
+          color: var(--bcgov-link);
+          text-decoration: none;
+          
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+      
+      tr:last-child {
+        th, td {
+          border-bottom: none;
+        }
+      }
+      
+      tr:hover {
+        background-color: #f9f9f9;
+      }
+    }
   }
 }
 
@@ -403,6 +448,12 @@
       height: 20px;
       margin-right: 10px;
       border-radius: 4px;
+    }
+    
+    /* Specific style for fire perimeter symbol - hollow with red outline */
+    .bcgov-fire-perimeter-symbol {
+      background-color: transparent;
+      border: 2px solid #ff0000;
     }
 
     span {

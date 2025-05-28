@@ -115,6 +115,7 @@ interface OLMapProps {
   visualCogUrl?: string | null;
   stacItemUrl?: string | null;
   onNbrLoadingChange?: (loading: boolean) => void;
+  onFireSelect?: (fireProperties: any | null) => void; // Add new callback prop
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -127,7 +128,8 @@ const OLMap: React.FC<OLMapProps> = ({
   showNBR = false,
   visualCogUrl = null,
   stacItemUrl = null,
-  onNbrLoadingChange
+  onNbrLoadingChange,
+  onFireSelect // Destructure the new prop
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
@@ -760,6 +762,11 @@ const OLMap: React.FC<OLMapProps> = ({
             }
             console.log('OpenLayers Geometry:', selectedFireObj.olGeometry);
             console.log('All Properties:', selectedFireObj.properties);
+            
+            // Pass fire properties to parent component if callback exists
+            if (onFireSelect && selectedFireObj.properties) {
+              onFireSelect(selectedFireObj.properties);
+            }
 
             // Print the CQL filter we're about to use
             console.log('CQL Filter:', `FIRE_NUMBER='${selectedFire}'`);
