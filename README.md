@@ -62,7 +62,7 @@ cd burn-severity-map/frontend
 
 2. **Install dependencies**
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
 2. **Start the development server**
