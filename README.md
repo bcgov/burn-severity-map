@@ -93,7 +93,7 @@ npm install --legacy-peer-deps
 
 5. **Start the development server**
 ```bash
-npm run dev
+npm start dev
 ```
 
 ## 🧭 Usage
