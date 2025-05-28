@@ -19,6 +19,80 @@
   }
 }
 
+// Toggle Switch Styles
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  margin-right: 10px;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+
+    &:checked + .toggle-slider {
+      background-color: var(--bcgov-primary, #003366);
+
+      &:before {
+        transform: translateX(26px);
+      }
+    }
+
+    &:focus + .toggle-slider {
+      box-shadow: 0 0 1px var(--bcgov-primary, #003366);
+    }
+
+    &:disabled + .toggle-slider {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.4s;
+    border-radius: 34px;
+
+    &:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+  }
+}
+
+.toggle-container {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+
+  &.disabled {
+    color: #999;
+    cursor: not-allowed;
+  }
+}
+
 // Fire Selector
 .bcgov-fire-selector {
   width: 100%;
@@ -58,7 +132,7 @@
     padding: 8px 12px;
     background: white;
     cursor: pointer;
-    
+
     &:hover {
       background: #f5f5f5;
     }
@@ -86,7 +160,7 @@
     cursor: pointer;
     transition: background-color 0.2s ease;
     font-size: 14px;
-    
+
     &:hover {
       background-color: rgba(0, 51, 102, 0.05);
     }
@@ -131,7 +205,7 @@
   display: flex;
   align-items: center;
   margin-bottom: 8px;
-  
+
   input[type="radio"] {
     appearance: none;
     -webkit-appearance: none;

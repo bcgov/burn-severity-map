@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import './NBRToggle.css'; // We'll create this CSS file next
+import './NBRToggle.css'; // Keep the existing CSS for spinner and loading states
+import './Selectors.scss'; // Add the import for the toggle switch styles
 
 interface NBRToggleProps {
   isActive: boolean;
@@ -14,30 +15,31 @@ const NBRToggle: React.FC<NBRToggleProps> = ({
   isLoading = false,
   disabled = false
 }) => {
-  const [isNBRCalculated, setIsNBRCalculated] = useState(false); // Track if NBR is already calculated
+  const [isNBRCalculated, setIsNBRCalculated] = useState(false);
 
   const handleToggle = () => {
     if (!isNBRCalculated) {
-      onToggle(); // Trigger the calculation only once
+      onToggle();
       setIsNBRCalculated(true);
     }
   };
 
   return (
-    <div className="bcgov-satellite-toggle">
-      <div className="nbr-toggle-container">
+    <div className="toggle-container">
+      <label className="toggle-switch">
         <input 
           type="checkbox"
           id="nbr-toggle"
           checked={isActive}
-          onChange={handleToggle} // Use the new handler
+          onChange={handleToggle}
           disabled={disabled || isLoading}
           aria-label="Toggle NBR Visualization"
         />
-        <label htmlFor="nbr-toggle" className="bcgov-satellite-toggle-label">
-          Normalized Burn Ratio
-        </label>
-      </div>
+        <span className="toggle-slider"></span>
+      </label>
+      <span className={`toggle-label ${disabled ? 'disabled' : ''}`}>
+        Normalized Burn Ratio
+      </span>
       
       {disabled && !isLoading && (
         <div className="bcgov-toggle-disabled-message">
