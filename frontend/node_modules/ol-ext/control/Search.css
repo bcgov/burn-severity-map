@@ -1,0 +1,358 @@
+.ol-search{
+  top: 0.5em;
+  left: 3em;
+}
+.ol-touch .ol-search {
+  left: 3.5em;
+}
+.ol-search button {
+  top: 2px;
+  left: 2px;
+  float: left;
+}
+.ol-control.ol-search > button:before {
+  content: "";
+  position: absolute;
+  box-sizing: border-box;
+  width: .7em;
+  height: .7em;
+  background-color: transparent;
+  border: .12em solid currentColor;
+  border-radius: 100%;
+  top: .35em;
+  left: .35em;
+}
+.ol-control.ol-search > button:after {
+  content: "";
+  position: absolute;
+  top: 1.1em;
+  left: .95em;
+  width: .45em;
+  height: .15em;
+  background-color: currentColor;
+  border-radius: .05em;
+  transform: rotate(45deg);
+  box-shadow: -0.18em 0 0 -0.03em;
+}
+
+.ol-search button.ol-revers {
+  float: none;
+  background-image: none;
+  display: inline-block;
+  vertical-align: bottom;
+  position: relative;
+  top: 0;
+  left: 0;
+}
+.ol-search.ol-revers button.ol-revers {
+  background-color: rgba(0,136,60,.5)
+}
+
+.ol-control.ol-search.ol-collapsed button.ol-revers {
+  display: none;
+}
+.ol-search button.ol-revers:before {
+  content: "";
+  border: .1em solid currentColor;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  border-radius: 50%;
+  width: .55em;
+  height: .55em;
+  box-sizing: border-box;
+}
+.ol-search button.ol-revers:after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  width: .2em;
+  height: .2em;
+  background-color: transparent;
+  box-shadow: .35em 0 currentColor, 0 .35em currentColor, -.35em 0 currentColor, 0 -.35em currentColor;
+}
+
+.ol-search input {
+  display: inline-block;
+  border: 0;
+  margin: 1px 1px 1px 2px;
+  font-size: 1.14em;
+  padding-left: 0.3em;
+  height: 1.375em;
+  box-sizing: border-box;
+  transition: all 0.1s;
+}
+.ol-touch .ol-search input,
+.ol-touch .ol-search ul {
+  font-size: 1.5em;
+}
+.ol-search.ol-revers > ul,
+.ol-control.ol-search.ol-collapsed > * {
+  display: none;
+}
+.ol-control.ol-search.ol-collapsed > button {
+  display: block;
+}
+
+.ol-search ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: block;
+  clear: both;
+  cursor: pointer;
+  max-width: 17em;
+  overflow-x: hidden;
+  z-index: 1;
+  background: #fff;
+}
+/*
+.ol-control.ol-search ul {
+  position: absolute;
+  box-shadow: 5px 5px 5px rgba(0,0,0,0.5);
+}
+*/
+.ol-search ul li {
+  padding: 0.1em 0.5em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ol-search ul li.select,
+.ol-search ul li:hover {
+  background-color: rgba(0,60,136,.5);
+  color: #fff;
+}
+.ol-search ul li img {
+  float: left;
+  max-height: 2em;
+}
+.ol-search li.copy {
+    background: rgba(0,0,0,.5);
+  color: #fff;
+}
+.ol-search li.copy a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.ol-search.searching:before {
+  content: '';
+  position: absolute;
+  height: 3px;
+  left: 0;
+  top: 1.6em;
+  animation: pulse .5s infinite alternate linear;
+  background: red;
+  z-index: 2;
+}
+
+@keyframes pulse {
+  0% { left:0; right: 95%; }
+  50% {	left: 30%; right: 30%; }
+  100% {	left: 95%; right: 0; }
+}
+
+
+.ol-control.ol-search.IGNF-parcelle {
+  background-color: rgba(255,255,255,.7);
+  padding-bottom: .2em;
+}
+.ol-search.IGNF-parcelle input {
+  width: 14.5em;
+}
+.ol-search.IGNF-parcelle input:read-only {
+  background: #ccc;
+  opacity: .8;
+}
+.ol-search.IGNF-parcelle.ol-collapsed-list > ul.autocomplete {
+  display: none;
+}
+
+.ol-search.IGNF-parcelle label {
+  display: block;
+  clear: both;
+}
+
+.ol-search.IGNF-parcelle > div input {
+  text-align: right;
+}
+.ol-search.IGNF-parcelle > div input,
+.ol-search.IGNF-parcelle > div label {
+  width: 4em;
+  box-sizing: border-box;
+  display: inline-block;
+  margin: .1em;
+  font-size: 1em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ol-search.IGNF-parcelle > div label {
+  letter-spacing: -0.04em;
+}
+.ol-search.IGNF-parcelle ul.autocomplete-page {
+  margin-top:.5em;
+  width:100%;
+  text-align: center;
+  display: none;
+}
+.ol-search.IGNF-parcelle.ol-collapsed-list ul.autocomplete-parcelle,
+.ol-search.IGNF-parcelle.ol-collapsed-list ul.autocomplete-page {
+  display: block;
+}
+.ol-search.IGNF-parcelle.ol-collapsed ul.autocomplete-page,
+.ol-search.IGNF-parcelle.ol-collapsed ul.autocomplete-parcelle,
+.ol-search.IGNF-parcelle ul.autocomplete-parcelle {
+  display: none;
+}
+.ol-search.IGNF-parcelle ul.autocomplete-page li {
+  display: inline-block;
+  color: #fff;
+  background: rgba(0,60,136,.5);
+  border-radius: 50%;
+  width: 1.3em;
+  height: 1.3em;
+  padding: .1em;
+  margin: 0 .1em;
+}
+.ol-search.IGNF-parcelle ul.autocomplete-page li.selected {
+  background: rgba(0,60,136,1);
+}
+
+/* GPS */
+.ol-searchgps input.search,
+.ol-searchcoord input.search {
+  display: none;
+}
+.ol-control.ol-searchgps > button:first-child,
+.ol-control.ol-searchcoord > button:first-child {
+  background-image: none;
+}
+.ol-control.ol-searchgps > button:first-child:before,
+.ol-control.ol-searchcoord > button:first-child:before {
+  content: "x/y";
+  position: unset;
+  display: block;
+  transform: scaleX(.8);
+  border: unset;
+  border-radius: 0;
+  width: auto;
+  height: auto;
+}
+.ol-control.ol-searchgps > button:first-child:after,
+.ol-control.ol-searchcoord > button:first-child:after {
+  content: unset;
+}
+.ol-control.ol-searchgps .ol-latitude,
+.ol-control.ol-searchgps .ol-longitude,
+.ol-control.ol-searchcoord .ol-latitude,
+.ol-control.ol-searchcoord .ol-longitude {
+  clear: both;
+}
+.ol-control.ol-searchgps .ol-latitude label,
+.ol-control.ol-searchgps .ol-longitude label,
+.ol-control.ol-searchcoord .ol-latitude label,
+.ol-control.ol-searchcoord .ol-longitude label {
+  width: 5.5em;
+  display: inline-block;
+  text-align: right;
+  transform: scaleX(.8);
+  margin: 0 -.8em 0 0;
+  transform-origin: 0 0;
+}
+.ol-control.ol-searchcoord .ol-latitude label,
+.ol-control.ol-searchcoord .ol-longitude label {
+  width: 2em;
+  margin: 0;
+}
+.ol-control.ol-searchgps .ol-latitude input,
+.ol-control.ol-searchgps .ol-longitude input {
+  max-width: 10em;
+}
+
+.ol-control.ol-searchgps .ol-ext-toggle-switch {
+  cursor: pointer;
+  float: right;
+  margin: .5em;
+  font-size: .9em;
+}
+
+.ol-searchgps .ol-decimal{
+  display: inline-block;
+  margin-right: .7em;
+}
+.ol-searchgps .ol-dms,
+.ol-searchgps.ol-dms .ol-decimal {
+  display: none;
+  width: 3em;
+  text-align: right;
+}
+.ol-searchgps.ol-dms .ol-dms {
+  display: inline-block;
+}
+
+.ol-searchgps span.ol-dms {
+  width: .5em;
+  text-align: left;
+}
+.ol-searchgps.ol-control.ol-collapsed button.ol-geoloc,
+.ol-searchgps.ol-control.ol-collapsed button.ol-centerloc,
+.ol-searchcoord.ol-control.ol-collapsed button.ol-centerloc,
+.ol-searchcoord.ol-control.ol-collapsed button.ol-geoloc {
+  display: none;
+}
+.ol-searchgps button.ol-geoloc,
+.ol-searchgps button.ol-centerloc,
+.ol-searchcoord button.ol-centerloc,
+.ol-searchcoord button.ol-geoloc {
+  top: 0;
+  float: right;
+  margin-right: 3px;
+  background-image: none;
+  position: relative;
+}
+.ol-searchgps button.ol-geoloc:before,
+.ol-searchcoord button.ol-geoloc:before {
+  content:"";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: .6em;
+  height: .6em;
+  border: .1em solid currentColor;
+  border-radius: 50%;
+  transform: translate(-50%,-50%);
+}
+.ol-searchgps button.ol-geoloc:after,
+.ol-searchcoord button.ol-geoloc:after {
+  content:"";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: .2em;
+  height: .2em;
+  background-color: transparent;
+  transform: translate(-50%,-50%);
+  box-shadow: 
+    .45em 0 currentColor, -.45em 0 currentColor, 0 -.45em currentColor, 0 .45em currentColor,
+    .25em 0 currentColor, -.25em 0 currentColor, 0 -.25em currentColor, 0 .25em currentColor;
+}
+
+.ol-searchgps button.ol-centerloc:before,
+.ol-searchcoord button.ol-centerloc:before {
+  content: "📍";
+  border: 0;
+  width: auto;
+  height: auto;
+  padding: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.ol-searchgps button.ol-centerloc:after,
+.ol-searchcoord button.ol-centerloc:after {
+  display: none;
+}

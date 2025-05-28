@@ -1,0 +1,118 @@
+.ol-input-slider {
+  display: inline-block;
+  position: relative;
+}
+.ol-input-slider .ol-popup {
+  position: absolute;
+  box-shadow: 1px 1px 3px 1px #999;
+  background-color: #fff;
+  z-index: 1;
+  display: none;
+  left: -5px;
+}
+.ol-input-slider.ol-right .ol-popup {
+  left: auto;
+  right: -5px;
+}
+.ol-input-slider.ol-hover:hover .ol-popup,
+.ol-input-slider.ol-focus .ol-popup {
+  display: block;
+  white-space: nowrap;
+}
+.ol-input-slider.ol-hover:hover .ol-popup > *,
+.ol-input-slider.ol-focus .ol-popup > * {
+  display: inline-block;
+  vertical-align: middle;
+}
+.ol-input-slider.ol-hover:hover .ol-popup > .ol-before,
+.ol-input-slider.ol-focus .ol-popup > .ol-before {
+  margin-left: 10px;
+}
+.ol-input-slider.ol-hover:hover .ol-popup > .ol-after,
+.ol-input-slider.ol-focus .ol-popup > .ol-after {
+  margin-right: 10px;
+}
+.ol-input-slider .ol-slider {
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  width: 100px;
+  height: 3px;
+  border: 0 solid transparent;
+  border-width: 10px 15px;
+  box-shadow: inset 0 0 0 1px #999;
+  box-sizing: content-box;
+  cursor: pointer;
+}
+
+.ol-input-slider .ol-slider > .ol-cursor {
+  position: absolute;
+  width: 5px;
+  height: 10px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #999;
+  pointer-events: none;
+}
+.ol-input-range .ol-slider {
+  cursor: default;
+  width: 150px;
+}
+.ol-input-range .ol-slider > .ol-cursor {
+  pointer-events: all;
+  cursor: pointer;
+  width: 10px;
+  border-radius: 50%;
+  background-color: rgb(0,60,136);
+}
+.ol-input-range.ol-moving .ol-slider > .ol-cursor {
+  pointer-events: none;
+}
+.ol-input-range .ol-slider > .ol-back {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 30%;
+  right: 20%;
+  height: 100%;
+  background-color: rgb(0,60,136);
+  pointer-events: none;
+}
+
+.ol-input-slider.ol-fixed:hover .ol-popup,
+.ol-input-slider.ol-fixed .ol-popup {
+  position: relative;
+  left: 0;
+  box-shadow: unset;
+  background-color: transparent;
+  display: inline-block;
+  vertical-align: middle;
+}
+.ol-input-slider.ol-fixed.ol-left .ol-popup {
+  float: left;
+}
+
+/* Grow */
+.ol-input-slider.ol-size .ol-slider {
+  height: auto;
+  box-shadow: none;
+}
+.ol-input-slider.ol-size .ol-slider .ol-back {
+  width: 0;
+  color: #aaa;
+  border: 0 solid transparent;
+  border-width: 0 0 20px 100px;
+  border-color: currentColor transparent;
+  pointer-events: none;
+}
+
+.ol-input-slider.ol-size .ol-slider > .ol-cursor {
+  width: 2px;
+  height: calc(100% + 4px);
+  border-width: 5px 3px;
+  border-style: solid;
+  border-color: #f00 transparent;
+  border-image: initial;
+  background-color: transparent;
+  box-shadow: inset 3px 0px #f00;
+}
