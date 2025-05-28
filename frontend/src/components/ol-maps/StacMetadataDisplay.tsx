@@ -36,8 +36,8 @@ const StacMetadataDisplay: React.FC<StacMetadataDisplayProps> = ({
     <div
       style={{
         position: 'absolute',
-        bottom: '10px',
-        left: '10px',
+        bottom: '45px', // Changed from 10px to 45px to move it up
+        right: '10px',
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
         color: 'white',
         padding: '10px',
