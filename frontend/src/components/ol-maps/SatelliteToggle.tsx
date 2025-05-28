@@ -1,4 +1,5 @@
 import React from 'react';
+import './Selectors.scss';
 
 interface SatelliteToggleProps {
   isActive: boolean;
@@ -7,17 +8,20 @@ interface SatelliteToggleProps {
 
 const SatelliteToggle: React.FC<SatelliteToggleProps> = ({ isActive, onToggle }) => {
   return (
-    <div className="bcgov-satellite-toggle">
-      <input 
-        type="checkbox" 
-        id="satellite-toggle"
-        checked={isActive} 
-        onChange={onToggle}
-        aria-label="Toggle Sentinel Imagery"
-      />
-      <label htmlFor="satellite-toggle" className="bcgov-satellite-toggle-label">
-        Sentinel Imagery
+    <div className="toggle-container">
+      <label className="toggle-switch">
+        <input 
+          type="checkbox" 
+          id="satellite-toggle"
+          checked={isActive} 
+          onChange={onToggle}
+          aria-label="Toggle Sentinel Imagery"
+        />
+        <span className="toggle-slider"></span>
       </label>
+      <span className="toggle-label">
+        Sentinel Imagery
+      </span>
     </div>
   );
 };
