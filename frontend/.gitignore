@@ -1,9 +1,9 @@
 # Dependencies
-**/node_modules/
+node_modules/
 
 # Production build files
-**/build/
-**/dist/
+/build
+/dist
 
 # Environment files
 .env
