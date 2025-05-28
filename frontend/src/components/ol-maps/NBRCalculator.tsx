@@ -176,9 +176,14 @@ const NBRCalculator: React.FC<NBRCalculatorProps> = ({
   
   // Reset state when inputs change
   useEffect(() => {
-    setIsNBRProcessed(false);
-    setCalculationKey(null);
-  }, [nirUrl, swirUrl, extent]);
+    // Only reset state when the URLs or initial extent change
+    // Not when current view extent changes during pan/zoom
+    if (nirUrl !== null || swirUrl !== null) {
+      setIsNBRProcessed(false);
+      setCalculationKey(null);
+      setCalculationProgress(0);
+    }
+  }, [nirUrl, swirUrl]);
   
   // Cleanup function for Web Worker
   const cleanupWorker = useCallback(() => {
@@ -337,8 +342,9 @@ const NBRCalculator: React.FC<NBRCalculatorProps> = ({
       return;
     }
 
-    // Create a unique key for this calculation to avoid duplicates
-    const currentKey = `${nirUrl}-${swirUrl}-${extent.join(',')}`;
+    // Create a unique key for this calculation using only the URLs
+    // Don't include the extent in the calculation key to prevent recalculation on pan/zoom
+    const currentKey = `${nirUrl}-${swirUrl}`;
     
     // Check cache first
     if (cacheRef.current && cacheRef.current.key === currentKey) {
@@ -364,6 +370,7 @@ const NBRCalculator: React.FC<NBRCalculatorProps> = ({
       return;
     }
 
+    console.log('Starting new NBR calculation with extent:', extent);
     setCalculationKey(currentKey);
     setIsNBRProcessed(true);
     setCalculationProgress(0);

@@ -156,8 +156,12 @@ const OLMap: React.FC<OLMapProps> = ({
     assetType: null
   });
   
+  // Store two separate extents: one for the current view and one for calculation
   const moveEndListenerRef = useRef<EventsKey | null>(null);
   const [currentMapExtent, setCurrentMapExtent] = useState<number[] | null>(null);
+  // New ref and state to store the NBR calculation extent separately
+  const initialNbrExtentRef = useRef<number[] | null>(null);
+  const [nbrCalculationExtent, setNbrCalculationExtent] = useState<number[] | null>(null);
   const [showMetadata, setShowMetadata] = useState<boolean>(false);
 
   // Use a ref to store the image cache
@@ -746,7 +750,15 @@ const OLMap: React.FC<OLMapProps> = ({
     const layers = mapInstanceRef.current.getLayers().getArray();
     const nbrLayer = layers.find(layer => layer.get('name') === 'NBRLayer');
     
-    if (!showNBR && nbrLayer) {
+    if (showNBR && nirUrl && swirUrl) {
+      // When NBR is toggled ON and we have the necessary URLs
+      // Store the current extent as the calculation extent only if we don't have one yet
+      if (!initialNbrExtentRef.current && currentMapExtent) {
+        console.log('Storing initial NBR calculation extent:', currentMapExtent);
+        initialNbrExtentRef.current = [...currentMapExtent];
+        setNbrCalculationExtent([...currentMapExtent]);
+      }
+    } else if (!showNBR && nbrLayer) {
       // Remove NBR layer when toggled off
       mapInstanceRef.current.removeLayer(nbrLayer);
       console.log("Removed NBR layer from map");
@@ -755,9 +767,18 @@ const OLMap: React.FC<OLMapProps> = ({
       if (onNbrLoadingChange) {
         onNbrLoadingChange(false);
       }
+      
+      // Don't reset the calculation extent - we want to keep it for when NBR is toggled on again
     }
     
-  }, [showNBR, onNbrLoadingChange]);
+  }, [showNBR, nirUrl, swirUrl, currentMapExtent, onNbrLoadingChange]);
+
+  // Reset NBR calculation extent when fire or imagery changes
+  useEffect(() => {
+    // When the selected fire or imagery changes, we want to reset the NBR calculation extent
+    initialNbrExtentRef.current = null;
+    setNbrCalculationExtent(null);
+  }, [selectedFire, sentinelUrl]);
 
   // Effect to handle fire selection
   useEffect(() => {
@@ -930,12 +951,12 @@ const OLMap: React.FC<OLMapProps> = ({
         assetType={imageMetadata.assetType}
       />
       
-      {/* Add NBRCalculator component */}
+      {/* Add NBRCalculator component with fixed calculation extent */}
       <NBRCalculator
         mapInstance={mapInstanceRef.current}
         nirUrl={nirUrl}
         swirUrl={swirUrl}
-        extent={currentMapExtent}
+        extent={nbrCalculationExtent || currentMapExtent} // Use the stored calculation extent if available
         visible={showNBR && !!nirUrl && !!swirUrl}
         onLoadingChange={onNbrLoadingChange}
       />
