@@ -336,49 +336,6 @@
     p {
       margin-bottom: 15px;
     }
-    
-    /* Fire details table styles */
-    .fire-details-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-      margin-bottom: 20px;
-      
-      th, td {
-        padding: 8px 10px;
-        text-align: left;
-        border-bottom: 1px solid #eee;
-      }
-      
-      th {
-        font-weight: 600;
-        color: #333;
-        width: 40%;
-      }
-      
-      td {
-        color: #555;
-        
-        a {
-          color: var(--bcgov-primary, #003366);
-          text-decoration: none;
-          
-          &:hover {
-            text-decoration: underline;
-          }
-        }
-      }
-      
-      tr:last-child {
-        th, td {
-          border-bottom: none;
-        }
-      }
-      
-      tr:hover {
-        background-color: rgba(0, 51, 102, 0.05);
-      }
-    }
   }
 }
 
