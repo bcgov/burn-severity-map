@@ -57,15 +57,31 @@ charts/                          # Helm deployment charts
 
 ```bash
 git clone https://github.com/bcgov/burn-severity-map.git
-cd burn-severity-map/frontend
+cd burn-severity-map
 ```
 
-2. **Install dependencies**
+2. **Modify environemnt .env**
+```bash
+cp .env-example .env
+# modify env if needed 
+```
+
+3. **Start the backend and database containers**
+```bash
+docker-compose up backend db-service
+```
+your backend api should be at 
+http://localhost:8000
+Interactive API documentation:
+http://localhost:8000/docs
+
+
+4. **Install front end dependencies**
 ```bash
 npm install
 ```
 
-2. **Start the development server**
+5. **Start the development server**
 ```bash
 npm run dev
 ```
