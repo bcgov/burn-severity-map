@@ -7,9 +7,9 @@ from sqlalchemy.orm import declarative_base
 # Replace with your actual PostgreSQL connection string
 # Format: "postgresql+asyncpg://username:password@host:port/database_name"
 
-DATABASE_URL = f"postgresql+asyncpg://{os.getenv('postgis_user')}:{os.getenv("postgis_pass")}@{os.getenv('db_host')}:{os.getenv('db_port')}/postgres"
+DATABASE_URL = f"postgresql+asyncpg://{os.getenv('POSTGRES_USER')}:{os.getenv("POSTGRES_PASSWORD")}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('POSTGRES_DB')}"
 # It's often better to load this from environment variables or a config file in real projects.
-
+print (DATABASE_URL)
 # Create the SQLAlchemy asynchronous engine
 async_engine = create_async_engine(
     DATABASE_URL,

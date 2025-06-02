@@ -13,10 +13,10 @@ get --> Return all burn severity records
 # postgis
 requires environment variables  
 ---
-db_host
-db_port
-postgis_user
-postgis_pass
+DB_HOST
+DB_PORT
+POSTGIS_USER
+POSTGIS_PASS
 
 # running the api
 modifiy and rename .env-example to include environment variables that match your postgis instance
