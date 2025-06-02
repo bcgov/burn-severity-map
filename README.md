@@ -61,6 +61,8 @@ cd burn-severity-map
 ```
 
 2. **Modify environemnt .env**
+<<<<<<< HEAD
+=======
 ```bash
 cp .env-example .env
 # modify env if needed 
@@ -69,6 +71,30 @@ cp .env-example .env
 3. **Start the backend and database containers**
 ```bash
 docker-compose up backend db-service
+<<<<<<< HEAD
+=======
+```
+your backend api should be at 
+http://localhost:8000
+Interactive API documentation:
+http://localhost:8000/docs
+
+
+4. **Install front end dependencies**
+>>>>>>> edb366e9 (update to work with docker componse)
+```bash
+cp .env-example .env
+# modify env if needed 
+```
+
+<<<<<<< HEAD
+3. **Start the backend and database containers**
+=======
+5. **Start the development server**
+>>>>>>> edb366e9 (update to work with docker componse)
+```bash
+docker-compose up backend db-service -d
+>>>>>>> 5a7e2ce6 (update to work with docker componse)
 ```
 your backend api should be at 
 http://localhost:8000
