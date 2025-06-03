@@ -24,7 +24,7 @@ modifiy and rename .env-example to include environment variables that match your
 source .env
 uv run uvicorn main:app --reload
 ```
-Your API will be running at http://127.0.0.1:8000.
+Your API will be running at http://127.0.0.1:8000/api.
 Interactive API documentation (Swagger UI): http://127.0.0.1:8000/docs
 Alternative documentation (ReDoc): http://127.0.0.1:8000/redoc
 
