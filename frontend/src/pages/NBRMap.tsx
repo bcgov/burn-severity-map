@@ -22,6 +22,8 @@ function NBRMap() {
   const [fires, setFires] = useState<Fire[]>([]);
   const [selectedFire, setSelectedFire] = useState<string | null>(null);
   const [showSatelliteImagery, setShowSatelliteImagery] = useState<boolean>(false);
+  const [showPreBurnImagery, setShowPreBurnImagery] = useState<boolean>(false);
+  const [showPostBurnImagery, setShowPostBurnImagery] = useState<boolean>(false);
   const [showNBR, setShowNBR] = useState<boolean>(false);
   const [isNBRLoading, setIsNBRLoading] = useState<boolean>(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState<boolean>(false);
@@ -58,6 +60,23 @@ function NBRMap() {
     }
   };
 
+  const handlePreBurnToggle = () => {
+    setShowPreBurnImagery((prev) => {
+      if (!prev) setShowPostBurnImagery(false); // Only one can be active at a time
+      return !prev;
+    });
+    setShowSatelliteImagery(false); // Remove legacy toggle
+    setShowNBR(false);
+  };
+  const handlePostBurnToggle = () => {
+    setShowPostBurnImagery((prev) => {
+      if (!prev) setShowPreBurnImagery(false); // Only one can be active at a time
+      return !prev;
+    });
+    setShowSatelliteImagery(false); // Remove legacy toggle
+    setShowNBR(false);
+  };
+
   const handleNBRToggle = () => {
     setShowNBR(!showNBR);
   };
@@ -69,6 +88,21 @@ function NBRMap() {
   const toggleInfoPanel = () => {
     setIsInfoExpanded(!isInfoExpanded);
   };
+
+  // Listen for fire-point-selected event from OLMap
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      if (e.detail && e.detail.fireNumber) {
+        setSelectedFire(e.detail.fireNumber);
+      }
+    };
+    window.addEventListener('fire-point-selected', handler);
+    return () => window.removeEventListener('fire-point-selected', handler);
+  }, []);
+
+  // Variables to store ignition and fire out dates for use in STAC queries
+  const ignitionDate = fireProperties?.IGNITION_DATE || null;
+  const fireOutDate = fireProperties?.FIRE_OUT_DATE || null;
 
   return (
     <div className="App">
@@ -131,13 +165,22 @@ function NBRMap() {
               <div className="bcgov-legend-symbol bcgov-fire-perimeter-symbol"></div>
               <span>Active Wildfire Perimeters</span>
             </div>
-            {showSatelliteImagery && (
+            {showPreBurnImagery && (
               <div className="bcgov-legend-item">
                 <div className="bcgov-legend-symbol" style={{ 
-                  backgroundImage: 'linear-gradient(45deg, rgba(0, 128, 0, 0.5), rgba(0, 0, 255, 0.5))', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)', 
                   border: '1px dashed #555' 
                 }}></div>
-                <span>Sentinel-2 Imagery</span>
+                <span>Pre-Burn Imagery</span>
+              </div>
+            )}
+            {showPostBurnImagery && (
+              <div className="bcgov-legend-item">
+                <div className="bcgov-legend-symbol" style={{ 
+                  backgroundColor: 'rgba(0, 0, 255, 0.7)', 
+                  border: '1px dashed #555' 
+                }}></div>
+                <span>Post-Burn/Current Imagery</span>
               </div>
             )}
             {showNBR && (
@@ -166,15 +209,27 @@ function NBRMap() {
           {selectedFire && (
             <div className="controls-section">
               <h3>Analysis Tools</h3>
-              <SatelliteToggle 
-                isActive={showSatelliteImagery}
-                onToggle={handleSatelliteToggle}
-              />
+              <div className="satellite-toggle-group">
+                <div className="satellite-toggle-item">
+                  <span style={{ display: 'block', marginBottom: 4 }}>Pre-burn Imagery</span>
+                  <SatelliteToggle
+                    isActive={showPreBurnImagery}
+                    onToggle={handlePreBurnToggle}
+                  />
+                </div>
+                <div className="satellite-toggle-item" style={{ marginTop: 12 }}>
+                  <span style={{ display: 'block', marginBottom: 4 }}>Post-burn/Current Imagery</span>
+                  <SatelliteToggle
+                    isActive={showPostBurnImagery}
+                    onToggle={handlePostBurnToggle}
+                  />
+                </div>
+              </div>
               <NBRToggle
                 isActive={showNBR}
                 onToggle={handleNBRToggle}
                 isLoading={isNBRLoading}
-                disabled={!showSatelliteImagery}
+                disabled={!(showPreBurnImagery || showPostBurnImagery)}
               />
             </div>
           )}
@@ -189,10 +244,13 @@ function NBRMap() {
               basemap={basemap}
               onFiresLoaded={handleFiresLoaded}
               selectedFire={selectedFire}
-              showSatelliteImagery={showSatelliteImagery}
+              showPreBurnImagery={showPreBurnImagery}
+              showPostBurnImagery={showPostBurnImagery}
+              ignitionDate={ignitionDate}
+              fireOutDate={fireOutDate}
               showNBR={showNBR}
               onNbrLoadingChange={handleNBRLoadingChange}
-              onFireSelect={handleFireProperties} // Add the new callback
+              onFireSelect={handleFireProperties}
             />
           </div>
           
@@ -214,12 +272,24 @@ function NBRMap() {
                     <td>{fireProperties.FIRE_NUMBER || 'N/A'}</td>
                   </tr>
                   <tr>
+                    <th>Ignition Date</th>
+                    <td>{fireProperties.IGNITION_DATE ? new Date(fireProperties.IGNITION_DATE).toLocaleDateString() : 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <th>Fire Out Date</th>
+                    <td>{fireProperties.FIRE_OUT_DATE ? new Date(fireProperties.FIRE_OUT_DATE).toLocaleDateString() : 'N/A'}</td>
+                  </tr>
+                  <tr>
                     <th>Fire Status</th>
                     <td>{fireProperties.FIRE_STATUS || 'N/A'}</td>
                   </tr>
                   <tr>
-                    <th>Fire Size (ha)</th>
-                    <td>{fireProperties.FIRE_SIZE_HECTARES ? fireProperties.FIRE_SIZE_HECTARES.toFixed(2) : 'N/A'}</td>
+                    <th>Geographic Description</th>
+                    <td>{fireProperties.GEOGRAPHIC_DESCRIPTION || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <th>Fire Area (ha)</th>
+                    <td>{fireProperties.CURRENT_SIZE ? Number(fireProperties.CURRENT_SIZE).toLocaleString(undefined, { maximumFractionDigits: 2 }) : 'N/A'}</td>
                   </tr>
                   <tr>
                     <th>Fire URL</th>
@@ -230,10 +300,6 @@ function NBRMap() {
                         </a>
                       ) : 'N/A'}
                     </td>
-                  </tr>
-                  <tr>
-                    <th>Load Date</th>
-                    <td>{fireProperties.LOAD_DATE || 'N/A'}</td>
                   </tr>
                 </tbody>
               </table>

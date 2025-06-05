@@ -116,6 +116,10 @@ interface OLMapProps {
   stacItemUrl?: string | null;
   onNbrLoadingChange?: (loading: boolean) => void;
   onFireSelect?: (fireProperties: any | null) => void; // Add new callback prop
+  showPreBurnImagery?: boolean;
+  showPostBurnImagery?: boolean;
+  ignitionDate?: string | null;
+  fireOutDate?: string | null;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -129,7 +133,11 @@ const OLMap: React.FC<OLMapProps> = ({
   visualCogUrl = null,
   stacItemUrl = null,
   onNbrLoadingChange,
-  onFireSelect // Destructure the new prop
+  onFireSelect, // Destructure the new prop
+  showPreBurnImagery = false,
+  showPostBurnImagery = false,
+  ignitionDate = null,
+  fireOutDate = null
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
@@ -174,7 +182,7 @@ const OLMap: React.FC<OLMapProps> = ({
   });
 
   // Function to fetch Sentinel-2 imagery from STAC API based on the current map extent
-  const fetchSentinelImagery = useCallback(async (extent: number[]) => {
+  const fetchSentinelImagery = useCallback(async (extent: number[], options?: { date?: { lte?: string, gte?: string }, limit?: number, sort?: 'asc' | 'desc' }) => {
     if (!extent || extent.length !== 4 || !extent.every(coord => isFinite(coord))) {
       console.warn('Invalid extent for STAC query:', extent);
       return;
@@ -211,6 +219,14 @@ const OLMap: React.FC<OLMapProps> = ({
 
       console.log('STAC query bbox (WGS84):', stacBbox);
 
+      const query: any = { "eo:cloud_cover": { lte: 30 } };
+      if (options?.date) {
+        if (options.date.lte) query["datetime"] = { lte: options.date.lte };
+        if (options.date.gte) query["datetime"] = { gte: options.date.gte };
+      }
+      const sortby = [{ field: "properties.datetime", direction: options?.sort === 'asc' ? 'asc' : 'desc' }];
+      const limit = options?.limit || 1;
+
       const response = await fetch('https://earth-search.aws.element84.com/v1/search', {
         method: 'POST',
         headers: {
@@ -219,18 +235,9 @@ const OLMap: React.FC<OLMapProps> = ({
         body: JSON.stringify({
           collections: ["sentinel-2-l2a"],
           bbox: stacBbox,
-          query: {
-            "eo:cloud_cover": {
-              "lte": 30
-            }
-          },
-          sortby: [
-            {
-              field: "properties.datetime",
-              direction: "desc"
-            }
-          ],
-          limit: 1
+          query,
+          sortby,
+          limit
         })
       });
 
@@ -432,105 +439,75 @@ const OLMap: React.FC<OLMapProps> = ({
     }
   }, [visualCogUrl, addCogImageryToMap]);
 
-  // Function to fetch fire data
+  // Function to fetch fire data (now fire points)
   const fetchFireData = useCallback(async () => {
     try {
-      // Request the WFS in EPSG:3857 explicitly
+      // Fetch fire points (current fire locations)
       const response = await fetch(
-        'https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP&outputFormat=application%2Fjson&srsName=EPSG:3857'
+        'https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_PNTS_SP&outputFormat=application%2Fjson&srsName=EPSG:3857'
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch fire data: ${response.statusText}`);
+        throw new Error(`Failed to fetch fire points: ${response.statusText}`);
       }
 
       const data = await response.json();
       const fireFeatures = data.features.map((feature: any) => {
-        // Store all properties for debugging
         const properties = feature.properties;
         let geometry = feature.geometry;
-        
-        // Create a proper OpenLayers feature
         const olFeature = new GeoJSON().readFeature(feature) as Feature<Geometry>;
-        
-        // Get the geometry
         const geom = olFeature.getGeometry();
-        
-        // Create a buffered extent for each point
         let extent = [0, 0, 0, 0];
-        
         if (geom) {
           try {
             extent = geom.getExtent();
-            
             // For point features, create a 2km buffer
             if (geometry.type === 'Point') {
               const coords = geometry.coordinates;
               extent = [
-                coords[0] - 2000, 
-                coords[1] - 2000, 
-                coords[0] + 2000, 
+                coords[0] - 2000,
+                coords[1] - 2000,
+                coords[0] + 2000,
                 coords[1] + 2000
               ];
             }
-            
-            // Check if extent is valid
-            if (
-              !isFinite(extent[0]) ||
-              !isFinite(extent[1]) ||
-              !isFinite(extent[2]) ||
-              !isFinite(extent[3])
-            ) {
-              console.warn('Invalid extent for feature:', feature.id);
-              extent = [0, 0, 0, 0]; // Default if invalid
+            if (!isFinite(extent[0]) || !isFinite(extent[1]) || !isFinite(extent[2]) || !isFinite(extent[3])) {
+              extent = [0, 0, 0, 0];
             }
           } catch (e) {
-            console.warn('Error getting extent for feature:', feature.id, e);
+            extent = [0, 0, 0, 0];
           }
         }
-        
         return {
           id: feature.id,
-          fireNumber: properties.FIRE_NUMBER,
+          fireNumber: properties.FIRE_NUMBER, // Confirm this property exists in fire points schema
           geometry: geometry,
           extent: extent,
           olGeometry: geom,
           properties: properties
         };
       });
-
       setFires(fireFeatures);
-
-      // If onFiresLoaded callback is provided, call it with the fire features
       if (onFiresLoaded) {
         onFiresLoaded(fireFeatures);
       }
-
-      // Create the fires layer if it doesn't exist yet
+      // Add fire points as a vector layer if not already present
       if (!firesLayerRef.current && mapInstanceRef.current) {
         const vectorSource = new VectorSource({
           features: data.features.map((feature: any) => {
-            // Explicitly cast the result to ensure TypeScript knows it's a Feature<Geometry>
             const olFeature = new GeoJSON().readFeature(feature) as Feature<Geometry>;
-            
-            // If it's a point feature, make sure to convert coordinates properly
             if (feature.geometry.type === 'Point') {
               const geom = olFeature.getGeometry();
               if (geom) {
-                // Get the coordinates and convert them if needed
                 try {
                   const coords = feature.geometry.coordinates;
-                  // Create a new point geometry with the coordinates
                   olFeature.setGeometry(new Point(coords));
-                } catch (e) {
-                  console.error('Error setting point geometry:', e);
-                }
+                } catch (e) {}
               }
             }
             return olFeature;
           })
         });
-
         firesLayerRef.current = new VectorLayer({
           source: vectorSource,
           style: new Style({
@@ -540,13 +517,16 @@ const OLMap: React.FC<OLMapProps> = ({
               stroke: new Stroke({ color: 'white', width: 2 })
             })
           }),
-          zIndex: 10 // Ensure fire points show above WMS layer
+          zIndex: 90 // Ensure above NBR, below perimeters
         });
-
         mapInstanceRef.current.addLayer(firesLayerRef.current);
+      } else if (firesLayerRef.current) {
+        // If already present, update zIndex and ensure visible
+        firesLayerRef.current.setZIndex(90);
+        firesLayerRef.current.setVisible(true);
       }
     } catch (error) {
-      console.error('Error fetching fire data:', error);
+      console.error('Error fetching fire points:', error);
     }
   }, [onFiresLoaded]);
 
@@ -608,6 +588,7 @@ const OLMap: React.FC<OLMapProps> = ({
 
     initialMap.addLayer(firePerimetersLayer);
     firePerimetersLayerRef.current = firePerimetersLayer;
+    firePerimetersLayer.setZIndex(100); // Always on top
 
     // Add a map view change event listener to store valid view states
     initialMap.getView().on('change', function () {
@@ -696,82 +677,72 @@ const OLMap: React.FC<OLMapProps> = ({
     layers.insertAt(baseLayerIndex, newBaseLayer);
   }, [basemap]);
 
-  // Effect to handle satellite imagery toggle
+  // Effect to handle pre-burn and post-burn/current imagery toggles
   useEffect(() => {
-    // Only fetch imagery when toggled on and we have a valid extent or selected fire
-    if (showSatelliteImagery) {
+    // Helper to get buffered extent for selected fire
+    const getBufferedExtent = () => {
       if (selectedFire) {
-        // Find the selected fire and use its extent for fetching imagery
         const selectedFireObj = fires.find(fire => fire.fireNumber === selectedFire);
-        
-        if (selectedFireObj && selectedFireObj.extent && 
-            selectedFireObj.extent.length === 4 && 
-            selectedFireObj.extent.every(coord => isFinite(coord))) {
-          // Use a buffer around the fire extent to get more satellite context
-          const bufferSize = 10000; // 10km buffer
-          const bufferedExtent = [
+        if (selectedFireObj && selectedFireObj.extent && selectedFireObj.extent.length === 4 && selectedFireObj.extent.every(coord => isFinite(coord))) {
+          const bufferSize = 10000;
+          return [
             selectedFireObj.extent[0] - bufferSize,
             selectedFireObj.extent[1] - bufferSize,
             selectedFireObj.extent[2] + bufferSize,
             selectedFireObj.extent[3] + bufferSize
           ];
-          fetchSentinelImagery(bufferedExtent);
-        } else if (currentMapExtent) {
-          // Fallback to current map extent
-          fetchSentinelImagery(currentMapExtent);
         }
-      } else if (currentMapExtent) {
-        // No fire selected, use the current map extent
-        fetchSentinelImagery(currentMapExtent);
+      }
+      return currentMapExtent;
+    };
+
+    // Helper to build date string for STAC
+    const formatDate = (date: string | null | undefined) => {
+      if (!date) return null;
+      return new Date(date).toISOString().split('T')[0];
+    };
+
+    // Pre-burn imagery: 10 images before ignition date, <30% cloud, bbox
+    if (showPreBurnImagery) {
+      const bbox = getBufferedExtent();
+      const ignition = formatDate(ignitionDate);
+      if (bbox && ignition) {
+        fetchSentinelImagery(bbox, {
+          date: { lte: ignition },
+          limit: 10,
+          sort: 'desc'
+        });
+      }
+    } else if (showPostBurnImagery) {
+      // Post-burn/current: after fire out date (if present), else most recent
+      const bbox = getBufferedExtent();
+      const fireOut = formatDate(fireOutDate);
+      if (bbox) {
+        if (fireOut) {
+          fetchSentinelImagery(bbox, {
+            date: { gte: fireOut },
+            limit: 1,
+            sort: 'desc'
+          });
+        } else {
+          fetchSentinelImagery(bbox, {
+            limit: 1,
+            sort: 'desc'
+          });
+        }
       }
     } else {
-      // Hide satellite imagery when toggle is off
+      // Hide satellite imagery when both toggles are off
       if (mapInstanceRef.current && satelliteLayerRef.current) {
         mapInstanceRef.current.removeLayer(satelliteLayerRef.current);
         satelliteLayerRef.current = null;
         setShowMetadata(false);
-        
-        // Release resources when satellite imagery is toggled off
         setSentinelUrl(null);
-        // Clear NIR and SWIR URLs to free up memory
         setNirUrl(null);
         setSwirUrl(null);
-        
-        console.log("Released satellite imagery resources from memory");
       }
     }
-  }, [showSatelliteImagery, selectedFire, fires, currentMapExtent, fetchSentinelImagery]);
-  
-  // Effect to handle NBR toggle visibility
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-    
-    // Find and handle NBR layers when visibility changes
-    const layers = mapInstanceRef.current.getLayers().getArray();
-    const nbrLayer = layers.find(layer => layer.get('name') === 'NBRLayer');
-    
-    if (showNBR && nirUrl && swirUrl) {
-      // When NBR is toggled ON and we have the necessary URLs
-      // Store the current extent as the calculation extent only if we don't have one yet
-      if (!initialNbrExtentRef.current && currentMapExtent) {
-        console.log('Storing initial NBR calculation extent:', currentMapExtent);
-        initialNbrExtentRef.current = [...currentMapExtent];
-        setNbrCalculationExtent([...currentMapExtent]);
-      }
-    } else if (!showNBR && nbrLayer) {
-      // Remove NBR layer when toggled off
-      mapInstanceRef.current.removeLayer(nbrLayer);
-      console.log("Removed NBR layer from map");
-      
-      // Release resources when NBR is toggled off
-      if (onNbrLoadingChange) {
-        onNbrLoadingChange(false);
-      }
-      
-      // Don't reset the calculation extent - we want to keep it for when NBR is toggled on again
-    }
-    
-  }, [showNBR, nirUrl, swirUrl, currentMapExtent, onNbrLoadingChange]);
+  }, [showPreBurnImagery, showPostBurnImagery, ignitionDate, fireOutDate, selectedFire, fires, currentMapExtent]);
 
   // Reset NBR calculation extent when fire or imagery changes
   useEffect(() => {
@@ -936,6 +907,49 @@ const OLMap: React.FC<OLMapProps> = ({
       }
     }
   }, [selectedFire, fires]);
+
+  // Add map click handler to select fire by clicking a point
+  useEffect(() => {
+    if (!mapInstanceRef.current || !firesLayerRef.current) return;
+    const map = mapInstanceRef.current;
+    const firesLayer = firesLayerRef.current;
+
+    // Handler for map clicks
+    const handleMapClick = (evt: any) => {
+      let foundFire: string | null = null;
+      map.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+        if (layer === firesLayer) {
+          // Find the fireNumber for this feature
+          const fireNumber = feature.get('FIRE_NUMBER') || feature.get('fireNumber');
+          if (fireNumber) {
+            foundFire = fireNumber as string;
+            return true; // Stop iteration
+          }
+        }
+        return false;
+      });
+      if (foundFire) {
+        // Call the fire select logic (update selectedFire, fire details, etc)
+        if (typeof onFireSelect === 'function') {
+          const fireObj = fires.find(f => f.fireNumber === foundFire);
+          if (fireObj && fireObj.properties) {
+            onFireSelect(fireObj.properties);
+          }
+        }
+        // Optionally, update selectedFire in parent via callback/prop
+        // If you want to update selectedFire in this component, you may need to lift state up
+        if (typeof window !== 'undefined') {
+          // Dispatch a custom event or use a callback prop
+          const event = new CustomEvent('fire-point-selected', { detail: { fireNumber: foundFire } });
+          window.dispatchEvent(event);
+        }
+      }
+    };
+    map.on('singleclick', handleMapClick);
+    return () => {
+      map.un('singleclick', handleMapClick);
+    };
+  }, [fires, firesLayerRef, onFireSelect]);
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>

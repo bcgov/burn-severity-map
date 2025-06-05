@@ -285,16 +285,14 @@ const NBRCalculator: React.FC<NBRCalculatorProps> = ({
         mapInstance.removeLayer(layer);
       }
     }
-    
-    // Add new layer
+
+    // Add new NBR layer
     mapInstance.addLayer(nbrLayer);
-    
-    // Bring fire perimeters to top
+
+    // Ensure fire perimeters layer is above the NBR layer (zIndex > NBR)
     const firePerimetersLayer = layers.find(layer => {
       if (layer.get('name') === 'firePerimeters') return true;
-      
       try {
-        // Use proper type casting for TileLayer with TileWMS source
         if (layer instanceof TileLayer) {
           const tileLayer = layer as TileLayer<TileWMS>;
           const source = tileLayer.getSource();
@@ -303,17 +301,25 @@ const NBRCalculator: React.FC<NBRCalculatorProps> = ({
             return params && params.LAYERS === 'WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP';
           }
         }
-      } catch (e) {
-        // Ignore errors from invalid layers
-      }
-      
+      } catch (e) {}
       return false;
     });
-    
     if (firePerimetersLayer) {
-      mapInstance.removeLayer(firePerimetersLayer);
-      firePerimetersLayer.setZIndex(200);
-      mapInstance.addLayer(firePerimetersLayer);
+      // Only adjust zIndex if needed, and never hide the layer
+      const currentZ = firePerimetersLayer.getZIndex();
+      if (typeof currentZ !== 'number' || currentZ <= nbrLayer.getZIndex()) {
+        firePerimetersLayer.setZIndex(nbrLayer.getZIndex() + 1);
+      }
+      // Make sure the layer is visible
+      if (typeof firePerimetersLayer.setVisible === 'function') {
+        firePerimetersLayer.setVisible(true);
+      }
+      // Make sure opacity is not zero
+      if (typeof firePerimetersLayer.setOpacity === 'function') {
+        if (firePerimetersLayer.getOpacity() === 0) {
+          firePerimetersLayer.setOpacity(0.7);
+        }
+      }
     }
     
     // Restore view
