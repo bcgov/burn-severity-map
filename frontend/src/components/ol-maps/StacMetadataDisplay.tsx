@@ -34,6 +34,7 @@ const StacMetadataDisplay: React.FC<StacMetadataDisplayProps> = ({
 
   return (
     <div
+      key={`${date || ''}-${cloudCover ?? ''}`}
       style={{
         position: 'absolute',
         bottom: '45px', // Changed from 10px to 45px to move it up
