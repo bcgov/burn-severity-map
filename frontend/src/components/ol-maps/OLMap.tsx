@@ -120,6 +120,17 @@ interface OLMapProps {
   showPostBurnImagery?: boolean;
   ignitionDate?: string | null;
   fireOutDate?: string | null;
+  // New props for pre-burn date selection
+  onPreBurnDates?: (dates: string[]) => void;
+  selectedPreBurnDate?: string | null;
+  // Add post-burn props
+  onPostBurnDates?: (dates: string[]) => void;
+  selectedPostBurnDate?: string | null;
+  // --- Add these for pre-burn COGs ---
+  preBurnVisualUrl?: string | null;
+  preBurnNirUrl?: string | null;
+  preBurnSwirUrl?: string | null;
+  preBurnMetadata?: any | null; // <-- Add this line
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -137,7 +148,17 @@ const OLMap: React.FC<OLMapProps> = ({
   showPreBurnImagery = false,
   showPostBurnImagery = false,
   ignitionDate = null,
-  fireOutDate = null
+  fireOutDate = null,
+  onPreBurnDates,
+  selectedPreBurnDate,
+  // Add post-burn props
+  onPostBurnDates,
+  selectedPostBurnDate,
+  // --- Add these for pre-burn COGs ---
+  preBurnVisualUrl = null,
+  preBurnNirUrl = null,
+  preBurnSwirUrl = null,
+  preBurnMetadata = null // <-- Add this line
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
@@ -180,6 +201,89 @@ const OLMap: React.FC<OLMapProps> = ({
     center: fromLonLat(center),
     zoom: zoom
   });
+
+  // New state for available pre-burn and post-burn dates
+  const [preBurnDates, setPreBurnDates] = useState<string[]>([]);
+  const [postBurnDates, setPostBurnDates] = useState<string[]>([]);
+
+  // Helper function to extract band information from STAC item
+  const extractBandInfo = (stacItem: StacItem): string | null => {
+    if (stacItem.properties['eo:bands']) {
+      return stacItem.properties['eo:bands']
+        .map(band => band.common_name || band.name)
+        .join(', ');
+    }
+    // Default band info for Sentinel-2 visual
+    if (stacItem.collection.includes('sentinel-2')) {
+      return 'RGB (true color)';
+    }
+    return null;
+  };
+
+  // Function to add COG imagery to the map - enhanced version
+  const addCogImageryToMap = useCallback((url: string, metadata?: ImageMetadata) => {
+    if (!mapInstanceRef.current) return;
+
+    // Remove existing satellite layer if it exists
+    if (satelliteLayerRef.current) {
+      mapInstanceRef.current.removeLayer(satelliteLayerRef.current);
+      satelliteLayerRef.current = null;
+    }
+
+    // Always clear the cache for this url to force reload on dropdown change
+    if (imageCache.current[url]) {
+      delete imageCache.current[url];
+    }
+
+    try {
+      // Choose the appropriate tiler service based on URL pattern or COG type
+      let tileUrl: string;
+      
+      if (url.includes('sentinel-s2-l2a') || url.includes('sentinel-2')) {
+        // Sentinel-2 specific handling with custom rendering params for better visualization
+        tileUrl = `https://tiles.rdnt.io/tiles/{z}/{x}/{y}@1x?url=${encodeURIComponent(url)}&rescale=0,3000&colormap_name=viridis`;
+      } else if (url.includes('landsat')) {
+        // Landsat imagery might need different rendering parameters
+        tileUrl = `https://tiles.rdnt.io/tiles/{z}/{x}/{y}@1x?url=${encodeURIComponent(url)}&rescale=0,10000`;
+      } else {
+        // Default case for other COGs - using a standard tiler
+        tileUrl = `https://tiles.rdnt.io/tiles/{z}/{x}/{y}@1x?url=${encodeURIComponent(url)}`;
+      }
+      
+      console.log('Using tile URL:', tileUrl);
+      
+      // Create a new XYZ source for the COG through the tiler service
+      const cogSource = new XYZSource({
+        url: tileUrl,
+        attributions: '© Satellite Imagery',
+        crossOrigin: 'anonymous',
+        maxZoom: 18
+      });
+      
+      // Create a new tile layer with the COG source
+      const cogLayer = new TileLayer({
+        source: cogSource,
+        opacity: 1, // Set opacity to fully opaque
+        zIndex: 3 // Below the fire perimeters but above the base map
+      });
+      
+      // Add the layer to the map
+      mapInstanceRef.current.addLayer(cogLayer);
+      
+      // Store the layer in the ref and cache
+      satelliteLayerRef.current = cogLayer as unknown as WebGLTileLayer;
+      imageCache.current[url] = satelliteLayerRef.current;
+      
+      // If metadata is provided, update the metadata state
+      if (metadata) {
+        setImageMetadata(metadata);
+        setShowMetadata(true);
+      }
+      
+    } catch (error) {
+      console.error('Error adding COG imagery to map:', error);
+    }
+  }, []);
 
   // Function to fetch Sentinel-2 imagery from STAC API based on the current map extent
   const fetchSentinelImagery = useCallback(async (extent: number[], options?: { date?: { lte?: string, gte?: string }, limit?: number, sort?: 'asc' | 'desc' }) => {
@@ -326,119 +430,8 @@ const OLMap: React.FC<OLMapProps> = ({
     } finally {
       setIsLoadingImagery(false);
     }
-  }, []);
-  
-  // Helper function to extract band information from STAC item
-  const extractBandInfo = (stacItem: StacItem): string | null => {
-    if (stacItem.properties['eo:bands']) {
-      return stacItem.properties['eo:bands']
-        .map(band => band.common_name || band.name)
-        .join(', ');
-    }
-    
-    // Default band info for Sentinel-2 visual
-    if (stacItem.collection.includes('sentinel-2')) {
-      return 'RGB (true color)';
-    }
-    
-    return null;
-  };
-
-  // Function to add COG imagery to the map - enhanced version
-  const addCogImageryToMap = useCallback((url: string, metadata?: ImageMetadata) => {
-    if (!mapInstanceRef.current) return;
-    
-    // Remove existing satellite layer if it exists
-    if (satelliteLayerRef.current) {
-      mapInstanceRef.current.removeLayer(satelliteLayerRef.current);
-      satelliteLayerRef.current = null;
-    }
-    
-    // Check if we already have this image in cache
-    if (imageCache.current[url]) {
-      console.log('Using cached COG layer');
-      satelliteLayerRef.current = imageCache.current[url];
-      mapInstanceRef.current.addLayer(satelliteLayerRef.current);
-      return;
-    }
-    
-    try {
-      // Choose the appropriate tiler service based on URL pattern or COG type
-      let tileUrl: string;
-      
-      if (url.includes('sentinel-s2-l2a') || url.includes('sentinel-2')) {
-        // Sentinel-2 specific handling with custom rendering params for better visualization
-        tileUrl = `https://tiles.rdnt.io/tiles/{z}/{x}/{y}@1x?url=${encodeURIComponent(url)}&rescale=0,3000&colormap_name=viridis`;
-      } else if (url.includes('landsat')) {
-        // Landsat imagery might need different rendering parameters
-        tileUrl = `https://tiles.rdnt.io/tiles/{z}/{x}/{y}@1x?url=${encodeURIComponent(url)}&rescale=0,10000`;
-      } else {
-        // Default case for other COGs - using a standard tiler
-        tileUrl = `https://tiles.rdnt.io/tiles/{z}/{x}/{y}@1x?url=${encodeURIComponent(url)}`;
-      }
-      
-      console.log('Using tile URL:', tileUrl);
-      
-      // Create a new XYZ source for the COG through the tiler service
-      const cogSource = new XYZSource({
-        url: tileUrl,
-        attributions: '© Satellite Imagery',
-        crossOrigin: 'anonymous',
-        maxZoom: 18
-      });
-      
-      // Create a new tile layer with the COG source
-      const cogLayer = new TileLayer({
-        source: cogSource,
-        opacity: 1, // Set opacity to fully opaque
-        zIndex: 3 // Below the fire perimeters but above the base map
-      });
-      
-      // Add the layer to the map
-      mapInstanceRef.current.addLayer(cogLayer);
-      
-      // Store the layer in the ref and cache
-      satelliteLayerRef.current = cogLayer as unknown as WebGLTileLayer;
-      imageCache.current[url] = satelliteLayerRef.current;
-      
-      // If metadata is provided, update the metadata state
-      if (metadata) {
-        setImageMetadata(metadata);
-        setShowMetadata(true);
-      }
-      
-    } catch (error) {
-      console.error('Error adding COG imagery to map:', error);
-    }
-  }, []);
-
-  // Update the existing function to use the new implementation
-  const addSentinelImageryToMap = useCallback((url: string) => {
-    addCogImageryToMap(url);
   }, [addCogImageryToMap]);
-
-  // New function to add a direct COG URL to the map 
-  // This can be called when you pass in the visualCogUrl prop
-  useEffect(() => {
-    if (visualCogUrl && mapInstanceRef.current) {
-      console.log('Adding direct COG URL to map:', visualCogUrl);
-      
-      // Create basic metadata for direct COG URLs
-      const directCogMetadata: ImageMetadata = {
-        date: new Date().toISOString(), // Default to current date
-        cloudCover: null,
-        collection: null,
-        source: 'Custom COG',
-        resolution: null,
-        bandInfo: null,
-        assetType: 'Custom Imagery'
-      };
-      
-      addCogImageryToMap(visualCogUrl, directCogMetadata);
-      setShowMetadata(true);
-    }
-  }, [visualCogUrl, addCogImageryToMap]);
-
+  
   // Function to fetch fire data (now fire points)
   const fetchFireData = useCallback(async () => {
     try {
@@ -517,18 +510,50 @@ const OLMap: React.FC<OLMapProps> = ({
               stroke: new Stroke({ color: 'white', width: 2 })
             })
           }),
-          zIndex: 90 // Ensure above NBR, below perimeters
+          zIndex: 200 // Fire points always on top
         });
         mapInstanceRef.current.addLayer(firesLayerRef.current);
       } else if (firesLayerRef.current) {
         // If already present, update zIndex and ensure visible
-        firesLayerRef.current.setZIndex(90);
+        firesLayerRef.current.setZIndex(200);
         firesLayerRef.current.setVisible(true);
       }
     } catch (error) {
       console.error('Error fetching fire points:', error);
     }
   }, [onFiresLoaded]);
+
+  // New function to fetch available pre-burn dates only
+  const fetchPreBurnDates = useCallback(async (extent: number[], ignition: string) => {
+    // Convert from Web Mercator to WGS84 for the STAC API
+    const bbox = transformExtent(extent, WEB_MERCATOR, WGS84);
+    const stacBbox = [
+      Math.min(bbox[0], bbox[2]),
+      Math.min(bbox[1], bbox[3]),
+      Math.max(bbox[0], bbox[2]),
+      Math.max(bbox[1], bbox[3])
+    ];
+    const query: any = { "eo:cloud_cover": { lte: 30 }, "datetime": { lte: ignition } };
+    const sortby = [{ field: "properties.datetime", direction: 'desc' }];
+    const limit = 10;
+    const response = await fetch('https://earth-search.aws.element84.com/v1/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        collections: ["sentinel-2-l2a"],
+        bbox: stacBbox,
+        query,
+        sortby,
+        limit
+      })
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      return data.features.map((f: any) => f.properties.datetime).filter(Boolean);
+    }
+    return [];
+  }, []);
 
   // Effect to initialize the map once
   useEffect(() => {
@@ -583,12 +608,12 @@ const OLMap: React.FC<OLMapProps> = ({
     const firePerimetersLayer = new TileLayer({
       source: firePerimetersSource,
       opacity: 0.7,
-      zIndex: 5
+      zIndex: 100 // Perimeters below fire points, above imagery
     });
 
     initialMap.addLayer(firePerimetersLayer);
     firePerimetersLayerRef.current = firePerimetersLayer;
-    firePerimetersLayer.setZIndex(100); // Always on top
+    firePerimetersLayer.setZIndex(100); // Always below fire points, above imagery
 
     // Add a map view change event listener to store valid view states
     initialMap.getView().on('change', function () {
@@ -702,34 +727,49 @@ const OLMap: React.FC<OLMapProps> = ({
       return new Date(date).toISOString().split('T')[0];
     };
 
-    // Pre-burn imagery: 10 images before ignition date, <30% cloud, bbox
+    // Pre-burn: fetch available dates only when fire/toggle changes
     if (showPreBurnImagery) {
       const bbox = getBufferedExtent();
       const ignition = formatDate(ignitionDate);
-      if (bbox && ignition) {
-        fetchSentinelImagery(bbox, {
-          date: { lte: ignition },
-          limit: 10,
-          sort: 'desc'
+      // Only fetch date list if not already loaded for this fire
+      if (bbox && ignition && preBurnDates.length === 0) {
+        fetchPreBurnDates(bbox, ignition).then((dates: string[]) => {
+          setPreBurnDates(dates);
+          if (onPreBurnDates) onPreBurnDates(dates);
         });
       }
+      // Only fetch the most recent image if no date is selected
     } else if (showPostBurnImagery) {
-      // Post-burn/current: after fire out date (if present), else most recent
+      // Post-burn: fetch last 10 images after fire out date (if present)
       const bbox = getBufferedExtent();
       const fireOut = formatDate(fireOutDate);
-      if (bbox) {
-        if (fireOut) {
-          fetchSentinelImagery(bbox, {
-            date: { gte: fireOut },
-            limit: 1,
-            sort: 'desc'
+      if (bbox && fireOut && postBurnDates.length === 0) {
+        // Fetch last 10 post-burn dates
+        fetch('https://earth-search.aws.element84.com/v1/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            collections: ["sentinel-2-l2a"],
+            bbox,
+            query: { "eo:cloud_cover": { lte: 30 }, "datetime": { gte: fireOut } },
+            sortby: [{ field: "properties.datetime", direction: 'desc' }],
+            limit: 10
+          })
+        })
+          .then(res => res.json())
+          .then(json => {
+            const dates = (json.features || []).map((f: any) => f.properties.datetime).filter(Boolean);
+            setPostBurnDates(dates);
+            if (onPostBurnDates) onPostBurnDates(dates);
           });
-        } else {
-          fetchSentinelImagery(bbox, {
-            limit: 1,
-            sort: 'desc'
-          });
-        }
+      }
+      // Only fetch the most recent image if no date is selected
+      if (bbox && fireOut && !selectedPostBurnDate) {
+        fetchSentinelImagery(bbox, {
+          date: { gte: fireOut },
+          limit: 1,
+          sort: 'desc'
+        });
       }
     } else {
       // Hide satellite imagery when both toggles are off
@@ -742,7 +782,7 @@ const OLMap: React.FC<OLMapProps> = ({
         setSwirUrl(null);
       }
     }
-  }, [showPreBurnImagery, showPostBurnImagery, ignitionDate, fireOutDate, selectedFire, fires, currentMapExtent]);
+  }, [showPreBurnImagery, showPostBurnImagery, ignitionDate, fireOutDate, selectedFire, fires, currentMapExtent, selectedPreBurnDate, selectedPostBurnDate, preBurnDates.length, postBurnDates.length]);
 
   // Reset NBR calculation extent when fire or imagery changes
   useEffect(() => {
@@ -950,6 +990,24 @@ const OLMap: React.FC<OLMapProps> = ({
       map.un('singleclick', handleMapClick);
     };
   }, [fires, firesLayerRef, onFireSelect]);
+
+  // Reset COG state when fire or toggle changes
+  useEffect(() => {
+    setNirUrl(null);
+    setSwirUrl(null);
+    setSentinelUrl(null);
+    setShowMetadata(false);
+  }, [selectedFire, showPreBurnImagery]);
+
+  // Effect: When preBurnMetadata changes and pre-burn imagery is active, update imageMetadata
+  useEffect(() => {
+    if (showPreBurnImagery && preBurnMetadata && preBurnVisualUrl) {
+      setImageMetadata(preBurnMetadata);
+      setShowMetadata(true);
+      // Add the COG imagery to the map ONLY when the user selects an image
+      addCogImageryToMap(preBurnVisualUrl, preBurnMetadata);
+    }
+  }, [showPreBurnImagery, preBurnMetadata, preBurnVisualUrl, addCogImageryToMap]);
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
