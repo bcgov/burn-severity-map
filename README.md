@@ -82,6 +82,9 @@ Stop your database with
 ```bash
 docker compose down
 ```
+Start the backend with UV
+```bash
+uv run python -m uvicorn main:app --reload --host 0.0.0.0 -port 8000
 
 4. **Install front end dependencies**
 ```bash
