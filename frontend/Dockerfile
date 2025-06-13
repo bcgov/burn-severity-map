@@ -49,8 +49,8 @@ COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/dist ./dist
 
 # Expose the port that the application listens on.
-EXPOSE 8080
+EXPOSE 3000
 
 # Run the application using 'serve' to serve the static files from /dist
-CMD ["npx", "serve", "-s", "dist", "-l", "8080"]
+CMD ["npx", "serve", "-s", "dist", "-l", "3000"]
 
