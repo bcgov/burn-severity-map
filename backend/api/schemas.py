@@ -1,44 +1,63 @@
-# schemas.py
-from pydantic import BaseModel, constr
-from typing import Optional # Don't forget List if you have list responses
+from pydantic import BaseModel, ConfigDict, field_validator
+from typing import List, Optional
+from enum import Enum
 
-# If you have an Enum, import it here as well to use in Pydantic models
-# from .models import SeverityClassEnum # Or define it in a shared enums.py
+class SeverityClassEnum(str, Enum):
+    UNBURNT = "Unburned"
+    LOW = "Low"
+    MODERATE = "Medium"
+    HIGH = "High"
 
-# Pydantic model for creating a new record (API input)
+class CRSProperties(BaseModel):
+    name: str
+
+class CRS(BaseModel):
+    type: str
+    properties: CRSProperties
+
+class BurnSeverityProps(BaseModel):
+
+    FIRE_NUMBER: str
+    FIRE_YEAR: int
+    PRE_FIRE_IMAGE: str
+    PRE_FIRE_IMAGE_DATE: str
+    POST_FIRE_IMAGE: str
+    POST_FIRE_IMAGE_DATE: str
+    COMMENTS: Optional[str] = None
+    FIRE_STATUS: str
+    BURN_SEVERITY_RATING: SeverityClassEnum
+    AREA_HA: float
+    FEATURE_AREA_SQM: float
+    FEATURE_LENGTH_M: float
+    
+    class Config:
+        from_attributes = True # For Pydantic V2 (formerly orm_mode)
+
+class FireBurnSeverityFeature(BaseModel):
+    type: str
+    geometry: dict
+    properties: BurnSeverityProps
+
+
+    # def parse_properties(cls, v):
+    #     print("🔥 Validating properties:", v)  # Debug print
+    #     if isinstance(v, dict):
+    #         return BurnSeverityProps.model_validate(v)
+    #     return v
+    class Config:
+        from_attributes = True # For Pydantic V2 (formerly orm_mode)
+
 class FireBurnSeverityCreate(BaseModel):
-    fire_number: constr(max_length=50)
-    pre_image_date: Optional[str] = None
-    post_image_date: Optional[str] = None
-    # severity_class: Optional[SeverityClassEnum] = None
-    severity_class: Optional[str] = None
-    # geom: str # GeoJSON string for input, or a custom Pydantic type for WKT/WKB
+    type: str
+    crs: CRS
+    features: List[FireBurnSeverityFeature]
+    class Config:
+        from_attributes = True # For Pydantic V2 (formerly orm_mode)
 
-    # Example for handling WKT input for geometry:
-    # from pydantic import field_validator
-    # from shapely import wkt
-    # geom_wkt: Optional[str] = None
-
-    # @field_validator('geom_wkt')
-    # def validate_geom_wkt(cls, value):
-    #     if value is None:
-    #         return None
-    #     try:
-    #         wkt.loads(value)
-    #     except Exception:
-    #         raise ValueError("Invalid WKT string for geometry")
-    #     return value
-
-
-# Pydantic model for API response (API output)
 class FireBurnSeverityResponse(BaseModel):
-    id: int
-    fire_number: str
-    pre_image_date: Optional[str] = None
-    post_image_date: Optional[str] = None
-    # severity_class: Optional[SeverityClassEnum] = None
-    severity_class: Optional[str] = None
-    # geom: Optional[str] = None # Or a GeoJSON representation
+    type: str
+    crs: CRS
+    features: List[FireBurnSeverityFeature]
 
     class Config:
         from_attributes = True # For Pydantic V2 (formerly orm_mode)
