@@ -1,0 +1,45 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend/api
+    container_name: fastapi-backend
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    depends_on:
+      - db-service
+    env_file:
+      - .env
+    volumes:
+      - ./backend/api:/app
+    command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  db-service:
+    image: postgis/postgis:latest
+    container_name: postgres-db
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  frontend:
+    build:
+      context: ./frontend
+    image: burn-severity-map-frontend:test
+    container_name: react-frontend
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    # remove this line in production
+    volumes:
+      - ./frontend:/app
+
+volumes:
+  pgdata:
