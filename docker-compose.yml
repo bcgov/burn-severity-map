@@ -1,30 +1,67 @@
-version: '3.9'
+# Reusable vars
+x-var:
+  - &POSTGRES_USER
+    postgres
+  - &POSTGRES_PASSWORD
+    default
+  - &POSTGRES_DATABASE
+    postgres
+  - &POSTGRES_PORT
+    5432
+  - &POSTGRES_HOST
+    postgres
+  - &BACKEND_PORT
+    8000
+
+x-postgres-vars: &postgres-vars
+  POSTGRES_HOST: *POSTGRES_HOST
+  POSTGRES_USER: *POSTGRES_USER
+  POSTGRES_PASSWORD: *POSTGRES_PASSWORD
+  POSTGRES_DATABASE: *POSTGRES_DATABASE
+  POSTGRES_PORT: *POSTGRES_PORT
+
+x-backend-vars: &backend-vars
+  BACKEND_PORT: *BACKEND_PORT
+  POSTGRES_HOST: *POSTGRES_HOST
+  POSTGRES_USER: *POSTGRES_USER
+  POSTGRES_PASSWORD: *POSTGRES_PASSWORD
+  POSTGRES_DATABASE: *POSTGRES_DATABASE
+  POSTGRES_PORT: *POSTGRES_PORT
+
 
 services:
-  backend:
+
+  fastapi-backend:
+    image: burn-sev-backend:latest
     build:
       context: ./backend/api
+      dockerfile: Dockerfile
     container_name: fastapi-backend
     ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "8000:8000"
+    environment:
+      <<: *backend-vars
     depends_on:
-      - db-service
+      - postgres
     env_file:
       - .env
     volumes:
-      - ./backend/api:/app
+      - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  db-service:
+  postgres:
     image: postgis/postgis:latest
     container_name: postgres-db
     restart: always
+    environment:
+      <<: *postgres-vars
     env_file:
       - .env
-    ports:
-      - "${DB_PORT}:${DB_PORT}"
+    ports: 
+      - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
 volumes:
   pgdata:
+  backend-data:
