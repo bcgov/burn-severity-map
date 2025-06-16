@@ -65,8 +65,11 @@ cd burn-severity-map
 =======
 2. **Modify environemnt .env**
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> f2e6fd42 (update to work with docker componse)
+=======
+>>>>>>> 7aa1355b (Update README.md)
 ```bash
 cp .env-example .env
 # modify env if needed 
@@ -85,17 +88,12 @@ http://localhost:8000/docs
 
 
 4. **Install front end dependencies**
->>>>>>> edb366e9 (update to work with docker componse)
 ```bash
 cp .env-example .env
 # modify env if needed 
 ```
 
-<<<<<<< HEAD
-3. **Start the backend and database containers**
-=======
 5. **Start the development server**
->>>>>>> edb366e9 (update to work with docker componse)
 ```bash
 docker-compose up backend db-service -d
 >>>>>>> 5a7e2ce6 (update to work with docker componse)
@@ -122,11 +120,7 @@ uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 3. **Install front end dependencies**
 ```bash
-<<<<<<< HEAD
 npm install 
-=======
-npm install --legacy-peer-deps
->>>>>>> c117813b (Update README.md)
 ```
 
 4. **Start the development server**
