@@ -267,7 +267,7 @@ async def read_burn_severity_by_fire(
 
     # 6. Create FireBurnSeverityResponse instance (FeatureCollection)
     # Use the predefined dummy CRS for consistency
-    dummy_crs = schemas.CRS(type="name", properties=schemas.CRSProperties(name="urn:ogc:def:crs:EPSG::3005"))
+    dummy_crs = schemas.CRS(type="name", properties=schemas.CRSProperties(name="urn:ogc:def:crs:EPSG::4326"))
 
     final_response = schemas.FireBurnSeverityResponse(
         type="FeatureCollection",
