@@ -17,11 +17,6 @@ const config = {
         host: 'localhost',
         proxy: {
             '/burn-records': 'http://localhost:8000',
-            '/burn-severity': 'http://localhost:8000',
-            '/': 'http://localhost:8000'
-        },
-        proxy: {
-            '/burn-records': 'http://localhost:8000',
             '/': 'http://localhost:8000'
         },
     },
