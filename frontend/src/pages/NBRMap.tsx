@@ -18,6 +18,38 @@ interface Fire {
   extent: number[];
 }
 
+// DbFire interface for records from database
+interface DbFire {
+  id: string;
+  fireNumber: string;
+  fire_number: string;
+  pre_image_date: string;
+  post_image_date: string;
+  severity_class: string;
+  severty_class: string; // Handle both spellings for compatibility
+  [key: string]: any; // Allow for additional properties
+}
+
+// Fire properties interface
+interface FireProperties {
+  _isDbRecord?: boolean;
+  _isLoading?: boolean;
+  _hasError?: boolean;
+  _errorMessage?: string;
+  FIRE_NUMBER: string;
+  PRE_FIRE_IMAGE_DATE?: string;
+  POST_FIRE_IMAGE_DATE?: string;
+  BURN_SEVERITY_RATING?: string;
+  FIRE_STATUS?: string;
+  COMMENTS?: string;
+  AREA_HA?: number | null;
+  FIRE_YEAR?: number | null;
+  IGNITION_DATE?: string | null;
+  FIRE_OUT_DATE?: string | null;
+  GEOGRAPHIC_DESCRIPTION?: string;
+  [key: string]: any; // Allow for additional properties
+}
+
 function NBRMap() {
   const [basemap, setBasemap] = useState('osm');
   // Set initial center and zoom for all of British Columbia
@@ -26,7 +58,7 @@ function NBRMap() {
   const [fires, setFires] = useState<Fire[]>([]);
   const [selectedFire, setSelectedFire] = useState<string | null>(null);
   // Add state for database fires
-  const [dbFires, setDbFires] = useState<any[]>([]);
+  const [dbFires, setDbFires] = useState<DbFire[]>([]);
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
   const [showSatelliteImagery, setShowSatelliteImagery] = useState<boolean>(false);
   const [showPreBurnImagery, setShowPreBurnImagery] = useState<boolean>(false);
@@ -34,7 +66,7 @@ function NBRMap() {
   const [showNBR, setShowNBR] = useState<boolean>(false);
   const [isNBRLoading, setIsNBRLoading] = useState<boolean>(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState<boolean>(false);
-  const [fireProperties, setFireProperties] = useState<any | null>(null); // Add state for fire properties
+  const [fireProperties, setFireProperties] = useState<FireProperties | null>(null); // Add state for fire properties
   const [preBurnDates, setPreBurnDates] = useState<string[]>([]);
   const [selectedPreBurnDate, setSelectedPreBurnDate] = useState<string | null>(null);
   // Add post-burn state
@@ -54,7 +86,7 @@ function NBRMap() {
   };
   
   // Handler for when database fires are loaded
-  const handleDbFiresLoaded = (loadedDbFires: any[]) => {
+  const handleDbFiresLoaded = (loadedDbFires: DbFire[]) => {
     setDbFires(loadedDbFires);
     console.log('DB fires loaded:', loadedDbFires);
   };
@@ -66,20 +98,151 @@ function NBRMap() {
       setShowSatelliteImagery(false);
       setShowNBR(false);
       setFireProperties(null); // Reset fire properties when fire selection changes
+      
+      // Reset DB fire selection when a current wildfire is selected
+      setSelectedDbFire(null);
+    }
+  };
+  
+  // Function to fetch fire details from the database
+  const fetchDbFireDetails = async (fireNumber: string) => {
+    try {
+      console.log('Getting details for DB fire:', fireNumber);
+      
+      // Since the /burn-severity/{fire_number} endpoint doesn't work,
+      // let's use the data we already have in dbFires or
+      // fetch all records and filter for the one we need
+      
+      // First check if we already have the fire in our dbFires state
+      const existingFire = dbFires.find(fire => fire.fireNumber === fireNumber);
+      
+      if (existingFire) {
+        console.log('Using existing DB fire data:', existingFire);
+        
+        // Transform the existing data into the format expected by the UI
+        const fireProps: FireProperties = {
+          _isDbRecord: true,
+          FIRE_NUMBER: existingFire.fireNumber,
+          PRE_FIRE_IMAGE_DATE: existingFire.pre_image_date,
+          POST_FIRE_IMAGE_DATE: existingFire.post_image_date,
+          BURN_SEVERITY_RATING: existingFire.severty_class,
+          FIRE_STATUS: 'Processed',
+          COMMENTS: `Severity: ${existingFire.severty_class}`,
+          AREA_HA: null as number | null, // We don't have this data
+          FIRE_YEAR: existingFire.pre_image_date ? new Date(existingFire.pre_image_date).getFullYear() : null,
+          
+          // Add these as aliases for compatibility with the UI
+          IGNITION_DATE: existingFire.pre_image_date,
+          FIRE_OUT_DATE: existingFire.post_image_date,
+          GEOGRAPHIC_DESCRIPTION: `Burn Severity: ${existingFire.severty_class}`
+        };
+        
+        return fireProps;
+      }
+      
+      // If we don't have the fire in our state, fetch all records again
+      const response = await fetch('/burn-records/', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch fire records: ${response.statusText}`);
+      }
+      
+      const allFires = await response.json();
+      console.log('All DB fires:', allFires);
+      
+      // Find the fire we're looking for
+      const targetFire = allFires.find((fire: DbFire) => fire.fire_number === fireNumber);
+      
+      if (targetFire) {
+        console.log('Found target fire in all records:', targetFire);
+        
+        // Transform the data into the format expected by the UI
+        const fireProps: FireProperties = {
+          _isDbRecord: true,
+          FIRE_NUMBER: targetFire.fire_number,
+          PRE_FIRE_IMAGE_DATE: targetFire.pre_image_date,
+          POST_FIRE_IMAGE_DATE: targetFire.post_image_date,
+          BURN_SEVERITY_RATING: targetFire.severity_class,
+          FIRE_STATUS: 'Processed',
+          COMMENTS: `Severity: ${targetFire.severity_class}`,
+          AREA_HA: null as number | null, // We don't have this data
+          FIRE_YEAR: targetFire.pre_image_date ? new Date(targetFire.pre_image_date).getFullYear() : null,
+          
+          // Add these as aliases for compatibility with the UI
+          IGNITION_DATE: targetFire.pre_image_date,
+          FIRE_OUT_DATE: targetFire.post_image_date,
+          GEOGRAPHIC_DESCRIPTION: `Burn Severity: ${targetFire.severity_class}`
+        };
+        
+        return fireProps;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting DB fire details:', error);
+      return null;
     }
   };
   
   // Handler for DB fire selection
   const handleDbFireSelect = (fireNumber: string | null) => {
-    setSelectedDbFire(fireNumber);
-    console.log('Selected DB fire:', fireNumber);
-    
-    // You can add code here to fetch additional data about the selected DB fire
-    // or perform other actions when a DB fire is selected
+    // Only update if the selection has actually changed
+    if (selectedDbFire !== fireNumber) {
+      setSelectedDbFire(fireNumber);
+      console.log('Selected DB fire:', fireNumber);
+      
+      // Reset current fire selection when a DB fire is selected
+      setSelectedFire(null);
+      
+      // Reset visualization toggles
+      setShowSatelliteImagery(false);
+      setShowNBR(false);
+      
+      // If a fire is selected, fetch its details
+      if (fireNumber) {
+        // Set loading state to show user something is happening
+        setFireProperties({ FIRE_NUMBER: fireNumber, _isLoading: true });
+        
+        fetchDbFireDetails(fireNumber)
+          .then(properties => {
+            if (properties) {
+              setFireProperties(properties);
+              console.log('DB fire properties loaded:', properties);
+            } else {
+              // Show error message if no data found
+              console.warn('No data returned for DB fire:', fireNumber);
+              setFireProperties({ 
+                FIRE_NUMBER: fireNumber,
+                _isDbRecord: true,
+                _hasError: true,
+                _errorMessage: 'No details found for this fire. The fire may not exist in the database.'
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Failed to load DB fire properties:', error);
+            // Show error message to the user
+            setFireProperties({ 
+              FIRE_NUMBER: fireNumber,
+              _isDbRecord: true, 
+              _hasError: true,
+              _errorMessage: 'Failed to load fire details. Please try again later.'
+            });
+          });
+      } else {
+        // Reset fire properties if no fire is selected
+        setFireProperties(null);
+      }
+    }
   };
   
   // New handler for receiving fire properties
-  const handleFireProperties = (properties: any | null) => {
+  const handleFireProperties = (properties: FireProperties | null) => {
     setFireProperties(properties);
   };
 
@@ -198,6 +361,15 @@ function NBRMap() {
     }
   };
 
+  // Effect to coordinate selectors: ensure only one selector has an active selection
+  React.useEffect(() => {
+    // If both selectors have active selections, prioritize the most recent one
+    if (selectedFire && selectedDbFire) {
+      console.warn('Both fire selectors have active selections - this should not happen');
+      // The most recent action would have set its state last, so no need to do anything here
+    }
+  }, [selectedFire, selectedDbFire]);
+
   return (
     <div className="App">
       {/* Info Section - Now a collapsible panel */}
@@ -245,7 +417,7 @@ function NBRMap() {
         {/* Left Panel - Fire Selection and Controls */}
         <div className="left-panel">
           {/* 1. Database Fire Selector */}
-          <h3>Database Fires</h3>
+          <h3>Processed Burn Severity Fires</h3>
           <FireSelector_db
             fires={dbFires}
             onFireSelect={handleDbFireSelect}
@@ -373,6 +545,7 @@ function NBRMap() {
               onFiresLoaded={handleFiresLoaded}
               onDbFiresLoaded={handleDbFiresLoaded}
               selectedFire={selectedFire}
+              selectedDbFire={selectedDbFire}
               showPreBurnImagery={showPreBurnImagery}
               showPostBurnImagery={showPostBurnImagery}
               ignitionDate={ignitionDate}
@@ -398,55 +571,163 @@ function NBRMap() {
             <h4>Basemap</h4>
             <BasemapSelector selectedBasemap={basemap} onBasemapChange={handleBasemapChange} />
           </div>
-        </div>
-
-        {/* Right Panel - Fire Details (updated) */}
+        </div>        {/* Right Panel - Fire Details (updated) */}
         <div className="right-panel">
-          <h3>Fire Details</h3>
-          {selectedFire && fireProperties ? (
+          <h3>{selectedDbFire ? 'Processed Burn Severity Fire Details' : 'Fire Details'}</h3>
+          
+          {!fireProperties && (
+            <div className="no-fire-selected">
+              <p>Select a fire to view details</p>
+            </div>
+          )}
+          
+          {fireProperties && fireProperties._isLoading && (
+            <div className="loading-state">
+              <p>Loading fire details...</p>
+            </div>
+          )}
+          
+          {fireProperties && fireProperties._hasError && (
+            <div className="error-state">
+              <p>{fireProperties._errorMessage || 'An error occurred while loading fire details.'}</p>
+            </div>
+          )}
+          
+          {fireProperties && !fireProperties._isLoading && !fireProperties._hasError && (
             <div className="fire-details-content">
               <table className="fire-details-table">
                 <tbody>
-                  <tr>
-                    <th>Fire Number</th>
-                    <td>{fireProperties.FIRE_NUMBER || 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <th>Ignition Date</th>
-                    <td>{fireProperties.IGNITION_DATE ? new Date(fireProperties.IGNITION_DATE).toLocaleDateString() : 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <th>Fire Out Date</th>
-                    <td>{fireProperties.FIRE_OUT_DATE ? new Date(fireProperties.FIRE_OUT_DATE).toLocaleDateString() : 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <th>Fire Status</th>
-                    <td>{fireProperties.FIRE_STATUS || 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <th>Geographic Description</th>
-                    <td>{fireProperties.GEOGRAPHIC_DESCRIPTION || 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <th>Fire Area (ha)</th>
-                    <td>{fireProperties.CURRENT_SIZE ? Number(fireProperties.CURRENT_SIZE).toLocaleString(undefined, { maximumFractionDigits: 2 }) : 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <th>Fire URL</th>
-                    <td>
-                      {fireProperties.FIRE_URL ? (
-                        <a href={fireProperties.FIRE_URL} target="_blank" rel="noopener noreferrer">
-                          View Fire Info
-                        </a>
-                      ) : 'N/A'}
-                    </td>
-                  </tr>
+                  {selectedDbFire && fireProperties._isDbRecord ? (
+                    // Dynamic rendering of DB fire properties
+                    Object.entries(fireProperties)
+                      // Filter out properties we don't want to display
+                      .filter(([key]) => {
+                        // Exclude internal properties (starting with underscore)
+                        if (key.startsWith('_')) return false;
+                        
+                        // Exclude geometry-related fields that don't make sense to display
+                        if (key === 'geometry' || key === 'type' || key === 'bbox' || key === 'id') return false;
+                        
+                        // Exclude duplicated fields (those that are aliases of DB fields)
+                        if (
+                          key === 'IGNITION_DATE' && fireProperties.PRE_FIRE_IMAGE_DATE === fireProperties.IGNITION_DATE ||
+                          key === 'FIRE_OUT_DATE' && fireProperties.POST_FIRE_IMAGE_DATE === fireProperties.FIRE_OUT_DATE ||
+                          key === 'GEOGRAPHIC_DESCRIPTION' && fireProperties.COMMENTS === fireProperties.GEOGRAPHIC_DESCRIPTION ||
+                          key === 'CURRENT_SIZE' && fireProperties.AREA_HA === fireProperties.CURRENT_SIZE
+                        ) return false;
+                        
+                        return true;
+                      })
+                      // Sort properties alphabetically with FIRE_NUMBER first
+                      .sort(([keyA], [keyB]) => {
+                        // Always put FIRE_NUMBER first
+                        if (keyA === 'FIRE_NUMBER') return -1;
+                        if (keyB === 'FIRE_NUMBER') return 1;
+                        
+                        // Then sort other keys alphabetically
+                        return keyA.localeCompare(keyB);
+                      })
+                      .map(([key, value]) => {
+                        // Skip null or undefined values
+                        if (value === null || value === undefined) return null;
+                        
+                        // Format the display key to be more readable
+                        let displayKey = key
+                          .replace(/_/g, ' ')  // Replace underscores with spaces
+                          .split(' ')
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())  // Capitalize words
+                          .join(' ');
+                          
+                        // Special case handling for common field names
+                        if (key === 'FIRE_NUMBER') displayKey = 'Fire Number';
+                        else if (key === 'PRE_FIRE_IMAGE_DATE') displayKey = 'Pre-Fire Image Date';
+                        else if (key === 'POST_FIRE_IMAGE_DATE') displayKey = 'Post-Fire Image Date';
+                        else if (key === 'AREA_HA') displayKey = 'Fire Area (ha)';
+                        else if (key === 'BURN_SEVERITY_RATING') displayKey = 'Burn Severity Rating';
+                        else if (key === 'FIRE_STATUS') displayKey = 'Fire Status';
+                        else if (key === 'FIRE_YEAR') displayKey = 'Fire Year';
+                        else if (key === 'COMMENTS') displayKey = 'Comments';
+                        else if (key === 'FEATURE_AREA_SQM') displayKey = 'Area (sq m)';
+                        else if (key === 'FEATURE_LENGTH_M') displayKey = 'Perimeter Length (m)';
+                        
+                        // Format the display value based on type
+                        let displayValue: React.ReactNode = String(value);
+                        
+                        // Format date values
+                        if (
+                          typeof value === 'string' &&
+                          (key.toUpperCase().includes('DATE') || key.toUpperCase().includes('_DATE'))
+                        ) {
+                          try {
+                            displayValue = new Date(value).toLocaleDateString();
+                          } catch (e) {
+                            // If date parsing fails, use raw value
+                            console.warn(`Failed to parse date: ${value}`, e);
+                          }
+                        }
+                        
+                        // Format number values
+                        if (
+                          typeof value === 'number' ||
+                          (typeof value === 'string' && !isNaN(Number(value)) && key.toUpperCase().includes('AREA'))
+                        ) {
+                          try {
+                            displayValue = Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+                          } catch (e) {
+                            // If number parsing fails, use raw value
+                            console.warn(`Failed to format number: ${value}`, e);
+                          }
+                        }
+                        
+                        // Render the table row
+                        return (
+                          <tr key={key}>
+                            <th>{displayKey}</th>
+                            <td>{displayValue}</td>
+                          </tr>
+                        );
+                      })
+                  ) : (
+                    // Static rendering for current wildfire properties
+                    <>
+                      <tr>
+                        <th>Fire Number</th>
+                        <td>{fireProperties.FIRE_NUMBER || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <th>Ignition Date</th>
+                        <td>{fireProperties.IGNITION_DATE ? new Date(fireProperties.IGNITION_DATE).toLocaleDateString() : 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <th>Fire Out Date</th>
+                        <td>{fireProperties.FIRE_OUT_DATE ? new Date(fireProperties.FIRE_OUT_DATE).toLocaleDateString() : 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <th>Fire Status</th>
+                        <td>{fireProperties.FIRE_STATUS || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <th>Geographic Description</th>
+                        <td>{fireProperties.GEOGRAPHIC_DESCRIPTION || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <th>Fire Area (ha)</th>
+                        <td>{fireProperties.CURRENT_SIZE ? Number(fireProperties.CURRENT_SIZE).toLocaleString(undefined, { maximumFractionDigits: 2 }) : 'N/A'}</td>
+                      </tr>
+                      {fireProperties.FIRE_URL && (
+                        <tr>
+                          <th>Fire URL</th>
+                          <td>
+                            <a href={fireProperties.FIRE_URL} target="_blank" rel="noopener noreferrer">
+                              View Fire Info
+                            </a>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )}
                 </tbody>
               </table>
-            </div>
-          ) : (
-            <div className="no-fire-selected">
-              <p>Select a fire to view details</p>
             </div>
           )}
         </div>

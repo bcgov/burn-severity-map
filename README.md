@@ -73,8 +73,22 @@ docker-compose up backend db-service
 your backend api should be at 
 http://localhost:8000
 Interactive API documentation:
-http://localhost:8000/docs
+http://localhost:8000/docs  
+Backend developers may wish to run the api from venv. Use docker to start only the database with  
+```bash
+docker compose up db-service -d
 
+or
+ 
+podman compose up -d
+```
+Stop your database with
+```bash
+docker compose down
+```
+Start the backend with UV
+```bash
+uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 4. **Install front end dependencies**
 ```bash

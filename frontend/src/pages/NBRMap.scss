@@ -356,6 +356,14 @@
         color: var(--bcgov-primary);
         font-weight: 600;
         font-size: 14px;
+        word-wrap: break-word; /* Allow long words to break */
+        overflow-wrap: break-word; /* Modern alternative for word-wrap */
+        hyphens: auto; /* Allow hyphenation */
+      }
+      
+      td {
+        word-wrap: break-word; /* Allow long words to break */
+        overflow-wrap: break-word;
       }
       
       td {
@@ -416,6 +424,31 @@
     }
   }
 }
+
+/* Loading and error states for fire details */
+.loading-state, .error-state, .no-fire-selected {
+    padding: 20px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f8f8f8;
+    margin-top: 10px;
+    
+    p {
+      margin: 0;
+    }
+  }
+  
+  .loading-state {
+    background-color: #f0f8ff; // Light blue background
+    border-color: #c0d8e8;
+  }
+  
+  .error-state {
+    background-color: #fff0f0; // Light red background
+    border-color: #e8c0c0;
+    color: #d44;
+  }
 
 /* Map controls */
 .bcgov-map-controls {

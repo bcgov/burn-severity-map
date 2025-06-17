@@ -52,11 +52,22 @@ const FireSelector: React.FC<FireSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
+  // Helper function to get display text for the selected fire
+  const getSelectedFireDisplayText = () => {
+    if (!selectedFire) return "Search by number or severity...";
+    
+    const selectedFireObj = fires.find(f => f.fireNumber === selectedFire);
+    if (!selectedFireObj) return selectedFire;
+    
+    return `${selectedFire} - ${selectedFireObj.severty_class || 'Unknown'}`;
+  };
+  
   // Filter and sort fires based on search term
   const filteredFires = useMemo(() => {
-    // First filter by search term
+    // First filter by search term - include both fire number and severity class in search
     const filtered = fires.filter(fire => 
-      fire.fireNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      fire.fireNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (fire.severty_class && fire.severty_class.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     
     // Then sort alphanumerically by fireNumber
@@ -76,10 +87,16 @@ const FireSelector: React.FC<FireSelectorProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+  
+  // Reset search term when selected fire changes externally
+  useEffect(() => {
+    setSearchTerm('');
+  }, [selectedFire]);
 
   // Handle fire selection
   const handleSelectFire = (fire: Fire) => {
     onFireSelect(fire.fireNumber);
+    setSearchTerm(''); // Reset search term
     setIsOpen(false);
   };
 
@@ -90,22 +107,25 @@ const FireSelector: React.FC<FireSelectorProps> = ({
     >
       <div className="bcgov-fire-selector-header">
         <div className="bcgov-fire-selector-label">
-          <h4>Current Wildfires</h4>
-          <p>Select a fire to zoom to its location</p>
+          <h4>Fire Number - Severity</h4>
+          <p>Select a fire to view burn severity</p>
         </div>
         <div 
           className="bcgov-fire-selector-input-container" 
-          onClick={() => setIsOpen(true)}
+          onClick={() => setIsOpen(!isOpen)} // Toggle dropdown visibility
         >
           <input
             type="text"
-            placeholder={selectedFire || "Search fire number..."}
+            placeholder={getSelectedFireDisplayText()}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(true);
+              // Focus on input when clicking
+              e.currentTarget.focus();
             }}
+            onFocus={() => setIsOpen(true)}
             className="bcgov-fire-selector-input"
           />
           <button 
@@ -113,6 +133,10 @@ const FireSelector: React.FC<FireSelectorProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(!isOpen);
+              if (!isOpen) {
+                // Reset search term when opening dropdown
+                setSearchTerm('');
+              }
             }}
           >
             {isOpen ? '▲' : '▼'}
@@ -122,26 +146,19 @@ const FireSelector: React.FC<FireSelectorProps> = ({
       
       {isOpen && (
         <div className="bcgov-fire-selector-dropdown">
-          {filteredFires.length > 0 ? (
+          {fires.length === 0 ? (
+            <div className="bcgov-fire-selector-no-results">
+              No processed burn severity records available
+            </div>
+          ) : filteredFires.length > 0 ? (
             <ul className="bcgov-fire-selector-list">
-              <li 
-                key="clear-selection" 
-                className={`bcgov-fire-selector-item ${!selectedFire ? 'selected' : ''}`}
-                onClick={() => {
-                  onFireSelect(null);
-                  setIsOpen(false);
-                  setSearchTerm('');
-                }}
-              >
-                Show all fires
-              </li>
               {filteredFires.map((fire) => (
                 <li 
                   key={fire.id} 
                   className={`bcgov-fire-selector-item ${selectedFire === fire.fireNumber ? 'selected' : ''}`}
                   onClick={() => handleSelectFire(fire)}
                 >
-                  {fire.fireNumber}
+                  {fire.fireNumber} - {fire.severty_class || 'Unknown'}
                 </li>
               ))}
             </ul>
