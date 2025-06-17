@@ -20,6 +20,10 @@ const config = {
             '/burn-severity': 'http://localhost:8000',
             '/': 'http://localhost:8000'
         },
+        proxy: {
+            '/burn-records': 'http://localhost:8000',
+            '/': 'http://localhost:8000'
+        },
     },
     plugins: [
         new HtmlWebpackPlugin({
