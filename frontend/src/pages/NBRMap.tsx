@@ -4,6 +4,7 @@ import './NBRMap.scss';
 import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector from '../components/ol-maps/FireSelector';
+import FireSelector_db from '../components/ol-maps/FireSelector_db';
 import SatelliteToggle from '../components/ol-maps/SatelliteToggle';
 import NBRToggle from '../components/ol-maps/NBRToggle';
 import PreBurnToggle from '../components/ol-maps/PreBurnToggle';
@@ -24,6 +25,9 @@ function NBRMap() {
   const [zoom] = useState(5); // Zoomed out to show the whole province
   const [fires, setFires] = useState<Fire[]>([]);
   const [selectedFire, setSelectedFire] = useState<string | null>(null);
+  // Add state for database fires
+  const [dbFires, setDbFires] = useState<any[]>([]);
+  const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
   const [showSatelliteImagery, setShowSatelliteImagery] = useState<boolean>(false);
   const [showPreBurnImagery, setShowPreBurnImagery] = useState<boolean>(false);
   const [showPostBurnImagery, setShowPostBurnImagery] = useState<boolean>(false);
@@ -48,6 +52,12 @@ function NBRMap() {
   const handleFiresLoaded = (loadedFires: Fire[]) => {
     setFires(loadedFires);
   };
+  
+  // Handler for when database fires are loaded
+  const handleDbFiresLoaded = (loadedDbFires: any[]) => {
+    setDbFires(loadedDbFires);
+    console.log('DB fires loaded:', loadedDbFires);
+  };
 
   const handleFireSelect = (fireNumber: string | null) => {
     setSelectedFire(fireNumber);
@@ -57,6 +67,15 @@ function NBRMap() {
       setShowNBR(false);
       setFireProperties(null); // Reset fire properties when fire selection changes
     }
+  };
+  
+  // Handler for DB fire selection
+  const handleDbFireSelect = (fireNumber: string | null) => {
+    setSelectedDbFire(fireNumber);
+    console.log('Selected DB fire:', fireNumber);
+    
+    // You can add code here to fetch additional data about the selected DB fire
+    // or perform other actions when a DB fire is selected
   };
   
   // New handler for receiving fire properties
@@ -225,15 +244,23 @@ function NBRMap() {
       <div className="app-layout">
         {/* Left Panel - Fire Selection and Controls */}
         <div className="left-panel">
-          {/* 1. Wildfire Selector */}
-          <h3>Fire Selection</h3>
+          {/* 1. Database Fire Selector */}
+          <h3>Database Fires</h3>
+          <FireSelector_db
+            fires={dbFires}
+            onFireSelect={handleDbFireSelect}
+            selectedFire={selectedDbFire}
+          />
+          
+          {/* 2. Wildfire Selector */}
+          <h3>Current Wildfires</h3>
           <FireSelector 
             fires={fires}
             onFireSelect={handleFireSelect}
             selectedFire={selectedFire}
           />
 
-          {/* 2. Legend */}
+          {/* 3. Legend */}
           <div className="bcgov-map-legend">
             <h3>Legend</h3>
             <div className="bcgov-legend-item">
@@ -280,7 +307,7 @@ function NBRMap() {
             )}
           </div>
 
-          {/* 3. Satellite Toggle and 4. NBR Toggle */}
+          {/* 4. Satellite Toggle and 5. NBR Toggle */}
           {selectedFire && (
             <div className="controls-section">
               <h3>Analysis Tools</h3>
@@ -344,6 +371,7 @@ function NBRMap() {
               zoom={zoom} 
               basemap={basemap}
               onFiresLoaded={handleFiresLoaded}
+              onDbFiresLoaded={handleDbFiresLoaded}
               selectedFire={selectedFire}
               showPreBurnImagery={showPreBurnImagery}
               showPostBurnImagery={showPostBurnImagery}
