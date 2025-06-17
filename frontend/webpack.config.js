@@ -15,6 +15,10 @@ const config = {
     devServer: {
         open: true,
         host: 'localhost',
+        proxy: {
+            '/burn-records': 'http://localhost:8000',
+            '/': 'http://localhost:8000'
+        },
     },
     plugins: [
         new HtmlWebpackPlugin({
