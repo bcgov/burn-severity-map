@@ -109,6 +109,7 @@ interface OLMapProps {
   zoom?: number;
   basemap?: string;
   onFiresLoaded?: (fires: Fire[]) => void;
+  onDbFiresLoaded?: (dbFires: any[]) => void; // Add callback for database fires
   selectedFire?: string | null;
   showSatelliteImagery?: boolean;
   showNBR?: boolean;
@@ -138,6 +139,7 @@ const OLMap: React.FC<OLMapProps> = ({
   zoom = 6,
   basemap = 'osm',
   onFiresLoaded,
+  onDbFiresLoaded, // Add callback for database fires
   selectedFire,
   showSatelliteImagery = false,
   showNBR = false,
@@ -164,6 +166,9 @@ const OLMap: React.FC<OLMapProps> = ({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const [fires, setFires] = useState<Fire[]>([]);
+  
+  // State for database fires (used for FireSelector_db)
+  const [dbFires, setDbFires] = useState<any[]>([]);
   const firesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const firePerimetersLayerRef = useRef<TileLayer<TileWMS> | null>(null);
   const satelliteLayerRef = useRef<WebGLTileLayer | null>(null);
@@ -432,6 +437,73 @@ const OLMap: React.FC<OLMapProps> = ({
     }
   }, [addCogImageryToMap]);
   
+  // fetch data from hosted db
+  const fetchFiresFromDB = useCallback(async () => {
+    try {
+      console.log('Fetching fires from database...');
+      
+      // Try to fetch data with mode: 'cors' instead of credentials: 'include'
+      // This is often more compatible with simple dev setups
+      const response = await fetch('/burn-records/', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        }
+        // Remove mode: 'cors' when using the proxy
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch fires: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Database fires data:', data);
+      
+      // Transform data to match FireSelector_db's expected format
+      const formattedFires = data.map((item: any) => ({
+        id: item.id.toString(),
+        fireNumber: item.fire_number,
+        pre_image_date: item.pre_image_date,
+        post_image_date: item.post_image_date,
+        severty_class: item.severity_class || 'Unknown'
+      }));
+      
+      console.log('Formatted fires for selector:', formattedFires);
+      return formattedFires;
+    } catch (error) {
+      console.error('Error fetching fires from database:', error);
+      
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.warn('CORS error detected. Your backend needs CORS headers configured.');
+        console.warn('Add this to your FastAPI backend:');
+        console.warn(`
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+        `);
+        
+        // Return sample data for development when CORS fails
+        console.log('Returning sample data for development');
+        const sampleData = [
+          { id: '1', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Medium' },
+          { id: '2', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Medium' },
+          { id: '3', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Unburned' },
+          { id: '4', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Low' },
+          { id: '5', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Low' }
+        ];
+        return sampleData;
+      }
+      
+      return [];
+    }
+  }, []);
+
   // Function to fetch fire data (now fire points)
   const fetchFireData = useCallback(async () => {
     try {
@@ -555,6 +627,23 @@ const OLMap: React.FC<OLMapProps> = ({
     return [];
   }, []);
 
+  // Helper function to check if backend is accessible
+  const checkBackendConnection = useCallback(async () => {
+    try {
+      // Use a relative URL to leverage the proxy configuration in package.json
+      const response = await fetch('/', {
+        method: 'GET',
+        // Remove mode: 'cors' as it's not needed with proxy
+      });
+      
+      console.log('Backend connection test result:', response.ok ? 'Success' : 'Failed');
+      return response.ok;
+    } catch (error) {
+      console.error('Backend connection test error:', error);
+      return false;
+    }
+  }, []);
+
   // Effect to initialize the map once
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -643,6 +732,30 @@ const OLMap: React.FC<OLMapProps> = ({
 
     // Fetch fire data when map is initialized
     fetchFireData();
+    
+    // Also fetch fires from database for FireSelector_db
+    // First check if we can connect to the backend
+    checkBackendConnection().then(isConnected => {
+      if (isConnected) {
+        console.log('Backend is accessible, fetching fire data');
+      } else {
+        console.warn('Backend seems inaccessible, will attempt fetch anyway but may fail');
+      }
+      
+      // Proceed with fetching fires regardless
+      fetchFiresFromDB()
+        .then(dbFiresData => {
+          console.log('Successfully fetched database fires');
+          setDbFires(dbFiresData);
+          // Call the callback if it exists
+          if (onDbFiresLoaded) {
+            onDbFiresLoaded(dbFiresData);
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch database fires:', error);
+        });
+    });
 
     // Cleanup function
     return () => {
