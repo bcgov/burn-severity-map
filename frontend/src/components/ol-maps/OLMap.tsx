@@ -111,6 +111,7 @@ interface OLMapProps {
   onFiresLoaded?: (fires: Fire[]) => void;
   onDbFiresLoaded?: (dbFires: any[]) => void; // Add callback for database fires
   selectedFire?: string | null;
+  selectedDbFire?: string | null; // Add prop for selected DB fire
   showSatelliteImagery?: boolean;
   showNBR?: boolean;
   visualCogUrl?: string | null;
@@ -141,6 +142,7 @@ const OLMap: React.FC<OLMapProps> = ({
   onFiresLoaded,
   onDbFiresLoaded, // Add callback for database fires
   selectedFire,
+  selectedDbFire, // Add selected DB fire prop
   showSatelliteImagery = false,
   showNBR = false,
   visualCogUrl = null,
@@ -1121,6 +1123,39 @@ app.add_middleware(
       addCogImageryToMap(preBurnVisualUrl, preBurnMetadata);
     }
   }, [showPreBurnImagery, preBurnMetadata, preBurnVisualUrl, addCogImageryToMap]);
+
+  // Effect to handle DB fire selection and create/update a vector layer for it
+  useEffect(() => {
+    if (!mapInstanceRef.current || !selectedDbFire || dbFires.length === 0) return;
+    
+    try {
+      console.log('Highlighting selected DB fire on map:', selectedDbFire);
+      
+      // Find the selected DB fire
+      const selectedDbFireObj = dbFires.find(fire => fire.fireNumber === selectedDbFire);
+      if (!selectedDbFireObj) {
+        console.warn('Selected DB fire not found in dbFires array');
+        return;
+      }
+      
+      // Since we don't have geometry in the dbFires array directly, we would need to:
+      // 1. Either fetch it from the API (if available)
+      // 2. Or use a separate layer for DB fires with their geometries
+      
+      // For now, just log that we would highlight this fire if we had its geometry
+      console.log('Would highlight DB fire:', selectedDbFireObj);
+      
+      // TODO: When DB fire geometries are available, implement highlighting here
+      // This would involve:
+      // 1. Creating a vector layer for the selected DB fire
+      // 2. Setting a distinctive style (e.g., different color from regular fires)
+      // 3. Adding it to the map
+      // 4. Zooming to its extent
+      
+    } catch (error) {
+      console.error('Error highlighting DB fire:', error);
+    }
+  }, [selectedDbFire, dbFires]);
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>

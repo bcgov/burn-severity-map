@@ -77,6 +77,10 @@ http://localhost:8000/docs
 Backend developers may wish to run the api from venv. Use docker to start only the database with  
 ```bash
 docker compose up db-service -d
+
+or
+ 
+podman compose up -d
 ```
 Stop your database with
 ```bash
