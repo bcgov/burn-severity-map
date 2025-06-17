@@ -36,6 +36,7 @@ interface FireProperties {
   _isLoading?: boolean;
   _hasError?: boolean;
   _errorMessage?: string;
+  _dbSchema?: boolean; // Flag to indicate this object has the original DB schema
   FIRE_NUMBER: string;
   PRE_FIRE_IMAGE_DATE?: string;
   POST_FIRE_IMAGE_DATE?: string;
@@ -119,23 +120,21 @@ function NBRMap() {
       if (existingFire) {
         console.log('Using existing DB fire data:', existingFire);
         
-        // Transform the existing data into the format expected by the UI
+        // Create a dynamically-built object that preserves all DB fields
+        // First copy all properties from the existing fire
         const fireProps: FireProperties = {
           _isDbRecord: true,
           FIRE_NUMBER: existingFire.fireNumber,
-          PRE_FIRE_IMAGE_DATE: existingFire.pre_image_date,
-          POST_FIRE_IMAGE_DATE: existingFire.post_image_date,
-          BURN_SEVERITY_RATING: existingFire.severty_class,
-          FIRE_STATUS: 'Processed',
-          COMMENTS: `Severity: ${existingFire.severty_class}`,
-          AREA_HA: null as number | null, // We don't have this data
-          FIRE_YEAR: existingFire.pre_image_date ? new Date(existingFire.pre_image_date).getFullYear() : null,
-          
-          // Add these as aliases for compatibility with the UI
-          IGNITION_DATE: existingFire.pre_image_date,
-          FIRE_OUT_DATE: existingFire.post_image_date,
-          GEOGRAPHIC_DESCRIPTION: `Burn Severity: ${existingFire.severty_class}`
+          _dbSchema: true // Mark this as having the original DB schema
         };
+        
+        // Dynamically copy all properties from the DB record
+        Object.entries(existingFire).forEach(([key, value]) => {
+          // Convert to the internal property name format if needed
+          if (key !== 'fireNumber') {
+            fireProps[key] = value;
+          }
+        });
         
         return fireProps;
       }
@@ -161,23 +160,20 @@ function NBRMap() {
       if (targetFire) {
         console.log('Found target fire in all records:', targetFire);
         
-        // Transform the data into the format expected by the UI
+        // Create a dynamically-built object that preserves all DB fields
         const fireProps: FireProperties = {
           _isDbRecord: true,
           FIRE_NUMBER: targetFire.fire_number,
-          PRE_FIRE_IMAGE_DATE: targetFire.pre_image_date,
-          POST_FIRE_IMAGE_DATE: targetFire.post_image_date,
-          BURN_SEVERITY_RATING: targetFire.severity_class,
-          FIRE_STATUS: 'Processed',
-          COMMENTS: `Severity: ${targetFire.severity_class}`,
-          AREA_HA: null as number | null, // We don't have this data
-          FIRE_YEAR: targetFire.pre_image_date ? new Date(targetFire.pre_image_date).getFullYear() : null,
-          
-          // Add these as aliases for compatibility with the UI
-          IGNITION_DATE: targetFire.pre_image_date,
-          FIRE_OUT_DATE: targetFire.post_image_date,
-          GEOGRAPHIC_DESCRIPTION: `Burn Severity: ${targetFire.severity_class}`
+          _dbSchema: true // Mark this as having the original DB schema
         };
+        
+        // Dynamically copy all properties from the DB record
+        Object.entries(targetFire).forEach(([key, value]) => {
+          // Skip the fire_number as we already have FIRE_NUMBER
+          if (key !== 'fire_number') {
+            fireProps[key] = value;
+          }
+        });
         
         return fireProps;
       }
@@ -598,33 +594,59 @@ function NBRMap() {
               <table className="fire-details-table">
                 <tbody>
                   {selectedDbFire && fireProperties._isDbRecord ? (
-                    // Dynamic rendering of DB fire properties
+                    // Fully dynamic rendering of DB fire properties
                     Object.entries(fireProperties)
-                      // Filter out properties we don't want to display
+                      // Filter to show only the database fields (no metadata fields)
                       .filter(([key]) => {
                         // Exclude internal properties (starting with underscore)
                         if (key.startsWith('_')) return false;
                         
                         // Exclude geometry-related fields that don't make sense to display
-                        if (key === 'geometry' || key === 'type' || key === 'bbox' || key === 'id') return false;
+                        if (key === 'geometry' || key === 'type' || key === 'bbox') return false;
                         
-                        // Exclude duplicated fields (those that are aliases of DB fields)
-                        if (
-                          key === 'IGNITION_DATE' && fireProperties.PRE_FIRE_IMAGE_DATE === fireProperties.IGNITION_DATE ||
-                          key === 'FIRE_OUT_DATE' && fireProperties.POST_FIRE_IMAGE_DATE === fireProperties.FIRE_OUT_DATE ||
-                          key === 'GEOGRAPHIC_DESCRIPTION' && fireProperties.COMMENTS === fireProperties.GEOGRAPHIC_DESCRIPTION ||
-                          key === 'CURRENT_SIZE' && fireProperties.AREA_HA === fireProperties.CURRENT_SIZE
-                        ) return false;
+                        // Always include these core fields if they exist
+                        const priorityFields = [
+                          'FIRE_NUMBER',
+                          'id',
+                          'fire_number',
+                          'fireNumber',
+                          'post_image_date',
+                          'pre_image_date',
+                          'severty_class',
+                          'severity_class'
+                        ];
                         
-                        return true;
+                        if (priorityFields.includes(key)) {
+                          return true;
+                        }
+                        
+                        // For all other fields, include them only if we have the DB schema flag
+                        // This will allow new fields added to the DB to be displayed automatically
+                        return fireProperties._dbSchema === true;
                       })
-                      // Sort properties alphabetically with FIRE_NUMBER first
+                      // Sort properties with priority fields first, then alphabetically
                       .sort(([keyA], [keyB]) => {
-                        // Always put FIRE_NUMBER first
-                        if (keyA === 'FIRE_NUMBER') return -1;
-                        if (keyB === 'FIRE_NUMBER') return 1;
+                        // Define the priority order 
+                        const priorityOrder = [
+                          'FIRE_NUMBER', 'fire_number', 'fireNumber',
+                          'id', 
+                          'pre_image_date',
+                          'post_image_date',
+                          'severty_class', 'severity_class'
+                        ];
                         
-                        // Then sort other keys alphabetically
+                        // Get priority index (or a large number if not in priority list)
+                        const indexA = priorityOrder.indexOf(keyA);
+                        const indexB = priorityOrder.indexOf(keyB);
+                        const priorityA = indexA === -1 ? 999 : indexA;
+                        const priorityB = indexB === -1 ? 999 : indexB;
+                        
+                        // Sort by priority first
+                        if (priorityA !== priorityB) {
+                          return priorityA - priorityB;
+                        }
+                        
+                        // If same priority, sort alphabetically
                         return keyA.localeCompare(keyB);
                       })
                       .map(([key, value]) => {
