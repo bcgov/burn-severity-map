@@ -43,20 +43,20 @@ services:
       <<: *backend-vars
     depends_on:
       - postgres
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     volumes:
       - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   postgres:
-    image: postgis/postgis:latest
+    image: docker.io/postgis/postgis:latest
     container_name: postgres-db
     restart: always
     environment:
       <<: *postgres-vars
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     ports: 
       - "5432:5432"
     volumes:
