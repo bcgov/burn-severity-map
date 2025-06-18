@@ -95,87 +95,72 @@ interface ImageMetadata {
   assetType: string | null;
 }
 
-interface Fire {
-  id: string;
-  fireNumber: string;
-  geometry: any;
-  extent: number[];
-  olGeometry?: Geometry;
-  properties?: any;
-}
+// Removed Fire interface as we're no longer working with fire points
 
 interface OLMapProps {
   center?: [number, number]; // [longitude, latitude]
   zoom?: number;
   basemap?: string;
-  onFiresLoaded?: (fires: Fire[]) => void;
-  onDbFiresLoaded?: (dbFires: any[]) => void; // Add callback for database fires
-  selectedFire?: string | null;
-  selectedDbFire?: string | null; // Add prop for selected DB fire
+  onDbFiresLoaded?: (dbFires: any[]) => void; // Callback for database fires
+  selectedDbFire?: string | null; // Selected DB fire prop
   showSatelliteImagery?: boolean;
   showNBR?: boolean;
   visualCogUrl?: string | null;
   stacItemUrl?: string | null;
   onNbrLoadingChange?: (loading: boolean) => void;
-  onFireSelect?: (fireProperties: any | null) => void; // Add new callback prop
   showPreBurnImagery?: boolean;
   showPostBurnImagery?: boolean;
   ignitionDate?: string | null;
   fireOutDate?: string | null;
-  // New props for pre-burn date selection
+  // Pre-burn date selection
   onPreBurnDates?: (dates: string[]) => void;
   selectedPreBurnDate?: string | null;
-  // Add post-burn props
+  // Post-burn props
   onPostBurnDates?: (dates: string[]) => void;
   selectedPostBurnDate?: string | null;
-  // --- Add these for pre-burn COGs ---
+  // Pre-burn COGs
   preBurnVisualUrl?: string | null;
   preBurnNirUrl?: string | null;
   preBurnSwirUrl?: string | null;
-  preBurnMetadata?: any | null; // <-- Add this line
+  preBurnMetadata?: any | null;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
   center = [-123.3656, 48.4284], // Default to Victoria, BC
   zoom = 6,
   basemap = 'osm',
-  onFiresLoaded,
-  onDbFiresLoaded, // Add callback for database fires
-  selectedFire,
-  selectedDbFire, // Add selected DB fire prop
+  onDbFiresLoaded,
+  selectedDbFire,
   showSatelliteImagery = false,
   showNBR = false,
   visualCogUrl = null,
   stacItemUrl = null,
   onNbrLoadingChange,
-  onFireSelect, // Destructure the new prop
   showPreBurnImagery = false,
   showPostBurnImagery = false,
   ignitionDate = null,
   fireOutDate = null,
   onPreBurnDates,
   selectedPreBurnDate,
-  // Add post-burn props
   onPostBurnDates,
   selectedPostBurnDate,
-  // --- Add these for pre-burn COGs ---
   preBurnVisualUrl = null,
   preBurnNirUrl = null,
   preBurnSwirUrl = null,
-  preBurnMetadata = null // <-- Add this line
+  preBurnMetadata = null
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
-  const [fires, setFires] = useState<Fire[]>([]);
   
   // State for database fires (used for FireSelector_db)
   const [dbFires, setDbFires] = useState<any[]>([]);
-  const firesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const firePerimetersLayerRef = useRef<TileLayer<TileWMS> | null>(null);
   const satelliteLayerRef = useRef<WebGLTileLayer | null>(null);
   const [sentinelUrl, setSentinelUrl] = useState<string | null>(null);
   const [isLoadingImagery, setIsLoadingImagery] = useState<boolean>(false);
+  
+  // State for the burn severity vector layer
+  const [burnSeverityLayer, setBurnSeverityLayer] = useState<VectorLayer<VectorSource> | null>(null);
   
   // Add state for NIR and SWIR URLs
   const [nirUrl, setNirUrl] = useState<string | null>(null);
@@ -212,7 +197,7 @@ const OLMap: React.FC<OLMapProps> = ({
   // New state for available pre-burn and post-burn dates
   const [preBurnDates, setPreBurnDates] = useState<string[]>([]);
   const [postBurnDates, setPostBurnDates] = useState<string[]>([]);
-
+  
   // Helper function to extract band information from STAC item
   const extractBandInfo = (stacItem: StacItem): string | null => {
     if (stacItem.properties['eo:bands']) {
@@ -444,14 +429,12 @@ const OLMap: React.FC<OLMapProps> = ({
     try {
       console.log('Fetching fires from database...');
       
-      // Try to fetch data with mode: 'cors' instead of credentials: 'include'
-      // This is often more compatible with simple dev setups
-      const response = await fetch('/burn-records/', {
+      // Use the burn-severity endpoint with the proxy configured in package.json
+      const response = await fetch('/burn-severity/burn-records/', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
         }
-        // Remove mode: 'cors' when using the proxy
       });
       
       if (!response.ok) {
@@ -506,96 +489,7 @@ app.add_middleware(
     }
   }, []);
 
-  // Function to fetch fire data (now fire points)
-  const fetchFireData = useCallback(async () => {
-    try {
-      // Fetch fire points (current fire locations)
-      const response = await fetch(
-        'https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_PNTS_SP&outputFormat=application%2Fjson&srsName=EPSG:3857'
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch fire points: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const fireFeatures = data.features.map((feature: any) => {
-        const properties = feature.properties;
-        let geometry = feature.geometry;
-        const olFeature = new GeoJSON().readFeature(feature) as Feature<Geometry>;
-        const geom = olFeature.getGeometry();
-        let extent = [0, 0, 0, 0];
-        if (geom) {
-          try {
-            extent = geom.getExtent();
-            // For point features, create a 2km buffer
-            if (geometry.type === 'Point') {
-              const coords = geometry.coordinates;
-              extent = [
-                coords[0] - 2000,
-                coords[1] - 2000,
-                coords[0] + 2000,
-                coords[1] + 2000
-              ];
-            }
-            if (!isFinite(extent[0]) || !isFinite(extent[1]) || !isFinite(extent[2]) || !isFinite(extent[3])) {
-              extent = [0, 0, 0, 0];
-            }
-          } catch (e) {
-            extent = [0, 0, 0, 0];
-          }
-        }
-        return {
-          id: feature.id,
-          fireNumber: properties.FIRE_NUMBER, // Confirm this property exists in fire points schema
-          geometry: geometry,
-          extent: extent,
-          olGeometry: geom,
-          properties: properties
-        };
-      });
-      setFires(fireFeatures);
-      if (onFiresLoaded) {
-        onFiresLoaded(fireFeatures);
-      }
-      // Add fire points as a vector layer if not already present
-      if (!firesLayerRef.current && mapInstanceRef.current) {
-        const vectorSource = new VectorSource({
-          features: data.features.map((feature: any) => {
-            const olFeature = new GeoJSON().readFeature(feature) as Feature<Geometry>;
-            if (feature.geometry.type === 'Point') {
-              const geom = olFeature.getGeometry();
-              if (geom) {
-                try {
-                  const coords = feature.geometry.coordinates;
-                  olFeature.setGeometry(new Point(coords));
-                } catch (e) {}
-              }
-            }
-            return olFeature;
-          })
-        });
-        firesLayerRef.current = new VectorLayer({
-          source: vectorSource,
-          style: new Style({
-            image: new CircleStyle({
-              radius: 6,
-              fill: new Fill({ color: 'red' }),
-              stroke: new Stroke({ color: 'white', width: 2 })
-            })
-          }),
-          zIndex: 200 // Fire points always on top
-        });
-        mapInstanceRef.current.addLayer(firesLayerRef.current);
-      } else if (firesLayerRef.current) {
-        // If already present, update zIndex and ensure visible
-        firesLayerRef.current.setZIndex(200);
-        firesLayerRef.current.setVisible(true);
-      }
-    } catch (error) {
-      console.error('Error fetching fire points:', error);
-    }
-  }, [onFiresLoaded]);
+  // The fetchFireData function has been removed as we're no longer working with fire points
 
   // New function to fetch available pre-burn dates only
   const fetchPreBurnDates = useCallback(async (extent: number[], ignition: string) => {
@@ -632,10 +526,10 @@ app.add_middleware(
   // Helper function to check if backend is accessible
   const checkBackendConnection = useCallback(async () => {
     try {
-      // Use a relative URL to leverage the proxy configuration in package.json
-      const response = await fetch('/', {
+      // Use the burn-severity endpoint with the proxy configuration in package.json
+      const response = await fetch('/burn-severity/', {
         method: 'GET',
-        // Remove mode: 'cors' as it's not needed with proxy
+        // No need for mode: 'cors' as we're using the proxy
       });
       
       console.log('Backend connection test result:', response.ok ? 'Success' : 'Failed');
@@ -645,6 +539,100 @@ app.add_middleware(
       return false;
     }
   }, []);
+
+  // Function to fetch and display burn severity geometry
+  const fetchAndDisplayBurnGeometry = useCallback(async (fireId: string) => {
+    if (!mapInstanceRef.current) return;
+    
+    try {
+      console.log(`Fetching geometry for burn record ID: ${fireId}`);
+      
+      // Fetch the GeoJSON data for the selected burn record
+      const response = await fetch(`/burn-severity/burn-records/${fireId}/geometry`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
+      }
+      
+      const geojsonData = await response.json();
+      console.log('Received burn geometry data:', geojsonData);
+      
+      // Remove existing burn severity layer if it exists
+      if (burnSeverityLayer) {
+        mapInstanceRef.current.removeLayer(burnSeverityLayer);
+      }
+      
+      // Create a vector source from the GeoJSON
+      const vectorSource = new VectorSource({
+        features: new GeoJSON().readFeatures(geojsonData, {
+          featureProjection: WEB_MERCATOR, // Project to the map projection
+          dataProjection: WGS84 // Assuming the data is in WGS84
+        })
+      });
+      
+      // Create a vector layer with styling based on burn severity
+      const newLayer = new VectorLayer({
+        source: vectorSource,
+        style: (feature) => {
+          // Get burn severity from feature properties
+          const burnSeverity = feature.get('BURN_SEVERITY_RATING') || 
+                              feature.get('severity_class') || 
+                              feature.get('severty_class') || 
+                              'Unknown';
+          
+          // Define color based on severity
+          let fillColor;
+          let strokeColor = 'rgba(255, 255, 255, 0.8)';
+          
+          switch (burnSeverity.toLowerCase()) {
+            case 'high':
+              fillColor = 'rgba(204, 0, 0, 0.6)';
+              break;
+            case 'medium':
+              fillColor = 'rgba(255, 153, 51, 0.6)';
+              break;
+            case 'low':
+              fillColor = 'rgba(255, 255, 0, 0.6)';
+              break;
+            case 'unburned':
+            case 'unchanged':
+              fillColor = 'rgba(0, 153, 0, 0.6)';
+              break;
+            default:
+              fillColor = 'rgba(128, 128, 128, 0.6)';
+          }
+          
+          return new Style({
+            fill: new Fill({ color: fillColor }),
+            stroke: new Stroke({ color: strokeColor, width: 2 })
+          });
+        },
+        zIndex: 150 // Above imagery but below any overlays
+      });
+      
+      // Add the layer to the map
+      mapInstanceRef.current.addLayer(newLayer);
+      setBurnSeverityLayer(newLayer);
+      
+      // Zoom to the extent of the vector source
+      const extent = vectorSource.getExtent();
+      if (extent && extent.every(coord => isFinite(coord))) {
+        mapInstanceRef.current.getView().fit(extent, {
+          padding: [50, 50, 50, 50],
+          duration: 1000,
+          maxZoom: 14
+        });
+      }
+      
+      return vectorSource.getFeatures();
+    } catch (error) {
+      console.error('Error fetching and displaying burn geometry:', error);
+      return null;
+    }
+  }, [burnSeverityLayer]);
 
   // Effect to initialize the map once
   useEffect(() => {
@@ -683,28 +671,7 @@ app.add_middleware(
     // Add scale line control
     initialMap.addControl(new ScaleLine());
 
-    // Add WMS layer for fire perimeters - Use layer name without 'pub:' prefix
-    const firePerimetersSource = new TileWMS({
-      url: 'https://openmaps.gov.bc.ca/geo/pub/wms',
-      params: {
-        LAYERS: 'WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP',
-        FORMAT: 'image/png',
-        TRANSPARENT: true,
-        VERSION: '1.1.1'
-      },
-      serverType: 'geoserver',
-      transition: 0
-    });
-
-    const firePerimetersLayer = new TileLayer({
-      source: firePerimetersSource,
-      opacity: 0.7,
-      zIndex: 100 // Perimeters below fire points, above imagery
-    });
-
-    initialMap.addLayer(firePerimetersLayer);
-    firePerimetersLayerRef.current = firePerimetersLayer;
-    firePerimetersLayer.setZIndex(100); // Always below fire points, above imagery
+    // Fire perimeters WMS layer has been removed as we're no longer showing fire points
 
     // Add a map view change event listener to store valid view states
     initialMap.getView().on('change', function () {
@@ -732,8 +699,7 @@ app.add_middleware(
 
     mapInstanceRef.current = initialMap;
 
-    // Fetch fire data when map is initialized
-    fetchFireData();
+    // No longer fetching fire point data as we're focusing on burn severity
     
     // Also fetch fires from database for FireSelector_db
     // First check if we can connect to the backend
@@ -819,20 +785,9 @@ app.add_middleware(
 
   // Effect to handle pre-burn and post-burn/current imagery toggles
   useEffect(() => {
-    // Helper to get buffered extent for selected fire
+    // Use current map extent since we're no longer tracking individual fire points
     const getBufferedExtent = () => {
-      if (selectedFire) {
-        const selectedFireObj = fires.find(fire => fire.fireNumber === selectedFire);
-        if (selectedFireObj && selectedFireObj.extent && selectedFireObj.extent.length === 4 && selectedFireObj.extent.every(coord => isFinite(coord))) {
-          const bufferSize = 10000;
-          return [
-            selectedFireObj.extent[0] - bufferSize,
-            selectedFireObj.extent[1] - bufferSize,
-            selectedFireObj.extent[2] + bufferSize,
-            selectedFireObj.extent[3] + bufferSize
-          ];
-        }
-      }
+      // We'll use the current map extent since we don't have fire points anymore
       return currentMapExtent;
     };
 
@@ -897,214 +852,18 @@ app.add_middleware(
         setSwirUrl(null);
       }
     }
-  }, [showPreBurnImagery, showPostBurnImagery, ignitionDate, fireOutDate, selectedFire, fires, currentMapExtent, selectedPreBurnDate, selectedPostBurnDate, preBurnDates.length, postBurnDates.length]);
+  }, [showPreBurnImagery, showPostBurnImagery, ignitionDate, fireOutDate, currentMapExtent, selectedPreBurnDate, selectedPostBurnDate, preBurnDates.length, postBurnDates.length]);
 
   // Reset NBR calculation extent when fire or imagery changes
   useEffect(() => {
     // When the selected fire or imagery changes, we want to reset the NBR calculation extent
     initialNbrExtentRef.current = null;
     setNbrCalculationExtent(null);
-  }, [selectedFire, sentinelUrl]);
+  }, [selectedDbFire, sentinelUrl]);
 
-  // Effect to handle fire selection
-  useEffect(() => {
-    if (!mapInstanceRef.current || fires.length === 0) return;
+  // Fire selection effect has been removed as we're no longer working with fire points
 
-    // Update WMS fire perimeters layer if needed
-    if (firePerimetersLayerRef.current) {
-      const source = firePerimetersLayerRef.current.getSource();
-
-      if (source) {
-        if (selectedFire) {
-          // Debug: Print all attributes of selected fire to console
-          const selectedFireObj = fires.find(
-            (fire) => fire.fireNumber === selectedFire
-          );
-          if (selectedFireObj) {
-            console.log('Selected Fire Details:');
-            console.log('Fire Number:', selectedFireObj.fireNumber);
-            console.log('Fire ID:', selectedFireObj.id);
-            console.log('Extent:', selectedFireObj.extent);
-            console.log('Geometry:', selectedFireObj.geometry);
-            if (
-              selectedFireObj.geometry &&
-              selectedFireObj.geometry.coordinates
-            ) {
-              console.log(
-                'Coordinates:',
-                selectedFireObj.geometry.coordinates
-              );
-              console.log('Geometry Type:', selectedFireObj.geometry.type);
-            }
-            console.log('OpenLayers Geometry:', selectedFireObj.olGeometry);
-            console.log('All Properties:', selectedFireObj.properties);
-            
-            // Pass fire properties to parent component if callback exists
-            if (onFireSelect && selectedFireObj.properties) {
-              onFireSelect(selectedFireObj.properties);
-            }
-
-            // Print the CQL filter we're about to use
-            console.log('CQL Filter:', `FIRE_NUMBER='${selectedFire}'`);
-          }
-
-          try {
-            // Apply CQL Filter to the WMS layer
-            source.updateParams({
-              CQL_FILTER: `FIRE_NUMBER='${selectedFire}'`,
-              VERSION: '1.1.1'
-            });
-          } catch (error) {
-            console.error('Error updating WMS parameters:', error);
-          }
-        } else {
-          try {
-            // Clear CQL_FILTER to show all fire perimeters
-            source.updateParams({
-              CQL_FILTER: null,
-              VERSION: '1.1.1'
-            });
-          } catch (error) {
-            console.error('Error clearing WMS parameters:', error);
-          }
-        }
-
-        // Debug: Print the current WMS URL with parameters
-        const urls = source.getUrls();
-        console.log(
-          'WMS URL:',
-          urls && urls.length > 0 ? urls[0] : 'No URL'
-        );
-        console.log('WMS Parameters:', source.getParams());
-      }
-    }
-
-    // Find the selected fire and zoom to it
-    if (selectedFire) {
-      const selectedFireObj = fires.find(
-        (fire) => fire.fireNumber === selectedFire
-      );
-
-      if (selectedFireObj) {
-        try {
-          if (
-            selectedFireObj.geometry &&
-            selectedFireObj.geometry.type === 'Point' &&
-            selectedFireObj.geometry.coordinates &&
-            selectedFireObj.geometry.coordinates.length === 2
-          ) {
-            // Get original coordinates
-            const originalCoords = selectedFireObj.geometry.coordinates;
-            console.log('Original coordinates from GeoJSON:', originalCoords);
-            
-            // Convert the coordinates to Web Mercator using our helper function
-            const webMercatorCoords = convertBCCoordinates(originalCoords);
-            console.log('Converted coordinates for Web Mercator:', webMercatorCoords);
-            
-            // Check if the conversion worked (no NaN values)
-            if (webMercatorCoords.every(coord => typeof coord === 'number' && isFinite(coord))) {
-              // Set the map view to center on these coordinates with a moderate zoom level
-              mapInstanceRef.current.getView().animate({
-                center: webMercatorCoords,
-                zoom: 12,
-                duration: 1000
-              });
-            } else {
-              // If conversion failed, use the last valid view
-              console.warn('Coordinate conversion failed, using last valid view');
-              if (lastValidViewRef.current) {
-                mapInstanceRef.current.getView().animate({
-                  center: lastValidViewRef.current.center,
-                  zoom: lastValidViewRef.current.zoom,
-                  duration: 1000
-                });
-              }
-            }
-          } else if (
-            selectedFireObj.extent &&
-            selectedFireObj.extent.length === 4 &&
-            selectedFireObj.extent.every(
-              (coord) => typeof coord === 'number' && isFinite(coord)
-            )
-          ) {
-            // If we have a valid extent, use it for zooming
-            console.log('Using extent for zoom:', selectedFireObj.extent);
-
-            mapInstanceRef.current.getView().fit(selectedFireObj.extent, {
-              padding: [50, 50, 50, 50],
-              duration: 1000,
-              maxZoom: 14
-            });
-          } else {
-            console.warn('No valid geometry or extent for fire:', selectedFire);
-
-            // Reset to last valid view state if we can't zoom to the fire
-            if (lastValidViewRef.current) {
-              mapInstanceRef.current.getView().animate({
-                center: lastValidViewRef.current.center,
-                zoom: lastValidViewRef.current.zoom,
-                duration: 1000
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error while zooming to fire:', error);
-
-          // If all else fails, reset view to last valid state
-          if (lastValidViewRef.current) {
-            mapInstanceRef.current.getView().animate({
-              center: lastValidViewRef.current.center,
-              zoom: lastValidViewRef.current.zoom,
-              duration: 1000
-            });
-          }
-        }
-      }
-    }
-  }, [selectedFire, fires]);
-
-  // Add map click handler to select fire by clicking a point
-  useEffect(() => {
-    if (!mapInstanceRef.current || !firesLayerRef.current) return;
-    const map = mapInstanceRef.current;
-    const firesLayer = firesLayerRef.current;
-
-    // Handler for map clicks
-    const handleMapClick = (evt: any) => {
-      let foundFire: string | null = null;
-      map.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
-        if (layer === firesLayer) {
-          // Find the fireNumber for this feature
-          const fireNumber = feature.get('FIRE_NUMBER') || feature.get('fireNumber');
-          if (fireNumber) {
-            foundFire = fireNumber as string;
-            return true; // Stop iteration
-          }
-        }
-        return false;
-      });
-      if (foundFire) {
-        // Call the fire select logic (update selectedFire, fire details, etc)
-        if (typeof onFireSelect === 'function') {
-          const fireObj = fires.find(f => f.fireNumber === foundFire);
-          if (fireObj && fireObj.properties) {
-            onFireSelect(fireObj.properties);
-          }
-        }
-        // Optionally, update selectedFire in parent via callback/prop
-        // If you want to update selectedFire in this component, you may need to lift state up
-        if (typeof window !== 'undefined') {
-          // Dispatch a custom event or use a callback prop
-          const event = new CustomEvent('fire-point-selected', { detail: { fireNumber: foundFire } });
-          window.dispatchEvent(event);
-        }
-      }
-    };
-    map.on('singleclick', handleMapClick);
-    return () => {
-      map.un('singleclick', handleMapClick);
-    };
-  }, [fires, firesLayerRef, onFireSelect]);
+  // Map click handler for fire points has been removed as we're no longer working with fire points
 
   // Reset COG state when fire or toggle changes
   useEffect(() => {
@@ -1112,7 +871,7 @@ app.add_middleware(
     setSwirUrl(null);
     setSentinelUrl(null);
     setShowMetadata(false);
-  }, [selectedFire, showPreBurnImagery]);
+  }, [selectedDbFire, showPreBurnImagery]);
 
   // Effect: When preBurnMetadata changes and pre-burn imagery is active, update imageMetadata
   useEffect(() => {
@@ -1138,24 +897,32 @@ app.add_middleware(
         return;
       }
       
-      // Since we don't have geometry in the dbFires array directly, we would need to:
-      // 1. Either fetch it from the API (if available)
-      // 2. Or use a separate layer for DB fires with their geometries
+      // Get the DB fire ID
+      const fireId = selectedDbFireObj.id;
+      if (!fireId) {
+        console.warn('Selected DB fire has no ID');
+        return;
+      }
       
-      // For now, just log that we would highlight this fire if we had its geometry
-      console.log('Would highlight DB fire:', selectedDbFireObj);
-      
-      // TODO: When DB fire geometries are available, implement highlighting here
-      // This would involve:
-      // 1. Creating a vector layer for the selected DB fire
-      // 2. Setting a distinctive style (e.g., different color from regular fires)
-      // 3. Adding it to the map
-      // 4. Zooming to its extent
+      // Fetch and display the burn geometry for this fire
+      fetchAndDisplayBurnGeometry(fireId)
+        .then(features => {
+          if (features && features.length > 0) {
+            console.log(`Successfully loaded ${features.length} burn geometry features`);
+          } else {
+            console.warn('No burn geometry features were loaded');
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch and display burn geometry:', error);
+        });
       
     } catch (error) {
       console.error('Error highlighting DB fire:', error);
     }
-  }, [selectedDbFire, dbFires]);
+  }, [selectedDbFire, dbFires, fetchAndDisplayBurnGeometry]);
+
+  // Function has been moved up before it's referenced
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
