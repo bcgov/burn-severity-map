@@ -43,8 +43,8 @@ services:
       <<: *backend-vars
     depends_on:
       - postgres
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     volumes:
       - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -55,8 +55,8 @@ services:
     restart: always
     environment:
       <<: *postgres-vars
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     ports: 
       - "5434:5432"
     volumes:
