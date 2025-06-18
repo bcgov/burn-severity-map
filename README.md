@@ -117,12 +117,12 @@ Start the backend with UV
 ```bash
 uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-4. **Install front end dependencies**
+3. **Install front end dependencies**
 ```bash
 npm install 
 ```
 
-5. **Start the development server**
+4. **Start the development server**
 ```bash
 npm start dev
 ```
