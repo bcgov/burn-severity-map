@@ -50,7 +50,7 @@ services:
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   postgres:
-    image: postgis/postgis:latest
+    image: docker.io/postgis/postgis:latest
     container_name: postgres-db
     restart: always
     environment:
