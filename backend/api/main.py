@@ -1,5 +1,6 @@
 # main.py
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, Header,status,Response
+from fastapi.responses import JSONResponse,RedirectResponse
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -13,6 +14,8 @@ from database import get_async_db, create_db_and_tables # Import from database.p
 # For Geometry processing (if you accept WKT in your schema)
 from geoalchemy2.shape import from_shape, to_shape
 from shapely.geometry import shape, mapping
+
+from utils import s3_get_presigned_url
 
 app = FastAPI(
     title="Fire Burn Severity API",
@@ -276,3 +279,25 @@ async def read_burn_severity_by_fire(
     )
 
     return final_response # Return the structured response
+
+@app.get(
+    "/docs/list/{fire_number}",
+    summary="get list of documents related to fire_number"
+)
+async def get_docs(fire_number:str):
+    pass
+
+@app.get(
+    "/docs/download/{object_key}"
+)
+async def download_file(object_key):
+    """
+    Returns a presigned URL for a file in S3-compliant storage.
+    Client will make a direct GET request to this URL.
+    """
+    presigned_url = s3_get_presigned_url(object_key, expiration_seconds=300) # Valid for 5 minutes
+   
+    if presigned_url:
+        return JSONResponse({"download_url": presigned_url})
+    else:
+        raise HTTPException(status_code=500, detail="Could not generate presigned URL.")
