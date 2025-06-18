@@ -23,7 +23,7 @@ interface GroupedFire {
 // Interface for the component props
 interface FireSelectorProps {
   fires: FireRecord[];
-  onFireSelect: (fireNumber: string | null) => void;
+  onFireSelect: (fireNumber: string | null, groupedFire?: GroupedFire | null) => void;
   selectedFire: string | null;
 }
 
@@ -151,7 +151,9 @@ const FireSelector: React.FC<FireSelectorProps> = ({
 
   // Handle fire selection
   const handleSelectFire = (fire: GroupedFire) => {
-    onFireSelect(fire.fireNumber);
+    console.log('FireSelector_db - Fire selected:', fire);
+    // Pass both the fire number and the grouped fire object
+    onFireSelect(fire.fireNumber, fire);
     setSearchTerm(''); // Reset search term
     setIsOpen(false);
   };

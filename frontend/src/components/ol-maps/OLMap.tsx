@@ -135,6 +135,8 @@ interface OLMapProps {
   preBurnMetadata?: any | null;
   // New prop for highlighting a single feature
   highlightFeature?: GeoJSONFeature | null;
+  // New callback to notify parent of selected fire's FeatureCollection
+  onSelectedFireFeatureCollectionChange?: (featureCollection: any) => void;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -161,6 +163,7 @@ const OLMap: React.FC<OLMapProps> = ({
   preBurnSwirUrl = null,
   preBurnMetadata = null,
   highlightFeature = null,
+  onSelectedFireFeatureCollectionChange,
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
@@ -539,12 +542,34 @@ const OLMap: React.FC<OLMapProps> = ({
       const allFeatures = Array.isArray(featureCollections)
         ? featureCollections.flatMap(fc => (fc && Array.isArray(fc.features) && fc.features.length > 0) ? fc.features : [])
         : [];
+      
+      console.log('Extracted features count:', allFeatures.length);
+      
+      // Create the combined feature collection regardless of features count
+      // so we maintain the variable scope for the rest of the function
       const combinedFeatureCollection = {
         type: 'FeatureCollection',
         features: allFeatures
       };
+      
       console.log('Combined FeatureCollection for map:', combinedFeatureCollection);
-      setSelectedFireFeatureCollection(combinedFeatureCollection); // For FireDetailsPanel
+      
+      // Set local state first
+      setSelectedFireFeatureCollection(combinedFeatureCollection);
+      
+      // Then notify parent component - using setTimeout to ensure it's called after the current execution context
+      setTimeout(() => {
+        if (onSelectedFireFeatureCollectionChange) {
+          try {
+            console.log('Notifying parent component with FeatureCollection');
+            onSelectedFireFeatureCollectionChange(combinedFeatureCollection);
+          } catch (error) {
+            console.error('Error calling onSelectedFireFeatureCollectionChange:', error);
+          }
+        } else {
+          console.warn('onSelectedFireFeatureCollectionChange is not available');
+        }
+      }, 0);
       // Remove existing burn severity layer if it exists
       if (burnSeverityLayer) {
         mapInstanceRef.current.removeLayer(burnSeverityLayer);

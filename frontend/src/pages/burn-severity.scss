@@ -169,11 +169,14 @@
 }
 
 .right-panel {
-  flex: 0 0 300px;
+  flex: 0 0 350px; /* Make it a bit wider */
   padding: 10px;
   background-color: #f7f9fa;
   border-left: 1px solid #ddd;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  z-index: 5;
   
   h3 {
     margin: 0;

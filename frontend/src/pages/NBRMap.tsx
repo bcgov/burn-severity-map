@@ -1,9 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../style.scss';
 import './NBRMap.scss';
 import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
+import FireDetailsPanel from '../components/ol-maps/FireDetailsPanel';
+
+// Import the GroupedFire interface directly from FireSelector_db
+// Interface for a single fire record (imported from FireSelector_db)
+interface FireRecord {
+  id: string;
+  fireNumber: string;
+  pre_image_date: string;
+  post_image_date: string;
+  severty_class: string;
+  geometry?: any;
+}
+
+// Interface for a grouped fire with records by severity class (imported from FireSelector_db)
+interface GroupedFire {
+  fireNumber: string;
+  records: {
+    [severityClass: string]: FireRecord[];
+  };
+  totalRecords: number;
+}
 
 // DbFire interface for records from database
 interface DbFire {
@@ -38,6 +59,10 @@ function NBRMap() {
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
   const [fireProperties, setFireProperties] = useState<FireProperties | null>(null);
   const [isNBRLoading, setIsNBRLoading] = useState<boolean>(false);
+  // Add state for selected fire's FeatureCollection for the right panel
+  const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
+  // Add state for the selected grouped fire (to pass directly to FireDetailsPanel)
+  const [selectedGroupedFire, setSelectedGroupedFire] = useState<GroupedFire | null>(null);
 
   const handleBasemapChange = (newBasemap: string) => {
     setBasemap(newBasemap);
@@ -130,7 +155,16 @@ function NBRMap() {
   };
   
   // Handler for DB fire selection
-  const handleDbFireSelect = (fireNumber: string | null) => {
+  const handleDbFireSelect = (fireNumber: string | null, groupedFire?: GroupedFire | null) => {
+    console.log('NBRMap - Fire selected:', fireNumber, 'GroupedFire:', groupedFire);
+    
+    // Set the selected grouped fire for the details panel
+    if (groupedFire) {
+      setSelectedGroupedFire(groupedFire);
+    } else {
+      setSelectedGroupedFire(null);
+    }
+    
     // Only update if the selection has actually changed
     if (selectedDbFire !== fireNumber) {
       setSelectedDbFire(fireNumber);
@@ -178,6 +212,17 @@ function NBRMap() {
     setIsNBRLoading(loading);
   };
 
+  // Handler to receive FeatureCollection from OLMap
+  const handleSelectedFireFeatureCollection = (featureCollection: any) => {
+    console.log('NBRMap received featureCollection:', featureCollection);
+    setSelectedFireFeatureCollection(featureCollection);
+  };
+
+  // Log when selectedFireFeatureCollection changes
+  useEffect(() => {
+    console.log('selectedFireFeatureCollection updated:', selectedFireFeatureCollection);
+  }, [selectedFireFeatureCollection]);
+
   return (
     <div className="App">
       <div className="app-layout">
@@ -201,6 +246,7 @@ function NBRMap() {
               basemap={basemap}
               onDbFiresLoaded={handleDbFiresLoaded}
               selectedDbFire={selectedDbFire}
+              onSelectedFireFeatureCollectionChange={handleSelectedFireFeatureCollection}
             />
           </div>
           
@@ -212,142 +258,16 @@ function NBRMap() {
         {/* Right Panel - Fire Details */}
         <div className="right-panel">
           <h3>Processed Burn Severity Fire Details</h3>
-          
-          {!fireProperties && (
-            <div className="no-fire-selected">
-              <p>Select a fire to view details</p>
-            </div>
-          )}
-          
-          {fireProperties && fireProperties._isLoading && (
-            <div className="loading-state">
-              <p>Loading fire details...</p>
-            </div>
-          )}
-          
-          {fireProperties && fireProperties._hasError && (
-            <div className="error-state">
-              <p>{fireProperties._errorMessage || 'An error occurred while loading fire details.'}</p>
-            </div>
-          )}
-          
-          {fireProperties && !fireProperties._isLoading && !fireProperties._hasError && (
-            <div className="fire-details-content">
-              <table className="fire-details-table">
-                <tbody>
-                  {fireProperties._isDbRecord && (
-                    // Fully dynamic rendering of DB fire properties
-                    Object.entries(fireProperties)
-                      // Filter to show only the database fields (no metadata fields)
-                      .filter(([key]) => {
-                        // Exclude internal properties (starting with underscore)
-                        if (key.startsWith('_')) return false;
-                        
-                        // Exclude geometry-related fields that don't make sense to display
-                        if (key === 'geometry' || key === 'type' || key === 'bbox') return false;
-                        
-                        // Always include these core fields if they exist
-                        const priorityFields = [
-                          'FIRE_NUMBER',
-                          'id',
-                          'fire_number',
-                          'fireNumber',
-                          'post_image_date',
-                          'pre_image_date',
-                          'severty_class',
-                          'severity_class'
-                        ];
-                        
-                        if (priorityFields.includes(key)) {
-                          return true;
-                        }
-                        
-                        // For all other fields, include them only if we have the DB schema flag
-                        // This will allow new fields added to the DB to be displayed automatically
-                        return fireProperties._dbSchema === true;
-                      })
-                      // Sort properties with priority fields first, then alphabetically
-                      .sort(([keyA], [keyB]) => {
-                        // Define the priority order 
-                        const priorityOrder = [
-                          'FIRE_NUMBER', 'fire_number', 'fireNumber',
-                          'id', 
-                          'pre_image_date',
-                          'post_image_date',
-                          'severty_class', 'severity_class'
-                        ];
-                        
-                        // Get priority index (or a large number if not in priority list)
-                        const indexA = priorityOrder.indexOf(keyA);
-                        const indexB = priorityOrder.indexOf(keyB);
-                        const priorityA = indexA === -1 ? 999 : indexA;
-                        const priorityB = indexB === -1 ? 999 : indexB;
-                        
-                        // Sort by priority first
-                        if (priorityA !== priorityB) {
-                          return priorityA - priorityB;
-                        }
-                        
-                        // If same priority, sort alphabetically
-                        return keyA.localeCompare(keyB);
-                      })
-                      .map(([key, value]) => {
-                        // Skip null or undefined values
-                        if (value === null || value === undefined) return null;
-                        
-                        // Format the display key to be more readable
-                        let displayKey = key
-                          .replace(/_/g, ' ')  // Replace underscores with spaces
-                          .split(' ')
-                          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())  // Capitalize words
-                          .join(' ');
-                          
-                        // Special case handling for common field names
-                        if (key === 'FIRE_NUMBER') displayKey = 'Fire Number';
-                        else if (key === 'pre_image_date') displayKey = 'Pre-Fire Image Date';
-                        else if (key === 'post_image_date') displayKey = 'Post-Fire Image Date';
-                        else if (key === 'severity_class' || key === 'severty_class') displayKey = 'Severity Class';
-                        
-                        // Format the display value based on type
-                        let displayValue: React.ReactNode = String(value);
-                        
-                        // Format date values
-                        if (
-                          typeof value === 'string' &&
-                          (key.toLowerCase().includes('date') || key.toLowerCase().includes('_date'))
-                        ) {
-                          try {
-                            displayValue = new Date(value).toLocaleDateString();
-                          } catch (e) {
-                            // If date parsing fails, use raw value
-                            console.warn(`Failed to parse date: ${value}`, e);
-                          }
-                        }
-                        
-                        // Format number values
-                        if (
-                          typeof value === 'number' ||
-                          (typeof value === 'string' && !isNaN(Number(value)) && key.toLowerCase().includes('area'))
-                        ) {
-                          try {
-                            displayValue = Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
-                          } catch (e) {
-                            // If number parsing fails, use raw value
-                            console.warn(`Failed to format number: ${value}`, e);
-                          }
-                        }
-                        
-                        // Render the table row
-                        return (
-                          <tr key={key}>
-                            <th>{displayKey}</th>
-                            <td>{displayValue}</td>
-                          </tr>
-                        );
-                      })
-                  )}
-                </tbody>
-              </table>
+          {/* Pass both data sources, giving priority to grouped fire data */}
+          {selectedGroupedFire || selectedFireFeatureCollection ? (
+            <FireDetailsPanel 
+              groupedFire={selectedGroupedFire} 
+              featureCollection={selectedFireFeatureCollection} 
+            />
+          ) : (
+            <div className="debug-panel" style={{padding: '10px', color: '#666'}}>
+              <p>Waiting for fire data...</p>
+              <p>Select a fire from the dropdown to view details.</p>
             </div>
           )}
         </div>
