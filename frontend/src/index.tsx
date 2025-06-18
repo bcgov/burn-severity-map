@@ -9,7 +9,7 @@ import { PageHeader, PageFooter } from "./components/bcgov-components";
 
 // Import the two main pages of the app
 import LandingPage from "./pages/LandingPage";
-import NBRMap from "./pages/NBRMap";
+import BurnSeverity from "./pages/burn-severity";
 
 // Get the root HTML element where the React app will be mounted
 const appElement = document.getElementById("app"); 
@@ -30,8 +30,8 @@ if (appElement) {
           <Route path="/" element={<LandingPage />} />
 
 
-          {/* NBR Map route */}
-          <Route path="/nbr" element={<NBRMap />} />
+          {/* Burn Severity Map route */}
+          <Route path="/nbr" element={<BurnSeverity />} />
         </Routes>
       </main>
 
