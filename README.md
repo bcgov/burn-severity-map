@@ -62,7 +62,7 @@ cd burn-severity-map
 
 2. **Start the backend and database containers**
 ```bash
-docker-compose up fastapi-backend postgres-db -d
+docker-compose up fastapi-backend postgres -d
 ```
 your backend api should be at 
 http://localhost:8000
@@ -70,7 +70,7 @@ Interactive API documentation:
 http://localhost:8000/docs  
 Backend developers may wish to run the api from venv. Use docker to start only the database with  
 ```bash
-docker-compose up postgres-db -d
+docker-compose up postgres -d
 ```
 Stop your database with
 ```bash
