@@ -15,7 +15,8 @@ from database import get_async_db, create_db_and_tables # Import from database.p
 from geoalchemy2.shape import from_shape, to_shape
 from shapely.geometry import shape, mapping
 
-from utils import s3_get_presigned_url
+# Utility functions for S3 operations
+from utils import s3_list_objects, s3_get_presigned_url
 
 app = FastAPI(
     title="Fire Burn Severity API",
@@ -288,16 +289,31 @@ async def get_docs(fire_number:str):
     pass
 
 @app.get(
-    "/docs/download/{object_key}"
+    "/docs/download/{fire_number}"
 )
-async def download_file(object_key):
+async def download_file(prefix:str):
     """
     Returns a presigned URL for a file in S3-compliant storage.
     Client will make a direct GET request to this URL.
     """
-    presigned_url = s3_get_presigned_url(object_key, expiration_seconds=300) # Valid for 5 minutes
-   
-    if presigned_url:
-        return JSONResponse({"download_url": presigned_url})
-    else:
-        raise HTTPException(status_code=500, detail="Could not generate presigned URL.")
+
+    # get list of s3 objects with the given prefix
+    obj_list = s3_list_objects(file_prefix=prefix)
+    if not obj_list:
+        return HTTPException(status_code=404, detail="No files found for the given prefix.")
+
+    files = [
+        # create a dictionary with the object key and its presigned URL
+        {
+            "key": obj,
+            "filename": obj.split("/")[-1],
+            "url": s3_get_presigned_url(obj, expiration_seconds=3600)
+        }
+        for obj in obj_list
+    ]
+
+    if not files:
+        return HTTPException(status_code=404, detail="No files found for the given prefix.")
+    
+    return JSONResponse({"files": files})
+
