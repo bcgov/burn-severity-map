@@ -80,7 +80,7 @@ function BurnSeverity() {
       }
       
       // If we don't have the fire in our state, fetch all records again
-      const response = await fetch('/burn-severity/burn-records/', {
+      const response = await fetch('/pg-bs/', {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
@@ -130,7 +130,7 @@ function BurnSeverity() {
     try {
       console.log(`Fetching single burn record with ID: ${id}`);
       
-      const response = await fetch(`/burn-severity/burn-records/${id}`, {
+      const response = await fetch(`/pg-bs/${id}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json'

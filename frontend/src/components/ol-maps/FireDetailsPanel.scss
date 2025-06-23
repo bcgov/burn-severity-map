@@ -1,4 +1,4 @@
-@import '../../pages/burn-severity.scss';
+@use '../../pages/burn-severity.scss' as *;
 
 .fire-details-panel {
   position: absolute;

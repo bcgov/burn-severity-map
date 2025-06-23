@@ -436,8 +436,8 @@ const OLMap: React.FC<OLMapProps> = ({
   // fetch data from hosted db
   const fetchFiresFromDB = useCallback(async () => {
     try {
-      // Use the burn-severity endpoint with the proxy configured in package.json
-      const response = await fetch('/burn-severity/burn-records/', {
+      // Use the pg-bs endpoint with the proxy configured in webpack.config.js
+      const response = await fetch('/pg-bs/burn-severity/', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -472,23 +472,9 @@ const OLMap: React.FC<OLMapProps> = ({
       
       return formattedFires;
     } catch (error) {
-      // Silent error handling - the proxy is working but showing CORS errors
-      
-      // Return sample data for development when CORS fails
-      const sampleData = [
-        { id: '1', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Medium' },
-        { id: '2', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Medium' },
-        { id: '3', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Unburned' },
-        { id: '4', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Low' },
-        { id: '5', fireNumber: 'V92294', pre_image_date: '2017-08-27', post_image_date: '2017-08-27', severty_class: 'Low' },
-        // Add more sample data with different fire numbers
-        { id: '6', fireNumber: 'K10987', pre_image_date: '2017-07-15', post_image_date: '2017-07-30', severty_class: 'High' },
-        { id: '7', fireNumber: 'K10987', pre_image_date: '2017-07-15', post_image_date: '2017-07-30', severty_class: 'Medium' },
-        { id: '8', fireNumber: 'K10987', pre_image_date: '2017-07-15', post_image_date: '2017-07-30', severty_class: 'Medium' },
-        { id: '9', fireNumber: 'C12345', pre_image_date: '2018-06-10', post_image_date: '2018-06-25', severty_class: 'Low' },
-        { id: '10', fireNumber: 'C12345', pre_image_date: '2018-06-10', post_image_date: '2018-06-25', severty_class: 'Unburned' }
-      ];
-      return sampleData;
+      // Error fetching fire data from backend
+      console.error('Failed to fetch fire data from backend:', error);
+      return [];
     }
   }, []);
 
@@ -529,8 +515,8 @@ const OLMap: React.FC<OLMapProps> = ({
   // Helper function to check if backend is accessible
   const checkBackendConnection = useCallback(async () => {
     try {
-      // Use the burn-severity endpoint with the proxy configuration in package.json
-      const response = await fetch('/burn-severity/', {
+      // Use the pg-bs endpoint with the proxy configuration in webpack.config.js
+      const response = await fetch('/pg-bs/burn-severity/', {
         method: 'GET',
         // No need for mode: 'cors' as we're using the proxy
       });
@@ -548,7 +534,7 @@ const OLMap: React.FC<OLMapProps> = ({
     
     try {
       // We're now fetching all records for this fire number, not just specific ID
-      const response = await fetch(`/burn-severity/burn-records/fire/${fireId}`, {
+      const response = await fetch(`/pg-bs/burn-severity/${fireId}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       });
@@ -568,7 +554,7 @@ const OLMap: React.FC<OLMapProps> = ({
       // For simplicity we'll use a single API call here that returns all geometries,
       // but you could also fetch them individually
       
-      const geometryResponse = await fetch(`/burn-severity/burn-records/fire/${fireId}/geometry`, {
+      const geometryResponse = await fetch(`/pg-bs/fire/${fireId}/geometry`, {
         method: 'GET',
         headers: { 'Accept': 'application/geojson' }
       }).catch((): Response | null => null);
@@ -582,8 +568,9 @@ const OLMap: React.FC<OLMapProps> = ({
           dataProjection: WGS84
         });
       } else {
-        // Generate sample features for testing if API fails
-        // This would be where you'd create sample geometries for demo purposes
+        // Error fetching geometry from backend
+        console.error('Failed to fetch geometry for fire', fireId);
+        // Do not generate or use any sample/demo geometry
       }
       
       // Create a vector source from the GeoJSON

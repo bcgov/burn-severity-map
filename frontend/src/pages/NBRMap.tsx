@@ -84,7 +84,7 @@ function NBRMap() {
       }
       
       // If we don't have the fire in our state, fetch all records again
-      const response = await fetch('/burn-records/', {
+      const response = await fetch('/pg-bs/', {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
