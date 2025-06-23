@@ -530,12 +530,16 @@ const OLMap: React.FC<OLMapProps> = ({
         throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
       }
       const featureCollections = await response.json();
-      // Flatten all features into a single array
-      const allFeatures = flattenFeatures(Array.isArray(featureCollections) ? featureCollections : []);
+      console.log('Raw backend data:', featureCollections);
+      // Flatten all features into a single array, skipping empty/invalid FeatureCollections
+      const allFeatures = Array.isArray(featureCollections)
+        ? featureCollections.flatMap(fc => (fc && Array.isArray(fc.features) && fc.features.length > 0) ? fc.features : [])
+        : [];
       const combinedFeatureCollection = {
         type: 'FeatureCollection',
         features: allFeatures
       };
+      console.log('Combined FeatureCollection for map:', combinedFeatureCollection);
       setSelectedFireFeatureCollection(combinedFeatureCollection); // For FireDetailsPanel
       // Remove existing burn severity layer if it exists
       if (burnSeverityLayer) {
@@ -566,6 +570,11 @@ const OLMap: React.FC<OLMapProps> = ({
       });
       mapInstanceRef.current.addLayer(newLayer);
       setBurnSeverityLayer(newLayer);
+      // Fit map view to new features if any
+      if (geojsonFeatures.length > 0) {
+        const extent = vectorSource.getExtent();
+        mapInstanceRef.current.getView().fit(extent, { duration: 1000, maxZoom: 14 });
+      }
     } catch (error) {
       console.error('Failed to fetch or display burn geometry:', error);
     }
