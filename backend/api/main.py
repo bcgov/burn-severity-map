@@ -1,5 +1,6 @@
 # main.py
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, Header,status,Response
+from fastapi.responses import JSONResponse,RedirectResponse
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -13,6 +14,9 @@ from database import get_async_db, create_db_and_tables # Import from database.p
 # For Geometry processing (if you accept WKT in your schema)
 from geoalchemy2.shape import from_shape, to_shape
 from shapely.geometry import shape, mapping
+
+# Utility functions for S3 operations
+from utils import s3_list_objects, s3_get_presigned_url
 
 app = FastAPI(
     title="Fire Burn Severity API",
@@ -276,3 +280,40 @@ async def read_burn_severity_by_fire(
     )
 
     return final_response # Return the structured response
+
+@app.get(
+    "/docs/list/{fire_number}",
+    summary="get list of documents related to fire_number"
+)
+async def get_docs(fire_number:str):
+    pass
+
+@app.get(
+    "/docs/download/{fire_number}"
+)
+async def download_file(prefix:str):
+    """
+    Returns a presigned URL for a file in S3-compliant storage.
+    Client will make a direct GET request to this URL.
+    """
+
+    # get list of s3 objects with the given prefix
+    obj_list = s3_list_objects(file_prefix=prefix)
+    if not obj_list:
+        return HTTPException(status_code=404, detail="No files found for the given prefix.")
+
+    files = [
+        # create a dictionary with the object key and its presigned URL
+        {
+            "key": obj,
+            "filename": obj.split("/")[-1],
+            "url": s3_get_presigned_url(obj, expiration_seconds=3600)
+        }
+        for obj in obj_list
+    ]
+
+    if not files:
+        return HTTPException(status_code=404, detail="No files found for the given prefix.")
+    
+    return JSONResponse({"files": files})
+

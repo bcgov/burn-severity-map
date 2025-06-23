@@ -6,7 +6,6 @@ from sqlalchemy.orm import declarative_base
 # --- Configuration ---
 # Replace with your actual PostgreSQL connection string
 # Format: "postgresql+asyncpg://username:password@host:port/database_name"
-
 DATABASE_URL = f"postgresql+asyncpg://{os.getenv('POSTGRES_USER')}:{os.getenv("POSTGRES_PASSWORD")}@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DATABASE')}"
 # It's often better to load this from environment variables or a config file in real projects.
 print (DATABASE_URL)
