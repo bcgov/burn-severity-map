@@ -207,6 +207,9 @@ const OLMap: React.FC<OLMapProps> = ({
   const [preBurnDates, setPreBurnDates] = useState<string[]>([]);
   const [postBurnDates, setPostBurnDates] = useState<string[]>([]);
   
+  // New state for selected fire feature collection
+  const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
+  
   // Helper function to extract band information from STAC item
   const extractBandInfo = (stacItem: StacItem): string | null => {
     if (stacItem.properties['eo:bands']) {
@@ -527,6 +530,7 @@ const OLMap: React.FC<OLMapProps> = ({
         throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
       }
       const geojsonData = await response.json();
+      setSelectedFireFeatureCollection(geojsonData); // Store for FireDetailsPanel
       // Remove existing burn severity layer if it exists
       if (burnSeverityLayer) {
         mapInstanceRef.current.removeLayer(burnSeverityLayer);
@@ -849,8 +853,7 @@ const OLMap: React.FC<OLMapProps> = ({
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
       <FireDetailsPanel 
-        fireNumber={selectedDbFire}
-        fires={dbFires as FireRecord[]} 
+        featureCollection={selectedFireFeatureCollection} 
       />
       <StacMetadataDisplay 
         isVisible={showMetadata}
