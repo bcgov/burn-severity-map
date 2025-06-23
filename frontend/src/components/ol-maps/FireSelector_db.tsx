@@ -1,16 +1,28 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './Selectors.scss';
 
-interface Fire {
+// Interface for a single fire record
+interface FireRecord {
   id: string;
   fireNumber: string;
   pre_image_date: string;
   post_image_date: string;
   severty_class: string;
+  geometry?: any; // Optional GeoJSON geometry that can be populated later
 }
 
+// Interface for a grouped fire with records by severity class
+interface GroupedFire {
+  fireNumber: string;
+  records: {
+    [severityClass: string]: FireRecord[];
+  };
+  totalRecords: number;
+}
+
+// Interface for the component props
 interface FireSelectorProps {
-  fires: Fire[];
+  fires: FireRecord[];
   onFireSelect: (fireNumber: string | null) => void;
   selectedFire: string | null;
 }
@@ -43,6 +55,32 @@ const sortAlphaNumeric = (a: string, b: string): number => {
   return aParts.length - bParts.length;
 };
 
+// Helper function to group fires by fire number and severity class
+const groupFiresByNumberAndSeverity = (fires: FireRecord[]): GroupedFire[] => {
+  const fireGroups: { [key: string]: GroupedFire } = {};
+  
+  fires.forEach(fire => {
+    if (!fireGroups[fire.fireNumber]) {
+      fireGroups[fire.fireNumber] = {
+        fireNumber: fire.fireNumber,
+        records: {},
+        totalRecords: 0
+      };
+    }
+    
+    const severityClass = fire.severty_class || 'Unknown';
+    if (!fireGroups[fire.fireNumber].records[severityClass]) {
+      fireGroups[fire.fireNumber].records[severityClass] = [];
+    }
+    
+    fireGroups[fire.fireNumber].records[severityClass].push(fire);
+    fireGroups[fire.fireNumber].totalRecords += 1;
+  });
+  
+  // Convert the object to an array
+  return Object.values(fireGroups);
+};
+
 const FireSelector: React.FC<FireSelectorProps> = ({ 
   fires, 
   onFireSelect,
@@ -52,27 +90,45 @@ const FireSelector: React.FC<FireSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
+  // Group fires by fire number and severity
+  const groupedFires = useMemo(() => {
+    return groupFiresByNumberAndSeverity(fires);
+  }, [fires]);
+  
   // Helper function to get display text for the selected fire
   const getSelectedFireDisplayText = () => {
-    if (!selectedFire) return "Search by number or severity...";
+    if (!selectedFire) return "Search by fire number...";
     
-    const selectedFireObj = fires.find(f => f.fireNumber === selectedFire);
-    if (!selectedFireObj) return selectedFire;
+    const groupedFire = groupedFires.find(f => f.fireNumber === selectedFire);
+    if (!groupedFire) return selectedFire;
     
-    return `${selectedFire} - ${selectedFireObj.severty_class || 'Unknown'}`;
+    // Show fire number and count of records
+    return `${selectedFire} (${groupedFire.totalRecords} records)`;
+  };
+  
+  // Helper to get severity count text for a fire
+  const getSeverityCountText = (fire: GroupedFire) => {
+    const counts = Object.entries(fire.records).map(([severity, records]) => 
+      `${severity}: ${records.length}`
+    ).join(', ');
+    
+    return counts || 'No severity data';
   };
   
   // Filter and sort fires based on search term
-  const filteredFires = useMemo(() => {
-    // First filter by search term - include both fire number and severity class in search
-    const filtered = fires.filter(fire => 
+  const filteredGroupedFires = useMemo(() => {
+    // First filter by search term
+    const filtered = groupedFires.filter(fire => 
       fire.fireNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (fire.severty_class && fire.severty_class.toLowerCase().includes(searchTerm.toLowerCase()))
+      // Also search in severity classes
+      Object.keys(fire.records).some(severity => 
+        severity.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     );
     
     // Then sort alphanumerically by fireNumber
     return filtered.sort((a, b) => sortAlphaNumeric(a.fireNumber, b.fireNumber));
-  }, [fires, searchTerm]);
+  }, [groupedFires, searchTerm]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -94,7 +150,7 @@ const FireSelector: React.FC<FireSelectorProps> = ({
   }, [selectedFire]);
 
   // Handle fire selection
-  const handleSelectFire = (fire: Fire) => {
+  const handleSelectFire = (fire: GroupedFire) => {
     onFireSelect(fire.fireNumber);
     setSearchTerm(''); // Reset search term
     setIsOpen(false);
@@ -150,15 +206,26 @@ const FireSelector: React.FC<FireSelectorProps> = ({
             <div className="bcgov-fire-selector-no-results">
               No processed burn severity records available
             </div>
-          ) : filteredFires.length > 0 ? (
+          ) : filteredGroupedFires.length > 0 ? (
             <ul className="bcgov-fire-selector-list">
-              {filteredFires.map((fire) => (
+              {filteredGroupedFires.map((fire) => (
                 <li 
-                  key={fire.id} 
+                  key={fire.fireNumber} 
                   className={`bcgov-fire-selector-item ${selectedFire === fire.fireNumber ? 'selected' : ''}`}
                   onClick={() => handleSelectFire(fire)}
                 >
-                  {fire.fireNumber} - {fire.severty_class || 'Unknown'}
+                  <div className="fire-number">{fire.fireNumber}</div>
+                  <div className="fire-severity-counts">
+                    {Object.entries(fire.records).map(([severity, records]) => (
+                      <span 
+                        key={severity} 
+                        className={`severity-badge ${severity.toLowerCase()}`}
+                        title={`${severity}: ${records.length} records`}
+                      >
+                        {records.length}
+                      </span>
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>

@@ -1,0 +1,167 @@
+@import '../../pages/burn-severity.scss';
+
+.fire-details-panel {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  width: 320px;
+  max-height: 70vh;
+  overflow: hidden;
+  z-index: 900;
+  transition: all 0.3s ease;
+  
+  &.collapsed {
+    max-height: 50px;
+  }
+  
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background-color: var(--bcgov-primary, #003366);
+    color: white;
+    cursor: pointer;
+    
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .expander {
+      font-size: 14px;
+    }
+  }
+  
+  .panel-content {
+    padding: 15px;
+    overflow-y: auto;
+    max-height: calc(70vh - 50px);
+  }
+  
+  .record-summary {
+    margin-bottom: 15px;
+    font-size: 14px;
+    color: #666;
+    display: flex;
+    align-items: center;
+    
+    .record-count {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--bcgov-primary, #003366);
+      margin-right: 5px;
+    }
+  }
+  
+  .severity-group {
+    margin-bottom: 15px;
+    border-left: 3px solid transparent;
+    padding-left: 12px;
+    
+    &.high {
+      border-color: #cc0000;
+      
+      .severity-indicator {
+        background-color: rgba(204, 0, 0, 0.8);
+        border: 1px solid #cc0000;
+      }
+    }
+    
+    &.medium {
+      border-color: #ff9933;
+      
+      .severity-indicator {
+        background-color: rgba(255, 153, 51, 0.8);
+        border: 1px solid #ff9933;
+      }
+    }
+    
+    &.low {
+      border-color: #ffff00;
+      
+      .severity-indicator {
+        background-color: rgba(255, 255, 0, 0.8);
+        border: 1px solid #ffff00;
+      }
+    }
+    
+    &.unburned, &.unchanged {
+      border-color: #000000;
+      
+      .severity-indicator {
+        background-color: rgba(0, 0, 0, 0.1);
+        border: 1px solid #000000;
+      }
+    }
+    
+    &.unknown {
+      border-color: #808080;
+      
+      .severity-indicator {
+        background-color: rgba(128, 128, 128, 0.6);
+        border: 1px solid #808080;
+      }
+    }
+    
+    .severity-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      
+      .severity-indicator {
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        margin-right: 8px;
+      }
+      
+      h4 {
+        margin: 0;
+        font-size: 15px;
+        flex: 1;
+      }
+      
+      .count {
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+    }
+    
+    .record-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .record-item {
+      padding: 8px;
+      margin-bottom: 5px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      font-size: 13px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+    
+    .record-dates {
+      display: flex;
+      justify-content: space-between;
+      
+      .date {
+        span {
+          color: #666;
+        }
+      }
+    }
+  }
+}

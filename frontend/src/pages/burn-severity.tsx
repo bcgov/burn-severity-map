@@ -9,12 +9,11 @@ import FireSelector_db from '../components/ol-maps/FireSelector_db';
 interface DbFire {
   id: string;
   fireNumber: string;
-  fire_number: string;
   pre_image_date: string;
   post_image_date: string;
-  severity_class: string;
-  severty_class: string; // Handle both spellings for compatibility
-  [key: string]: any; // Allow for additional properties
+  severty_class: string; // Note: Backend might use "severity_class" - handle both with [key: string]
+  geometry?: any;
+  [key: string]: any; // Allow for additional properties like severity_class (different spelling)
 }
 
 // Fire properties interface
@@ -46,7 +45,6 @@ function BurnSeverity() {
   // Handler for when database fires are loaded
   const handleDbFiresLoaded = (loadedDbFires: DbFire[]) => {
     setDbFires(loadedDbFires);
-    console.log('DB fires loaded:', loadedDbFires);
   };
   
   // Note: We'll get fire properties through the database fire selection now
@@ -273,7 +271,6 @@ function BurnSeverity() {
           </div>
           
           <div className="bcgov-basemap-selector">
-            <h4>Basemap</h4>
             <BasemapSelector selectedBasemap={basemap} onBasemapChange={handleBasemapChange} />
           </div>
         </div>
