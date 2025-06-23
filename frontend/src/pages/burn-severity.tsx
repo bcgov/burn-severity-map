@@ -125,120 +125,41 @@ function BurnSeverity() {
     }
   };
   
-  // Function to fetch a single fire record by ID
-  const fetchSingleDbFireRecord = async (id: string) => {
-    try {
-      console.log(`Fetching single burn record with ID: ${id}`);
-      
-      const response = await fetch(`/pg-bs/${id}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch fire record: ${response.statusText}`);
-      }
-      
-      const fireData = await response.json();
-      console.log('Single DB fire data:', fireData);
-      
-      // Create a FireProperties object from the API response
-      const fireProps: FireProperties = {
-        _isDbRecord: true,
-        FIRE_NUMBER: fireData.fire_number,
-        _dbSchema: true
-      };
-      
-      // Dynamically copy all properties from the DB record
-      Object.entries(fireData).forEach(([key, value]) => {
-        if (key !== 'fire_number') {
-          fireProps[key] = value;
-        }
-      });
-      
-      return fireProps;
-    } catch (error) {
-      console.error('Error fetching single burn record:', error);
-      return null;
-    }
-  };
-  
   // Handler for DB fire selection
   const handleDbFireSelect = (fireNumber: string | null) => {
     // Only update if the selection has actually changed
     if (selectedDbFire !== fireNumber) {
       setSelectedDbFire(fireNumber);
       console.log('Selected DB fire:', fireNumber);
-      
       // If a fire is selected, fetch its details
       if (fireNumber) {
-        // Set loading state to show user something is happening
         setFireProperties({ FIRE_NUMBER: fireNumber, _isLoading: true });
-        
-        // Find the full fire object from our cached list
-        const selectedFire = dbFires.find(fire => fire.fireNumber === fireNumber);
-        
-        if (selectedFire && selectedFire.id) {
-          // If we have the ID, use the more efficient single record fetch
-          fetchSingleDbFireRecord(selectedFire.id)
-            .then(properties => {
-              if (properties) {
-                setFireProperties(properties);
-                console.log('DB fire properties loaded from single record:', properties);
-              } else {
-                // Fall back to the general fetch if single record fails
-                return fetchDbFireDetails(fireNumber);
-              }
-            })
-            .then(fallbackProperties => {
-              if (fallbackProperties) {
-                setFireProperties(fallbackProperties);
-                console.log('DB fire properties loaded from fallback:', fallbackProperties);
-              }
-            })
-            .catch(error => {
-              console.error('Failed to load DB fire properties:', error);
-              // Show error message to the user
+        fetchDbFireDetails(fireNumber)
+          .then(properties => {
+            if (properties) {
+              setFireProperties(properties);
+              console.log('DB fire properties loaded:', properties);
+            } else {
+              // Show error message if no data found
+              console.warn('No data returned for DB fire:', fireNumber);
               setFireProperties({ 
                 FIRE_NUMBER: fireNumber,
-                _isDbRecord: true, 
+                _isDbRecord: true,
                 _hasError: true,
-                _errorMessage: 'Failed to load fire details. Please try again later.'
+                _errorMessage: 'No details found for this fire. The fire may not exist in the database.'
               });
+            }
+          })
+          .catch(error => {
+            console.error('Failed to load DB fire properties:', error);
+            setFireProperties({ 
+              FIRE_NUMBER: fireNumber,
+              _isDbRecord: true, 
+              _hasError: true,
+              _errorMessage: 'Failed to load fire details. Please try again later.'
             });
-        } else {
-          // Fall back to the general fetch if we don't have the ID
-          fetchDbFireDetails(fireNumber)
-            .then(properties => {
-              if (properties) {
-                setFireProperties(properties);
-                console.log('DB fire properties loaded:', properties);
-              } else {
-                // Show error message if no data found
-                console.warn('No data returned for DB fire:', fireNumber);
-                setFireProperties({ 
-                  FIRE_NUMBER: fireNumber,
-                  _isDbRecord: true,
-                  _hasError: true,
-                  _errorMessage: 'No details found for this fire. The fire may not exist in the database.'
-                });
-              }
-            })
-            .catch(error => {
-              console.error('Failed to load DB fire properties:', error);
-              // Show error message to the user
-              setFireProperties({ 
-                FIRE_NUMBER: fireNumber,
-                _isDbRecord: true, 
-                _hasError: true,
-                _errorMessage: 'Failed to load fire details. Please try again later.'
-              });
-            });
-        }
+          });
       } else {
-        // Reset fire properties if no fire is selected
         setFireProperties(null);
       }
     }

@@ -521,7 +521,7 @@ const OLMap: React.FC<OLMapProps> = ({
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstanceRef.current) return;
     try {
-      // Fetch all records for this fire number as GeoJSON
+      // Fetch all records for this fire number as an array of FeatureCollections
       const response = await fetch(`/pg-bs/burn-severity/${fireNumber}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
@@ -529,16 +529,22 @@ const OLMap: React.FC<OLMapProps> = ({
       if (!response.ok) {
         throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
       }
-      const geojsonData = await response.json();
-      setSelectedFireFeatureCollection(geojsonData); // Store for FireDetailsPanel
+      const featureCollections = await response.json();
+      // Flatten all features into a single array
+      const allFeatures = flattenFeatures(Array.isArray(featureCollections) ? featureCollections : []);
+      const combinedFeatureCollection = {
+        type: 'FeatureCollection',
+        features: allFeatures
+      };
+      setSelectedFireFeatureCollection(combinedFeatureCollection); // For FireDetailsPanel
       // Remove existing burn severity layer if it exists
       if (burnSeverityLayer) {
         mapInstanceRef.current.removeLayer(burnSeverityLayer);
       }
       // Add new features to the map
       let geojsonFeatures: Feature<Geometry>[] = [];
-      if (geojsonData && geojsonData.type === 'FeatureCollection') {
-        geojsonFeatures = new GeoJSON().readFeatures(geojsonData, {
+      if (combinedFeatureCollection && combinedFeatureCollection.type === 'FeatureCollection') {
+        geojsonFeatures = new GeoJSON().readFeatures(combinedFeatureCollection, {
           featureProjection: WEB_MERCATOR,
           dataProjection: WGS84
         });
@@ -847,6 +853,11 @@ const OLMap: React.FC<OLMapProps> = ({
       }
     });
     return records;
+  }
+
+  // Utility to flatten features from an array of FeatureCollections
+  function flattenFeatures(featureCollections: any[]): any[] {
+    return featureCollections.flatMap(fc => Array.isArray(fc.features) ? fc.features : []);
   }
 
   return (
