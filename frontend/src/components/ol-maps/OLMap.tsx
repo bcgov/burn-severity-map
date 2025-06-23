@@ -515,123 +515,52 @@ const OLMap: React.FC<OLMapProps> = ({
   }, []);
 
   // Function to fetch and display burn severity geometry
-  const fetchAndDisplayBurnGeometry = useCallback(async (fireId: string) => {
+  const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstanceRef.current) return;
-    
     try {
-      // We're now fetching all records for this fire number, not just specific ID
-      const response = await fetch(`/pg-bs/burn-severity/${fireId}`, {
+      // Fetch all records for this fire number as GeoJSON
+      const response = await fetch(`/pg-bs/burn-severity/${fireNumber}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       });
-      
       if (!response.ok) {
         throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
       }
-      
-      const burnRecords = await response.json();
-      
+      const geojsonData = await response.json();
       // Remove existing burn severity layer if it exists
       if (burnSeverityLayer) {
         mapInstanceRef.current.removeLayer(burnSeverityLayer);
       }
-      
-      // Fetch geometry for each record (in a real scenario) or use sample geojson for demo
-      // For simplicity we'll use a single API call here that returns all geometries,
-      // but you could also fetch them individually
-      
-      const geometryResponse = await fetch(`/pg-bs/fire/${fireId}/geometry`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/geojson' }
-      }).catch((): Response | null => null);
-      
+      // Add new features to the map
       let geojsonFeatures: Feature<Geometry>[] = [];
-      
-      if (geometryResponse && geometryResponse.ok) {
-        const geojsonData = await geometryResponse.json();
+      if (geojsonData && geojsonData.type === 'FeatureCollection') {
         geojsonFeatures = new GeoJSON().readFeatures(geojsonData, {
           featureProjection: WEB_MERCATOR,
           dataProjection: WGS84
         });
       } else {
-        // Error fetching geometry from backend
-        console.error('Failed to fetch geometry for fire', fireId);
-        // Do not generate or use any sample/demo geometry
+        console.error('Invalid GeoJSON returned for fire', fireNumber);
       }
-      
-      // Create a vector source from the GeoJSON
-      const vectorSource = new VectorSource({
-        features: geojsonFeatures
-      });
-      
-      // Create a vector layer with styling based on burn severity
+      const vectorSource = new VectorSource({ features: geojsonFeatures });
       const newLayer = new VectorLayer({
         source: vectorSource,
         style: (feature) => {
-          // Get burn severity from feature properties
-          const burnSeverity = feature.get('BURN_SEVERITY_RATING') || 
-                              feature.get('severity_class') || 
-                              feature.get('severty_class') || 
-                              'Unknown';
-          
-          // Define colors based on severity - match with CSS in Selectors.scss
-          let fillColor;
-          let strokeColor;
-          let strokeWidth = 2;
-          
-          switch (burnSeverity.toLowerCase()) {
-            case 'high':
-              fillColor = 'rgba(204, 0, 0, 0.6)';
-              strokeColor = '#cc0000';
-              break;
-            case 'medium':
-              fillColor = 'rgba(255, 153, 51, 0.6)';
-              strokeColor = '#ff9933';
-              break;
-            case 'low':
-              fillColor = 'rgba(255, 255, 0, 0.6)';
-              strokeColor = '#ffff00';
-              break;
-            case 'unburned':
-            case 'unchanged':
-              fillColor = 'rgba(0, 0, 0, 0)'; // Transparent fill
-              strokeColor = '#000000';
-              strokeWidth = 2;
-              break;
-            default:
-              fillColor = 'rgba(128, 128, 128, 0.6)';
-              strokeColor = '#808080';
-          }
-          
-          return new Style({
-            fill: new Fill({ color: fillColor }),
-            stroke: new Stroke({ color: strokeColor, width: strokeWidth })
-          });
-        },
-        zIndex: 150 // Above imagery but below any overlays
+          const burnSeverity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
+          let fillColor = 'rgba(0,0,0,0.1)';
+          if (burnSeverity === 'High') fillColor = 'rgba(204,0,0,0.6)';
+          else if (burnSeverity === 'Medium') fillColor = 'rgba(255,153,51,0.6)';
+          else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.6)';
+          else if (burnSeverity === 'Unburned' || burnSeverity === 'Unchanged') fillColor = 'rgba(0,0,0,0.1)';
+          return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
+        }
       });
-      
-      // Add the layer to the map
       mapInstanceRef.current.addLayer(newLayer);
       setBurnSeverityLayer(newLayer);
-      
-      // Zoom to the extent of the vector source
-      const extent = vectorSource.getExtent();
-      if (extent && extent.every(coord => isFinite(coord))) {
-        mapInstanceRef.current.getView().fit(extent, {
-          padding: [50, 50, 50, 50],
-          duration: 1000,
-          maxZoom: 14
-        });
-      }
-      
-      return vectorSource.getFeatures();
     } catch (error) {
-      // Silent error handling - the proxy is working but showing CORS errors
-      return null;
+      console.error('Failed to fetch or display burn geometry:', error);
     }
-  }, [burnSeverityLayer]);
-
+  }, []);
+  
   // Effect to initialize the map once
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;

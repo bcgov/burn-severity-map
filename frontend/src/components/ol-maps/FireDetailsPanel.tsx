@@ -15,23 +15,22 @@ interface GroupedRecords {
 }
 
 interface FireDetailsPanelProps {
-  fireNumber: string | null;
-  fires: FireRecord[];
+  featureCollection: any; // GeoJSON FeatureCollection
 }
 
-const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ fireNumber, fires }) => {
+const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ featureCollection }) => {
   const [groupedRecords, setGroupedRecords] = useState<GroupedRecords>({});
   const [recordCount, setRecordCount] = useState(0);
   const [isExpanded, setIsExpanded] = useState(true);
   
   useEffect(() => {
-    if (fireNumber) {
+    if (featureCollection && Array.isArray(featureCollection.features)) {
       // Group records by severity class
-      const records = fires.filter(fire => fire.fireNumber === fireNumber);
+      const records = featureCollection.features;
       const grouped: GroupedRecords = {};
       
-      records.forEach(record => {
-        const sevClass = record.severty_class || 'Unknown';
+      records.forEach((record: any) => {
+        const sevClass = record.properties.severty_class || 'Unknown';
         if (!grouped[sevClass]) {
           grouped[sevClass] = [];
         }
@@ -44,10 +43,10 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ fireNumber, fires }
       setGroupedRecords({});
       setRecordCount(0);
     }
-  }, [fireNumber, fires]);
+  }, [featureCollection]);
   
-  if (!fireNumber || recordCount === 0) {
-    return null;
+  if (recordCount === 0) {
+    return <div>No fire details available.</div>;
   }
 
   // Order severities in a specific sequence
@@ -61,7 +60,7 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ fireNumber, fires }
   return (
     <div className={`fire-details-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
       <div className="panel-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <h3>Fire {fireNumber}</h3>
+        <h3>Fire Details</h3>
         <span className="expander">{isExpanded ? '▼' : '▲'}</span>
       </div>
       
@@ -80,16 +79,17 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ fireNumber, fires }
               </div>
               
               <ul className="record-list">
-                {groupedRecords[severity].map(record => (
-                  <li key={record.id} className="record-item">
+                {groupedRecords[severity].map((record, idx) => (
+                  <li key={`${record.properties.FIRE_NUMBER}_${record.properties.PRE_FIRE_IMAGE_DATE}_${record.properties.POST_FIRE_IMAGE_DATE}_${idx}`} className="record-item">
                     <div className="record-dates">
                       <div className="date">
-                        <span>Pre-burn:</span> {record.pre_image_date}
+                        <span>Pre-burn:</span> {record.properties.PRE_FIRE_IMAGE_DATE}
                       </div>
                       <div className="date">
-                        <span>Post-burn:</span> {record.post_image_date}
+                        <span>Post-burn:</span> {record.properties.POST_FIRE_IMAGE_DATE}
                       </div>
                     </div>
+                    {/* Add more details as needed */}
                   </li>
                 ))}
               </ul>
