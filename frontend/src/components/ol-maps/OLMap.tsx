@@ -450,18 +450,8 @@ const OLMap: React.FC<OLMapProps> = ({
       
       const data = await response.json();
       console.log('Backend data:', data);
-      // Defensive mapping: only map if data is an array and items have id and fire_number
-      const formattedFires = Array.isArray(data)
-        ? data
-            .filter(item => item && item.id !== undefined && item.fire_number)
-            .map((item) => ({
-              id: item.id.toString(),
-              fireNumber: item.fire_number,
-              pre_image_date: item.pre_image_date,
-              post_image_date: item.post_image_date,
-              severty_class: item.severity_class || 'Unknown'
-            }))
-        : [];
+      // Convert GeoJSON FeatureCollections to FireRecord[]
+      const formattedFires = extractFireRecordsFromGeoJSON(Array.isArray(data) ? data : []);
       
       // Also fetch geometry for each fire to make it GeoJSON-compatible
       // This will be done when a fire is selected rather than all at once
@@ -905,7 +895,26 @@ const OLMap: React.FC<OLMapProps> = ({
     }
   }, [selectedDbFire, dbFires, fetchAndDisplayBurnGeometry]);
 
-  // Function has been moved up before it's referenced
+  // Utility to extract FireRecords from GeoJSON FeatureCollections
+  function extractFireRecordsFromGeoJSON(data: any[]): FireRecord[] {
+    const records: FireRecord[] = [];
+    data.forEach(fc => {
+      if (fc && Array.isArray(fc.features)) {
+        fc.features.forEach((feature: any) => {
+          const props = feature.properties || {};
+          records.push({
+            id: props.FIRE_NUMBER + '_' + (props.PRE_FIRE_IMAGE_DATE || ''),
+            fireNumber: props.FIRE_NUMBER,
+            pre_image_date: props.PRE_FIRE_IMAGE_DATE,
+            post_image_date: props.POST_FIRE_IMAGE_DATE,
+            severty_class: props.BURN_SEVERITY_RATING || 'Unknown',
+            geometry: feature.geometry
+          });
+        });
+      }
+    });
+    return records;
+  }
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
