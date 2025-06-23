@@ -60,16 +60,7 @@ git clone https://github.com/bcgov/burn-severity-map.git
 cd burn-severity-map
 ```
 
-<<<<<<< HEAD
-2. **Start the backend and database containers**
-=======
 2. **Modify environemnt .env**
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> f2e6fd42 (update to work with docker componse)
-=======
->>>>>>> 7aa1355b (Update README.md)
 ```bash
 cp .env-example .env
 # modify env if needed 
@@ -78,8 +69,6 @@ cp .env-example .env
 3. **Start the backend and database containers**
 ```bash
 docker-compose up backend db-service
-<<<<<<< HEAD
-=======
 ```
 your backend api should be at 
 http://localhost:8000
