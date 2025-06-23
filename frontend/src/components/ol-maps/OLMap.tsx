@@ -449,23 +449,19 @@ const OLMap: React.FC<OLMapProps> = ({
       }
       
       const data = await response.json();
-      
-      // Transform data to match FireSelector_db's expected format with type safety
-      interface RawFireRecord {
-        id: number;
-        fire_number: string;
-        pre_image_date: string;
-        post_image_date: string;
-        severity_class?: string;
-      }
-      
-      const formattedFires = data.map((item: RawFireRecord) => ({
-        id: item.id.toString(),
-        fireNumber: item.fire_number,
-        pre_image_date: item.pre_image_date,
-        post_image_date: item.post_image_date,
-        severty_class: item.severity_class || 'Unknown'
-      }));
+      console.log('Backend data:', data);
+      // Defensive mapping: only map if data is an array and items have id and fire_number
+      const formattedFires = Array.isArray(data)
+        ? data
+            .filter(item => item && item.id !== undefined && item.fire_number)
+            .map((item) => ({
+              id: item.id.toString(),
+              fireNumber: item.fire_number,
+              pre_image_date: item.pre_image_date,
+              post_image_date: item.post_image_date,
+              severty_class: item.severity_class || 'Unknown'
+            }))
+        : [];
       
       // Also fetch geometry for each fire to make it GeoJSON-compatible
       // This will be done when a fire is selected rather than all at once
