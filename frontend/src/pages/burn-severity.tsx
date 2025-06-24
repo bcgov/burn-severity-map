@@ -4,6 +4,7 @@ import './burn-severity.scss';
 import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
+import type { Feature as GeoJSONFeature } from 'geojson';
 
 // DbFire interface for records from database
 interface DbFire {
@@ -165,6 +166,25 @@ function BurnSeverity() {
     }
   };
 
+  // Helper: Convert fireProperties with geometry to GeoJSON Feature
+  const getHighlightFeature = (): GeoJSONFeature | null => {
+    if (fireProperties && fireProperties.geometry && typeof fireProperties.geometry === 'object' && fireProperties.geometry.type) {
+      // Only include valid, non-internal properties
+      const properties: Record<string, any> = {};
+      Object.entries(fireProperties).forEach(([key, value]) => {
+        if (!key.startsWith('_') && key !== 'geometry' && typeof value !== 'function' && value !== undefined && value !== null) {
+          properties[key] = value;
+        }
+      });
+      return {
+        type: 'Feature',
+        geometry: fireProperties.geometry,
+        properties,
+      };
+    }
+    return null;
+  };
+
   return (
     <div className="App">
       <div className="app-layout">
@@ -188,6 +208,7 @@ function BurnSeverity() {
               basemap={basemap}
               onDbFiresLoaded={handleDbFiresLoaded}
               selectedDbFire={selectedDbFire}
+              highlightFeature={getHighlightFeature()}
             />
           </div>
           

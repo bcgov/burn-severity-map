@@ -25,6 +25,7 @@ import { EventsKey } from 'ol/events';
 import StacMetadataDisplay from './StacMetadataDisplay';
 import { NBRCalculator } from './NBRCalculator';
 import FireDetailsPanel from './FireDetailsPanel';
+import type { Feature as GeoJSONFeature } from 'geojson';
 
 // Define constants for projections
 const WEB_MERCATOR = 'EPSG:3857';
@@ -132,6 +133,8 @@ interface OLMapProps {
   preBurnNirUrl?: string | null;
   preBurnSwirUrl?: string | null;
   preBurnMetadata?: any | null;
+  // New prop for highlighting a single feature
+  highlightFeature?: GeoJSONFeature | null;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -156,7 +159,8 @@ const OLMap: React.FC<OLMapProps> = ({
   preBurnVisualUrl = null,
   preBurnNirUrl = null,
   preBurnSwirUrl = null,
-  preBurnMetadata = null
+  preBurnMetadata = null,
+  highlightFeature = null,
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
@@ -842,6 +846,77 @@ const OLMap: React.FC<OLMapProps> = ({
       // Silent error handling for burn geometry display
     }
   }, [selectedDbFire, dbFires, fetchAndDisplayBurnGeometry]);
+
+  // State for the highlighted feature layer
+  const [highlightLayer, setHighlightLayer] = useState<VectorLayer<VectorSource> | null>(null);
+
+  // Effect to add/remove the highlight layer when highlightFeature changes
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    // Remove previous highlight layer if it exists
+    if (highlightLayer) {
+      mapInstanceRef.current.removeLayer(highlightLayer);
+      setHighlightLayer(null);
+    }
+    if (highlightFeature) {
+      const geom = highlightFeature.geometry;
+      const isValidGeometry =
+        geom &&
+        typeof geom === 'object' &&
+        typeof geom.type === 'string' &&
+        ((geom.type !== 'GeometryCollection' && 'coordinates' in geom) ||
+         (geom.type === 'GeometryCollection' && 'geometries' in geom && Array.isArray(geom.geometries)));
+      if (!isValidGeometry) {
+        console.warn('highlightFeature has invalid geometry:', highlightFeature);
+        return;
+      }
+      // Color map for burn severity
+      const severityColorMap: Record<string, string> = {
+        'High': '#d73027',
+        'Medium': '#fc8d59',
+        'Low': '#fee08b',
+        'Unburned': '#91cf60',
+        'Very High': '#7f0000',
+        'Moderate': '#fdae61',
+        '': '#cccccc', // fallback for missing
+      };
+      // Get the severity value (case-insensitive, fallback to '')
+      const severity = (highlightFeature.properties?.BURN_SEVERITY_RATING || highlightFeature.properties?.severty_class || highlightFeature.properties?.severity_class || '').toString();
+      // Find a color, fallback to gray
+      const color = severityColorMap[severity] || '#cccccc';
+      // Create a vector source and layer for the single feature
+      const vectorSource = new VectorSource({
+        features: new GeoJSON().readFeatures({
+          type: 'FeatureCollection',
+          features: [highlightFeature],
+        }, {
+          featureProjection: WEB_MERCATOR,
+        }),
+      });
+      const vectorLayer = new VectorLayer({
+        source: vectorSource,
+        style: new Style({
+          stroke: new Stroke({ color, width: 3 }),
+          fill: new Fill({ color: color + '80' }), // semi-transparent fill
+        }),
+        zIndex: 100,
+      });
+      mapInstanceRef.current.addLayer(vectorLayer);
+      setHighlightLayer(vectorLayer);
+      // Optionally fit the map to the feature
+      const extent = vectorSource.getExtent();
+      if (extent && extent[0] !== Infinity) {
+        mapInstanceRef.current.getView().fit(extent, { maxZoom: 13, duration: 500 });
+      }
+    }
+    // Cleanup on unmount
+    return () => {
+      if (highlightLayer && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(highlightLayer);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightFeature]);
 
   // Utility to extract FireRecords from GeoJSON FeatureCollections
   function extractFireRecordsFromGeoJSON(data: any[]): FireRecord[] {
