@@ -62,34 +62,7 @@ cd burn-severity-map
 
 2. **Start the backend and database containers**
 ```bash
-<<<<<<< HEAD
-cp .env-example .env
-# modify env if needed 
-```
-
-3. **Start the backend and database containers**
-```bash
-docker-compose up backend db-service
-```
-your backend api should be at 
-http://localhost:8000
-Interactive API documentation:
-http://localhost:8000/docs
-
-
-4. **Install front end dependencies**
-```bash
-cp .env-example .env
-# modify env if needed 
-```
-
-5. **Start the development server**
-```bash
-docker-compose up backend db-service -d
->>>>>>> 5a7e2ce6 (update to work with docker componse)
-=======
 docker-compose up fastapi-backend postgres -d
->>>>>>> origin/main
 ```
 your backend api should be at 
 http://localhost:8000
@@ -97,15 +70,7 @@ Interactive API documentation:
 http://localhost:8000/docs  
 Backend developers may wish to run the api from venv. Use docker to start only the database with  
 ```bash
-<<<<<<< HEAD
-docker compose up db-service -d
-
-or
- 
-podman compose up -d
-=======
 docker-compose up postgres -d
->>>>>>> origin/main
 ```
 Stop your database with
 ```bash
@@ -117,12 +82,12 @@ uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 3. **Install front end dependencies**
 ```bash
-npm install 
+npm install
 ```
 
 4. **Start the development server**
 ```bash
-npm start dev
+npm run dev
 ```
 
 ## 🧭 Usage
