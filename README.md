@@ -60,8 +60,9 @@ git clone https://github.com/bcgov/burn-severity-map.git
 cd burn-severity-map
 ```
 
-2. **Modify environemnt .env**
+2. **Start the backend and database containers**
 ```bash
+<<<<<<< HEAD
 cp .env-example .env
 # modify env if needed 
 ```
@@ -86,6 +87,9 @@ cp .env-example .env
 ```bash
 docker-compose up backend db-service -d
 >>>>>>> 5a7e2ce6 (update to work with docker componse)
+=======
+docker-compose up fastapi-backend postgres -d
+>>>>>>> origin/main
 ```
 your backend api should be at 
 http://localhost:8000
@@ -93,15 +97,19 @@ Interactive API documentation:
 http://localhost:8000/docs  
 Backend developers may wish to run the api from venv. Use docker to start only the database with  
 ```bash
+<<<<<<< HEAD
 docker compose up db-service -d
 
 or
  
 podman compose up -d
+=======
+docker-compose up postgres -d
+>>>>>>> origin/main
 ```
 Stop your database with
 ```bash
-docker compose down
+docker-compose down
 ```
 Start the backend with UV
 ```bash
