@@ -208,7 +208,8 @@ function BurnSeverity() {
               basemap={basemap}
               onDbFiresLoaded={handleDbFiresLoaded}
               selectedDbFire={selectedDbFire}
-              highlightFeature={getHighlightFeature()}
+              // Commented out highlighting feature
+              // highlightFeature={getHighlightFeature()}
             />
           </div>
           
