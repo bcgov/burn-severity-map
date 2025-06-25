@@ -528,7 +528,7 @@ const OLMap: React.FC<OLMapProps> = ({
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstanceRef.current) return;
     try {
-      // Fetch all records for this fire number as an array of FeatureCollections
+      // Fetch all records for this fire number as a single FeatureCollection with multiple features
       const response = await fetch(`/pg-bs/burn-severity/${fireNumber}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
@@ -536,12 +536,18 @@ const OLMap: React.FC<OLMapProps> = ({
       if (!response.ok) {
         throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
       }
-      const featureCollections = await response.json();
-      console.log('Raw backend data:', featureCollections);
-      // Flatten all features into a single array, skipping empty/invalid FeatureCollections
-      const allFeatures = Array.isArray(featureCollections)
-        ? featureCollections.flatMap(fc => (fc && Array.isArray(fc.features) && fc.features.length > 0) ? fc.features : [])
-        : [];
+      const featureCollection = await response.json();
+      console.log('Raw backend data:', featureCollection);
+      
+      // Extract features from the response, handling both single FeatureCollection and array of FeatureCollections
+      let allFeatures = [];
+      if (Array.isArray(featureCollection)) {
+        // Handle the old format (array of FeatureCollections)
+        allFeatures = featureCollection.flatMap(fc => (fc && Array.isArray(fc.features) && fc.features.length > 0) ? fc.features : []);
+      } else if (featureCollection && featureCollection.type === 'FeatureCollection' && Array.isArray(featureCollection.features)) {
+        // Handle the new format (single FeatureCollection with multiple features)
+        allFeatures = featureCollection.features;
+      }
       
       console.log('Extracted features count:', allFeatures.length);
       
