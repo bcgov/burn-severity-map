@@ -24,7 +24,6 @@ import { unByKey } from 'ol/Observable';
 import { EventsKey } from 'ol/events';
 import StacMetadataDisplay from './StacMetadataDisplay';
 import { NBRCalculator } from './NBRCalculator';
-import FireDetailsPanel from './FireDetailsPanel';
 import BurnSeverityLegend from './BurnSeverityLegend';
 import type { Feature as GeoJSONFeature } from 'geojson';
 
@@ -136,8 +135,6 @@ interface OLMapProps {
   preBurnMetadata?: any | null;
   // New prop for highlighting a single feature
   highlightFeature?: GeoJSONFeature | null;
-  // New callback to notify parent of selected fire's FeatureCollection
-  onSelectedFireFeatureCollectionChange?: (featureCollection: any) => void;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -164,7 +161,6 @@ const OLMap: React.FC<OLMapProps> = ({
   preBurnSwirUrl = null,
   preBurnMetadata = null,
   highlightFeature = null,
-  onSelectedFireFeatureCollectionChange,
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
@@ -594,22 +590,8 @@ const OLMap: React.FC<OLMapProps> = ({
       
       console.log('Combined FeatureCollection for map:', combinedFeatureCollection);
       
-      // Set local state first
+      // Set local state 
       setSelectedFireFeatureCollection(combinedFeatureCollection);
-      
-      // Then notify parent component - using setTimeout to ensure it's called after the current execution context
-      setTimeout(() => {
-        if (onSelectedFireFeatureCollectionChange) {
-          try {
-            console.log('Notifying parent component with FeatureCollection');
-            onSelectedFireFeatureCollectionChange(combinedFeatureCollection);
-          } catch (error) {
-            console.error('Error calling onSelectedFireFeatureCollectionChange:', error);
-          }
-        } else {
-          console.warn('onSelectedFireFeatureCollectionChange is not available');
-        }
-      }, 0);
       // Remove existing burn severity layer if it exists
       if (burnSeverityLayer) {
         console.log('Removing existing burn severity layer');
@@ -1099,9 +1081,6 @@ const OLMap: React.FC<OLMapProps> = ({
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-      <FireDetailsPanel 
-        featureCollection={selectedFireFeatureCollection} 
-      />
       <StacMetadataDisplay 
         isVisible={showMetadata}
         date={imageMetadata.date}

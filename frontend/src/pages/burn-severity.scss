@@ -167,61 +167,10 @@
   display: flex;
   flex-direction: column;
 }
-
-.right-panel {
-  flex: 0 0 350px; /* Make it a bit wider */
-  padding: 10px;
-  background-color: #f7f9fa;
-  border-left: 1px solid #ddd;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  z-index: 5;
   
-  h3 {
-    margin: 0;
-    padding: 10px 0;
-    color: #003366;
-    font-size: 1.2em;
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 10px;
-  }
-  
-  .no-fire-selected {
-    color: #666;
-    text-align: center;
-    margin-top: 30px;
-    font-style: italic;
-  }
-  
-  .loading-state {
-    color: #666;
-    text-align: center;
-    margin-top: 30px;
-    font-style: italic;
-    
-    &:before {
-      content: "⟳";
-      display: inline-block;
-      margin-right: 5px;
-      animation: spin 2s linear infinite;
-    }
-  }
-  
-  .error-state {
-    color: #cf4b35;
-    text-align: center;
-    margin-top: 30px;
-    padding: 10px;
-    border: 1px solid #ffd6d6;
-    border-radius: 4px;
-    background-color: #fff0f0;
-  }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Fire Details Table */
