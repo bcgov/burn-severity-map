@@ -14,14 +14,14 @@ from shapely.geometry import shape
 from geoalchemy2.shape import from_shape
 
 
-POSTGRES_USER = os.getenv('POSTGRES_USER', 'postgres')
-POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'admin')
-POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'postgres')
-POSTGRES_PORT = os.getenv('POSTGRES_PORT', '5432')
-POSTGRES_DB = os.getenv('POSTGRES_DATABASE', 'postgres')
+POSTGRES_USER = os.getenv('POSTGRES_USER')
+POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+POSTGRES_HOST = os.getenv('POSTGRES_HOST')
+POSTGRES_PORT = os.getenv('POSTGRES_PORT')
+POSTGRES_DB = os.getenv('POSTGRES_DATABASE')
 
 DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-print(f"Connecting to database: {DATABASE_URL}")
+print("Connecting to the database...")
 
 # Create the SQLAlchemy asynchronous engine
 async_engine = create_async_engine(
