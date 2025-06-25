@@ -26,6 +26,15 @@ interface GroupedFire {
   totalArea: number;
 }
 
+// Interface for the severity summary item
+interface SeveritySummaryItem {
+  severity: string;
+  count: number;
+  areaTotal: number;
+  percentOfTotal: number;
+  color: string; // Added color property
+}
+
 // Accept either a FeatureCollection or a GroupedFire as a prop
 interface FireDetailsPanelProps {
   featureCollection?: any; // GeoJSON FeatureCollection
@@ -152,11 +161,32 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ featureCollection, 
     
     const percentOfTotal = processedData.totalArea > 0 ? (areaTotal / processedData.totalArea * 100) : 0;
     
+    // Assign a color based on severity class
+    let color = '';
+    switch (severity) {
+      case 'High':
+        color = '#ff0000'; // Red
+        break;
+      case 'Medium':
+        color = '#ff9900'; // Orange
+        break;
+      case 'Low':
+        color = '#33cc33'; // Green
+        break;
+      case 'Unburned':
+        color = '#3399ff'; // Blue
+        break;
+      default:
+        color = '#cccccc'; // Gray for unknown
+        break;
+    }
+    
     return {
       severity,
       count,
       areaTotal,
-      percentOfTotal
+      percentOfTotal,
+      color
     };
   }).sort((a, b) => {
     // Sort by severity: High, Medium, Low, Unburned, etc.
@@ -183,6 +213,31 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ featureCollection, 
         <div className="fire-details-content">
           <h5>Burn Severity Summary</h5>
           
+          {/* Add bar chart representation of areas */}
+          <div className="burn-summary-stats">
+            <div className="area-bar-chart">
+              {severitySummary.map((summary) => (
+                <div 
+                  key={`bar-${summary.severity}`}
+                  className="area-bar"
+                  style={{ 
+                    width: `${summary.percentOfTotal}%`,
+                    backgroundColor: summary.color
+                  }}
+                  title={`${summary.severity}: ${summary.areaTotal.toFixed(2)} ha (${summary.percentOfTotal.toFixed(1)}%)`}
+                />
+              ))}
+            </div>
+            <div className="area-legend">
+              {severitySummary.map((summary) => (
+                <div key={`legend-${summary.severity}`} className="legend-item">
+                  <div className="color-box" style={{ backgroundColor: summary.color }}></div>
+                  <span>{summary.severity}: <strong>{summary.areaTotal.toFixed(2)} ha</strong> ({summary.percentOfTotal.toFixed(1)}%)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
           <table className="fire-details-table">
             <thead>
               <tr>
@@ -198,12 +253,12 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ featureCollection, 
                 <React.Fragment key={summary.severity}>
                   <tr className={`severity-row ${summary.severity.toLowerCase()}`}>
                     <td>
-                      <div className="severity-indicator"></div>
+                      <div className="severity-indicator" style={{ backgroundColor: summary.color }}></div>
                       <span className="severity-name">{summary.severity}</span>
                     </td>
                     <td>{summary.count}</td>
-                    <td>{summary.areaTotal.toFixed(2)} ha</td>
-                    <td>{summary.percentOfTotal.toFixed(1)}%</td>
+                    <td className="area-column"><strong>{summary.areaTotal.toFixed(2)}</strong> ha</td>
+                    <td className="percent-column"><strong>{summary.percentOfTotal.toFixed(1)}%</strong></td>
                     <td>
                       <button 
                         className="toggle-button"
@@ -259,6 +314,28 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ featureCollection, 
               ))}
             </tbody>
           </table>
+
+          {/* Bar chart representation */}
+          <div className="severity-bar-chart">
+            {severitySummary.map((summary) => (
+              <div key={summary.severity} className="bar-container">
+                <div className="bar-label">
+                  <span className="severity-name">{summary.severity}</span>
+                  <span className="record-count">{summary.count}</span>
+                </div>
+                <div className="bar-background">
+                  <div 
+                    className="bar-fill"
+                    style={{ 
+                      width: `${summary.percentOfTotal}%`, 
+                      backgroundColor: summary.color 
+                    }}
+                    title={`${summary.areaTotal.toFixed(2)} ha`}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
