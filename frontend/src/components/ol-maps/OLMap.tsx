@@ -1116,6 +1116,7 @@ const OLMap: React.FC<OLMapProps> = ({
         <BurnSeveritySummary 
           featureCollection={selectedFireFeatureCollection}
           selectedFire={selectedDbFire}
+          onClose={() => setShowSummary(false)}
         />
       )}
     </div>

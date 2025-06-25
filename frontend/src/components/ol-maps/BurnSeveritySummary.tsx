@@ -23,9 +23,10 @@ interface SeveritySummary {
 interface BurnSeveritySummaryProps {
   featureCollection: any | null; // GeoJSON FeatureCollection
   selectedFire: string | null;
+  onClose?: () => void; // Optional callback for closing
 }
 
-const BurnSeveritySummary: React.FC<BurnSeveritySummaryProps> = ({ featureCollection, selectedFire }) => {
+const BurnSeveritySummary: React.FC<BurnSeveritySummaryProps> = ({ featureCollection, selectedFire, onClose }) => {
   const [summaryData, setSummaryData] = useState<SeveritySummary[]>([]);
   const [totalArea, setTotalArea] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
@@ -113,7 +114,7 @@ const BurnSeveritySummary: React.FC<BurnSeveritySummaryProps> = ({ featureCollec
     <div className="burn-severity-summary">
       <div className="summary-header">
         <h3>Burn Severity Summary - {selectedFire}</h3>
-        <button className="close-btn" onClick={() => document.querySelector('.burn-severity-summary')?.classList.toggle('hidden')}>×</button>
+        <button className="close-btn" onClick={onClose}>×</button>
       </div>
       <div className="total-area">
         Total Burn Area: <strong>{totalArea.toFixed(2)} ha</strong>
