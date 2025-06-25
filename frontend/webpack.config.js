@@ -16,6 +16,7 @@ const config = {
   devServer: {
     open: true,
     host: 'localhost',
+    port: 3000,
     proxy: [
       {
         context: ['/pg-bs'],

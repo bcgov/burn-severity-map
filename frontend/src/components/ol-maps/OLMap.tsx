@@ -24,7 +24,8 @@ import { unByKey } from 'ol/Observable';
 import { EventsKey } from 'ol/events';
 import StacMetadataDisplay from './StacMetadataDisplay';
 import { NBRCalculator } from './NBRCalculator';
-import FireDetailsPanel from './FireDetailsPanel';
+import BurnSeverityLegend from './BurnSeverityLegend';
+import BurnSeveritySummary from './BurnSeveritySummary';
 import type { Feature as GeoJSONFeature } from 'geojson';
 
 // Define constants for projections
@@ -135,8 +136,6 @@ interface OLMapProps {
   preBurnMetadata?: any | null;
   // New prop for highlighting a single feature
   highlightFeature?: GeoJSONFeature | null;
-  // New callback to notify parent of selected fire's FeatureCollection
-  onSelectedFireFeatureCollectionChange?: (featureCollection: any) => void;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -163,7 +162,6 @@ const OLMap: React.FC<OLMapProps> = ({
   preBurnSwirUrl = null,
   preBurnMetadata = null,
   highlightFeature = null,
-  onSelectedFireFeatureCollectionChange,
 }) => {
   // Create refs and state
   const mapRef = useRef<HTMLDivElement>(null);
@@ -177,6 +175,10 @@ const OLMap: React.FC<OLMapProps> = ({
   
   // State for the burn severity vector layer
   const [burnSeverityLayer, setBurnSeverityLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  
+  // State for the legend and summary visibility
+  const [showLegend, setShowLegend] = useState<boolean>(false);
+  const [showSummary, setShowSummary] = useState<boolean>(true);
   
   // Add state for NIR and SWIR URLs
   const [nirUrl, setNirUrl] = useState<string | null>(null);
@@ -217,6 +219,27 @@ const OLMap: React.FC<OLMapProps> = ({
   // New state for selected fire feature collection
   const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
   
+  // Flag to track if we've just fitted the view to features
+  const recentlyFittedRef = useRef<boolean>(false);
+
+  // Helper function to safely fit the view to an extent
+  const fitMapToExtent = useCallback((extent: number[], options?: { maxZoom?: number, duration?: number }) => {
+    if (!mapInstanceRef.current || !extent || extent[0] === Infinity) return;
+
+    console.log('Fitting map to extent:', extent);
+    recentlyFittedRef.current = true;
+    
+    mapInstanceRef.current.getView().fit(extent, { 
+      maxZoom: options?.maxZoom || 14, 
+      duration: options?.duration || 1000 
+    });
+    
+    // Reset the flag after the animation
+    setTimeout(() => {
+      recentlyFittedRef.current = false;
+    }, (options?.duration || 1000) + 100);
+  }, []);
+
   // Helper function to extract band information from STAC item
   const extractBandInfo = (stacItem: StacItem): string | null => {
     if (stacItem.properties['eo:bands']) {
@@ -528,7 +551,11 @@ const OLMap: React.FC<OLMapProps> = ({
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstanceRef.current) return;
     try {
-      // Fetch all records for this fire number as an array of FeatureCollections
+      // Show the legend and summary when fetching fire data
+      setShowLegend(true);
+      setShowSummary(true);
+      
+      // Fetch all records for this fire number as a single FeatureCollection with multiple features
       const response = await fetch(`/pg-bs/burn-severity/${fireNumber}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
@@ -536,12 +563,24 @@ const OLMap: React.FC<OLMapProps> = ({
       if (!response.ok) {
         throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
       }
-      const featureCollections = await response.json();
-      console.log('Raw backend data:', featureCollections);
-      // Flatten all features into a single array, skipping empty/invalid FeatureCollections
-      const allFeatures = Array.isArray(featureCollections)
-        ? featureCollections.flatMap(fc => (fc && Array.isArray(fc.features) && fc.features.length > 0) ? fc.features : [])
-        : [];
+      const featureCollection = await response.json();
+      console.log('Raw backend data:', featureCollection);
+      
+      // Extract features from the response, handling both formats without duplication
+      let allFeatures = [];
+      
+      // Clear any previous features to prevent duplication
+      if (Array.isArray(featureCollection)) {
+        // Handle the old format (array of FeatureCollections)
+        allFeatures = featureCollection.flatMap(fc => 
+          (fc && fc.type === 'FeatureCollection' && Array.isArray(fc.features)) 
+            ? fc.features 
+            : []
+        );
+      } else if (featureCollection && featureCollection.type === 'FeatureCollection' && Array.isArray(featureCollection.features)) {
+        // Handle the new format (single FeatureCollection with multiple features)
+        allFeatures = [...featureCollection.features]; // Use spread to create a clean copy
+      }
       
       console.log('Extracted features count:', allFeatures.length);
       
@@ -554,33 +593,39 @@ const OLMap: React.FC<OLMapProps> = ({
       
       console.log('Combined FeatureCollection for map:', combinedFeatureCollection);
       
-      // Set local state first
+      // Set local state 
       setSelectedFireFeatureCollection(combinedFeatureCollection);
-      
-      // Then notify parent component - using setTimeout to ensure it's called after the current execution context
-      setTimeout(() => {
-        if (onSelectedFireFeatureCollectionChange) {
-          try {
-            console.log('Notifying parent component with FeatureCollection');
-            onSelectedFireFeatureCollectionChange(combinedFeatureCollection);
-          } catch (error) {
-            console.error('Error calling onSelectedFireFeatureCollectionChange:', error);
-          }
-        } else {
-          console.warn('onSelectedFireFeatureCollectionChange is not available');
-        }
-      }, 0);
       // Remove existing burn severity layer if it exists
       if (burnSeverityLayer) {
+        console.log('Removing existing burn severity layer');
         mapInstanceRef.current.removeLayer(burnSeverityLayer);
+        setBurnSeverityLayer(null);
       }
+      
+      // Remove any highlight layer as well to prevent duplication
+      if (highlightLayer) {
+        console.log('Removing existing highlight layer');
+        mapInstanceRef.current.removeLayer(highlightLayer);
+        setHighlightLayer(null);
+      }
+      
+      // Get all layers on the map for debugging
+      const allLayers = mapInstanceRef.current.getLayers().getArray();
+      console.log(`Map has ${allLayers.length} layers before adding new features`);
+      
       // Add new features to the map
       let geojsonFeatures: Feature<Geometry>[] = [];
       if (combinedFeatureCollection && combinedFeatureCollection.type === 'FeatureCollection') {
+        // Log the features before adding them to help debug
+        console.log(`Adding ${combinedFeatureCollection.features.length} features to the map`);
+        
         geojsonFeatures = new GeoJSON().readFeatures(combinedFeatureCollection, {
           featureProjection: WEB_MERCATOR,
           dataProjection: WGS84
         });
+        
+        // Log the converted features for debugging
+        console.log(`Converted ${geojsonFeatures.length} OpenLayers features`);
       } else {
         console.error('Invalid GeoJSON returned for fire', fireNumber);
       }
@@ -589,25 +634,52 @@ const OLMap: React.FC<OLMapProps> = ({
         source: vectorSource,
         style: (feature) => {
           const burnSeverity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
-          let fillColor = 'rgba(0,0,0,0.1)';
-          if (burnSeverity === 'High') fillColor = 'rgba(204,0,0,0.6)';
-          else if (burnSeverity === 'Medium') fillColor = 'rgba(255,153,51,0.6)';
-          else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.6)';
-          else if (burnSeverity === 'Unburned' || burnSeverity === 'Unchanged') fillColor = 'rgba(0,0,0,0.1)';
+          console.log('Feature burn severity:', burnSeverity); // Debug log
+          
+          let fillColor = 'rgba(0,0,0,0.1)'; // Default for unknown
+          
+          if (burnSeverity === 'High') {
+            fillColor = 'rgba(204,0,0,0.6)'; // Red for High
+          } else if (burnSeverity === 'Medium' || burnSeverity === 'Moderate') {
+            fillColor = 'rgba(255,153,51,0.6)'; // Orange for Medium/Moderate
+          } else if (burnSeverity === 'Low') {
+            fillColor = 'rgba(255,255,0,0.6)'; // Yellow for Low
+          } else if (burnSeverity === 'Unburned' || burnSeverity === 'Unburnt' || burnSeverity === 'Unchanged') {
+            fillColor = 'rgba(0,0,0,0.1)'; // Transparent black for unburned areas
+          }
+          
+          // Log the color used for debugging
+          console.log(`Style for ${burnSeverity}: ${fillColor}`);
           return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
         }
       });
+      console.log(`Adding new vector layer with ${geojsonFeatures.length} features`);
       mapInstanceRef.current.addLayer(newLayer);
       setBurnSeverityLayer(newLayer);
+      
+      // Log all features with severity for debugging
+      geojsonFeatures.forEach((feature, index) => {
+        const severity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
+        console.log(`Feature ${index}: ${severity}`);
+      });
+      
       // Fit map view to new features if any
       if (geojsonFeatures.length > 0) {
         const extent = vectorSource.getExtent();
-        mapInstanceRef.current.getView().fit(extent, { duration: 1000, maxZoom: 14 });
+        // Store the extent in a ref so we don't re-fit when the highlight feature is from the same fire
+        if (!highlightFeature) {
+          console.log('Fitting to extent of all features');
+          fitMapToExtent(extent, { duration: 1000, maxZoom: 14 });
+        }
       }
+      
+      // Log layers again after adding
+      const updatedLayers = mapInstanceRef.current.getLayers().getArray();
+      console.log(`Map now has ${updatedLayers.length} layers after adding burn severity layer`);
     } catch (error) {
       console.error('Failed to fetch or display burn geometry:', error);
     }
-  }, []);
+  }, [fitMapToExtent, highlightFeature]);
   
   // Effect to initialize the map once
   useEffect(() => {
@@ -854,7 +926,25 @@ const OLMap: React.FC<OLMapProps> = ({
 
   // Effect to handle DB fire selection and create/update a vector layer for it
   useEffect(() => {
-    if (!mapInstanceRef.current || !selectedDbFire || dbFires.length === 0) return;
+    if (!mapInstanceRef.current) return;
+    
+    if (!selectedDbFire || dbFires.length === 0) {
+      // Hide the legend when no fire is selected
+      setShowLegend(false);
+      
+      // Clean up any existing layers when no fire is selected
+      if (burnSeverityLayer) {
+        console.log('Removing burn severity layer - no fire selected');
+        mapInstanceRef.current.removeLayer(burnSeverityLayer);
+        setBurnSeverityLayer(null);
+      }
+      if (highlightLayer) {
+        console.log('Removing highlight layer - no fire selected');
+        mapInstanceRef.current.removeLayer(highlightLayer);
+        setHighlightLayer(null);
+      }
+      return;
+    }
     
     try {
       // Fetch and display the burn geometry by fire number directly
@@ -870,19 +960,34 @@ const OLMap: React.FC<OLMapProps> = ({
     } catch (error) {
       // Silent error handling for burn geometry display
     }
-  }, [selectedDbFire, dbFires, fetchAndDisplayBurnGeometry]);
+  }, [selectedDbFire, dbFires, fetchAndDisplayBurnGeometry, fitMapToExtent]);
 
   // State for the highlighted feature layer
   const [highlightLayer, setHighlightLayer] = useState<VectorLayer<VectorSource> | null>(null);
 
-  // Effect to add/remove the highlight layer when highlightFeature changes
+  /*
+  // COMMENTED OUT: Effect to add/remove the highlight layer when highlightFeature changes
   useEffect(() => {
     if (!mapInstanceRef.current) return;
+    
     // Remove previous highlight layer if it exists
     if (highlightLayer) {
+      console.log('Removing previous highlight layer');
       mapInstanceRef.current.removeLayer(highlightLayer);
       setHighlightLayer(null);
     }
+    
+    // If no highlight feature is provided, just clean up and return
+    if (!highlightFeature) {
+      console.log('No highlight feature provided, skipping highlight layer creation');
+      return;
+    }
+    
+    console.log('Adding highlight layer for feature with severity:', 
+      highlightFeature.properties?.BURN_SEVERITY_RATING || 
+      highlightFeature.properties?.severity_class || 
+      'Unknown');
+      
     if (highlightFeature) {
       const geom = highlightFeature.geometry;
       const isValidGeometry =
@@ -895,15 +1000,16 @@ const OLMap: React.FC<OLMapProps> = ({
         console.warn('highlightFeature has invalid geometry:', highlightFeature);
         return;
       }
-      // Color map for burn severity
+      // Color map for burn severity - matching the same colors used for the main layer
       const severityColorMap: Record<string, string> = {
-        'High': '#d73027',
-        'Medium': '#fc8d59',
-        'Low': '#fee08b',
-        'Unburned': '#91cf60',
-        'Very High': '#7f0000',
-        'Moderate': '#fdae61',
-        '': '#cccccc', // fallback for missing
+        'High': '#d73027',      // Red
+        'Medium': '#fc8d59',    // Orange
+        'Moderate': '#fc8d59',  // Same orange for Moderate (identical to Medium)
+        'Low': '#fee08b',       // Yellow
+        'Unburned': '#91cf60',  // Green
+        'Unburnt': '#91cf60',   // Same green for Unburnt (alternative spelling)
+        'Unchanged': '#91cf60', // Same green for Unchanged
+        '': '#cccccc',          // Gray fallback for missing
       };
       // Get the severity value (case-insensitive, fallback to '')
       const severity = (highlightFeature.properties?.BURN_SEVERITY_RATING || highlightFeature.properties?.severty_class || highlightFeature.properties?.severity_class || '').toString();
@@ -928,10 +1034,16 @@ const OLMap: React.FC<OLMapProps> = ({
       });
       mapInstanceRef.current.addLayer(vectorLayer);
       setHighlightLayer(vectorLayer);
-      // Optionally fit the map to the feature
-      const extent = vectorSource.getExtent();
-      if (extent && extent[0] !== Infinity) {
-        mapInstanceRef.current.getView().fit(extent, { maxZoom: 13, duration: 500 });
+      // Only fit to the highlighted feature if we haven't recently fitted to features
+      // This prevents the double-zoom effect when selecting a fire
+      if (!recentlyFittedRef.current) {
+        const extent = vectorSource.getExtent();
+        if (extent && extent[0] !== Infinity) {
+          console.log('Fitting to extent of highlighted feature');
+          fitMapToExtent(extent, { maxZoom: 13, duration: 500 });
+        }
+      } else {
+        console.log('Skipping highlight feature fit - recently fitted to features');
       }
     }
     // Cleanup on unmount
@@ -940,8 +1052,8 @@ const OLMap: React.FC<OLMapProps> = ({
         mapInstanceRef.current.removeLayer(highlightLayer);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [highlightFeature]);
+  }, [highlightFeature, fitMapToExtent]);
+  */
 
   // Utility to extract FireRecords from GeoJSON FeatureCollections
   function extractFireRecordsFromGeoJSON(data: any[]): FireRecord[] {
@@ -972,9 +1084,6 @@ const OLMap: React.FC<OLMapProps> = ({
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-      <FireDetailsPanel 
-        featureCollection={selectedFireFeatureCollection} 
-      />
       <StacMetadataDisplay 
         isVisible={showMetadata}
         date={imageMetadata.date}
@@ -995,6 +1104,21 @@ const OLMap: React.FC<OLMapProps> = ({
         visible={showNBR && !!nirUrl && !!swirUrl}
         onLoadingChange={onNbrLoadingChange}
       />
+      
+      {/* Add the burn severity legend */}
+      <BurnSeverityLegend 
+        isVisible={showLegend}
+        onClose={() => setShowLegend(false)}
+      />
+
+      {/* Add the burn severity summary with area stats and chart */}
+      {selectedDbFire && selectedFireFeatureCollection && showSummary && (
+        <BurnSeveritySummary 
+          featureCollection={selectedFireFeatureCollection}
+          selectedFire={selectedDbFire}
+          onClose={() => setShowSummary(false)}
+        />
+      )}
     </div>
   );
 };

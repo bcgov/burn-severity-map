@@ -1,0 +1,77 @@
+.burn-severity-legend {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  z-index: 1000;
+  width: 200px;
+  
+  .legend-header {
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .close-button {
+      background: none;
+      border: none;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 50%;
+      
+      &:hover {
+        background-color: #f0f0f0;
+      }
+    }
+  }
+  
+  .legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .color-box {
+      width: 24px;
+      height: 24px;
+      border: 1px solid #333;
+      
+      &.high {
+        background-color: rgba(204, 0, 0, 0.6); /* #d73027 with opacity */
+      }
+      
+      &.moderate {
+        background-color: rgba(255, 153, 51, 0.6); /* #fc8d59 with opacity */
+      }
+      
+      &.low {
+        background-color: rgba(255, 255, 0, 0.6); /* #fee08b with opacity */
+      }
+      
+      &.unburnt {
+        background-color: rgba(0, 0, 0, 0.1); /* Transparent black */
+      }
+    }
+    
+    span {
+      font-size: 14px;
+    }
+  }
+}

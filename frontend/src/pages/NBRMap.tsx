@@ -4,7 +4,6 @@ import './NBRMap.scss';
 import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
-import FireDetailsPanel from '../components/ol-maps/FireDetailsPanel';
 
 // Import the GroupedFire interface directly from FireSelector_db
 // Interface for a single fire record (imported from FireSelector_db)
@@ -59,10 +58,8 @@ function NBRMap() {
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
   const [fireProperties, setFireProperties] = useState<FireProperties | null>(null);
   const [isNBRLoading, setIsNBRLoading] = useState<boolean>(false);
-  // Add state for selected fire's FeatureCollection for the right panel
-  const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
-  // Add state for the selected grouped fire (to pass directly to FireDetailsPanel)
-  const [selectedGroupedFire, setSelectedGroupedFire] = useState<GroupedFire | null>(null);
+  // States for fire selection
+  // (We've removed the right panel feature collection and grouped fire states)
 
   const handleBasemapChange = (newBasemap: string) => {
     setBasemap(newBasemap);
@@ -158,13 +155,6 @@ function NBRMap() {
   const handleDbFireSelect = (fireNumber: string | null, groupedFire?: GroupedFire | null) => {
     console.log('NBRMap - Fire selected:', fireNumber, 'GroupedFire:', groupedFire);
     
-    // Set the selected grouped fire for the details panel
-    if (groupedFire) {
-      setSelectedGroupedFire(groupedFire);
-    } else {
-      setSelectedGroupedFire(null);
-    }
-    
     // Only update if the selection has actually changed
     if (selectedDbFire !== fireNumber) {
       setSelectedDbFire(fireNumber);
@@ -212,16 +202,8 @@ function NBRMap() {
     setIsNBRLoading(loading);
   };
 
-  // Handler to receive FeatureCollection from OLMap
-  const handleSelectedFireFeatureCollection = (featureCollection: any) => {
-    console.log('NBRMap received featureCollection:', featureCollection);
-    setSelectedFireFeatureCollection(featureCollection);
-  };
-
-  // Log when selectedFireFeatureCollection changes
-  useEffect(() => {
-    console.log('selectedFireFeatureCollection updated:', selectedFireFeatureCollection);
-  }, [selectedFireFeatureCollection]);
+  // We've removed the FeatureCollection handling since we no longer
+  // need to display it in the right panel
 
   return (
     <div className="App">
@@ -246,30 +228,12 @@ function NBRMap() {
               basemap={basemap}
               onDbFiresLoaded={handleDbFiresLoaded}
               selectedDbFire={selectedDbFire}
-              onSelectedFireFeatureCollectionChange={handleSelectedFireFeatureCollection}
             />
           </div>
           
           <div className="bcgov-basemap-selector">
             <BasemapSelector selectedBasemap={basemap} onBasemapChange={handleBasemapChange} />
           </div>
-        </div>
-
-        {/* Right Panel - Fire Details */}
-        <div className="right-panel">
-          <h3>Processed Burn Severity Fire Details</h3>
-          {/* Pass both data sources, giving priority to grouped fire data */}
-          {selectedGroupedFire || selectedFireFeatureCollection ? (
-            <FireDetailsPanel 
-              groupedFire={selectedGroupedFire} 
-              featureCollection={selectedFireFeatureCollection} 
-            />
-          ) : (
-            <div className="debug-panel" style={{padding: '10px', color: '#666'}}>
-              <p>Waiting for fire data...</p>
-              <p>Select a fire from the dropdown to view details.</p>
-            </div>
-          )}
         </div>
       </div>
     </div>
