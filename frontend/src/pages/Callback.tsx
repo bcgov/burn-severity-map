@@ -1,4 +1,4 @@
-// src/Callback.tsx
+// src/pages/Callback.tsx
 import React, { useEffect } from 'react';
 import userManager from '../auth/authService';
 

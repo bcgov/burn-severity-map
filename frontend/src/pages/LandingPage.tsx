@@ -1,3 +1,4 @@
+// src/pages/LandingPage.tsx
 import { Link } from 'react-router-dom'; // React Router component for client-side navigation
 import "./LandingPage.scss"; // SCSS styles specific to the landing page
 

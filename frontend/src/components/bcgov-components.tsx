@@ -34,6 +34,7 @@ const LoginLogoutButton: React.FC = () => {
 };
 
 const NothingButton: React.FC = () => {
+  //const { user, login, logout, isAuthenticated, isLoadingAuth } = useAuth(); 
   return (
     <Button
       variant="secondary"
@@ -50,7 +51,7 @@ const PageHeader: React.FC = () => {
       logoImage={<img src={geobcLogo}
       alt="GeoBC Logo" 
       style={{ height: "30px" }} />}
-      children = {<NothingButton />}
+      children = {<LoginLogoutButton />}
       />
     </div>
   );

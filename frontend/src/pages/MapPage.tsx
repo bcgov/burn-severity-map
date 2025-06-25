@@ -1,27 +1,23 @@
-import React, { useRef } from "react";
-import { Link } from 'react-router-dom'; // React Router component for navigation
-import L from "leaflet"; // Leaflet for map functionality
-import LeafletMap from "../components/map"; // Custom component to initialize the Leaflet map
-import "./MapPage.scss"; // SCSS styles specific to this page/component
 
-// Main React functional component for the map page
-const App: React.FC = () => {
-  // useRef to hold a reference to the Leaflet map instance.
-  // This allows the map object to be accessed or controlled externally (e.g., for adding layers later).
+// src/pages/MapPage.tsx
+import React, { useRef } from "react";
+import { Link } from 'react-router-dom';
+import L from "leaflet";
+import LeafletMap from "../components/map"; // Your map component
+import "./MapPage.scss";
+
+const MapPage: React.FC = () => { // Renamed from App to MapPage for clarity
   const mapRef = useRef<L.Map | null>(null);
 
   return (
     <div className="map-page-container">
-      {/* Navigation link back to home page */}
       <Link to="/">Home</Link>
 
-      {/* Container where Leaflet will mount the map.
-          LeafletMap component targets this div by its ID */}
-      <div id="map-container">
-        <LeafletMap mapRef={mapRef} />
-      </div>
+      {/* The LeafletMap component will now render its own div internally */}
+      {/* Remove the redundant div with id="map-container" here */}
+      <LeafletMap mapRef={mapRef} /> 
     </div>
   );
 };
 
-export default App;
+export default MapPage;
