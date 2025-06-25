@@ -14,8 +14,7 @@ const BasemapSelector: React.FC<BasemapSelectorProps> = ({
 
   const basemapOptions = [
     { id: 'osm', name: 'OpenStreetMap' },
-    { id: 'satellite', name: 'Satellite' },
-    { id: 'topo', name: 'Topographic' }
+    { id: 'satellite', name: 'Satellite' }
   ];
 
   // Get the name of the currently selected basemap
