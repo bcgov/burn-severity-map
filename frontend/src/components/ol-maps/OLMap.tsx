@@ -25,6 +25,7 @@ import { EventsKey } from 'ol/events';
 import StacMetadataDisplay from './StacMetadataDisplay';
 import { NBRCalculator } from './NBRCalculator';
 import FireDetailsPanel from './FireDetailsPanel';
+import BurnSeverityLegend from './BurnSeverityLegend';
 import type { Feature as GeoJSONFeature } from 'geojson';
 
 // Define constants for projections
@@ -177,6 +178,9 @@ const OLMap: React.FC<OLMapProps> = ({
   
   // State for the burn severity vector layer
   const [burnSeverityLayer, setBurnSeverityLayer] = useState<VectorLayer<VectorSource> | null>(null);
+  
+  // State for the legend visibility
+  const [showLegend, setShowLegend] = useState<boolean>(false);
   
   // Add state for NIR and SWIR URLs
   const [nirUrl, setNirUrl] = useState<string | null>(null);
@@ -528,6 +532,9 @@ const OLMap: React.FC<OLMapProps> = ({
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstanceRef.current) return;
     try {
+      // Show the legend when fetching fire data
+      setShowLegend(true);
+      
       // Fetch all records for this fire number as a single FeatureCollection with multiple features
       const response = await fetch(`/pg-bs/burn-severity/${fireNumber}`, {
         method: 'GET',
@@ -860,7 +867,13 @@ const OLMap: React.FC<OLMapProps> = ({
 
   // Effect to handle DB fire selection and create/update a vector layer for it
   useEffect(() => {
-    if (!mapInstanceRef.current || !selectedDbFire || dbFires.length === 0) return;
+    if (!mapInstanceRef.current) return;
+    
+    if (!selectedDbFire || dbFires.length === 0) {
+      // Hide the legend when no fire is selected
+      setShowLegend(false);
+      return;
+    }
     
     try {
       // Fetch and display the burn geometry by fire number directly
@@ -1000,6 +1013,12 @@ const OLMap: React.FC<OLMapProps> = ({
         extent={nbrCalculationExtent || currentMapExtent} // Use the stored calculation extent if available
         visible={showNBR && !!nirUrl && !!swirUrl}
         onLoadingChange={onNbrLoadingChange}
+      />
+      
+      {/* Add the burn severity legend */}
+      <BurnSeverityLegend 
+        isVisible={showLegend}
+        onClose={() => setShowLegend(false)}
       />
     </div>
   );

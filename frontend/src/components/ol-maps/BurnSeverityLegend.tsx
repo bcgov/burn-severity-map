@@ -1,20 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './BurnSeverityLegend.scss';
 
 interface BurnSeverityLegendProps {
   isVisible: boolean;
+  onClose?: () => void;
 }
 
 /**
  * Component to display a legend for burn severity classes
  */
-const BurnSeverityLegend: React.FC<BurnSeverityLegendProps> = ({ isVisible }) => {
-  if (!isVisible) return null;
+const BurnSeverityLegend: React.FC<BurnSeverityLegendProps> = ({ isVisible, onClose }) => {
+  const [visible, setVisible] = useState(isVisible);
+  
+  // Update local state when prop changes
+  useEffect(() => {
+    setVisible(isVisible);
+  }, [isVisible]);
+  
+  if (!visible) return null;
+  
+  const handleClose = () => {
+    setVisible(false);
+    if (onClose) onClose();
+  };
 
   return (
     <div className="burn-severity-legend">
       <div className="legend-header">
         <h3>Burn Severity Legend</h3>
+        <button className="close-button" onClick={handleClose}>×</button>
       </div>
       <div className="legend-items">
         <div className="legend-item">
