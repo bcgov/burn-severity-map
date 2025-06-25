@@ -87,6 +87,7 @@ npm install
 
 4. **Start the development server**
 ```bash
+cd frontend
 npm run dev
 ```
 
