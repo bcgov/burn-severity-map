@@ -1,0 +1,279 @@
+import React, { useState, useEffect } from 'react';
+import '../style.scss';
+import './NBRMap.scss';
+import OLMap from '../components/ol-maps/OLMap';
+import BasemapSelector from '../components/ol-maps/BasemapSelector';
+import FireSelector_db from '../components/ol-maps/FireSelector_db';
+import FireDetailsPanel from '../components/ol-maps/FireDetailsPanel';
+
+// Import the GroupedFire interface directly from FireSelector_db
+// Interface for a single fire record (imported from FireSelector_db)
+interface FireRecord {
+  id: string;
+  fireNumber: string;
+  pre_image_date: string;
+  post_image_date: string;
+  severty_class: string;
+  geometry?: any;
+}
+
+// Interface for a grouped fire with records by severity class (imported from FireSelector_db)
+interface GroupedFire {
+  fireNumber: string;
+  records: {
+    [severityClass: string]: FireRecord[];
+  };
+  totalRecords: number;
+}
+
+// DbFire interface for records from database
+interface DbFire {
+  id: string;
+  fireNumber: string;
+  pre_image_date: string;
+  post_image_date: string;
+  severty_class: string; // Note: Backend might use "severity_class" - handle both with [key: string]
+  geometry?: any;
+  [key: string]: any; // Allow for additional properties like severity_class (different spelling)
+}
+
+// Fire properties interface
+interface FireProperties {
+  _isDbRecord?: boolean;
+  _isLoading?: boolean;
+  _hasError?: boolean;
+  _errorMessage?: string;
+  _dbSchema?: boolean; // Flag to indicate this object has the original DB schema
+  FIRE_NUMBER: string;
+  [key: string]: any; // Allow for additional properties
+}
+
+function NBRMap() {
+  const [basemap, setBasemap] = useState('osm');
+  // Set initial center and zoom for all of British Columbia
+  const [center] = useState<[number, number]>([-126.5, 54.5]); // Approximate center of BC
+  const [zoom] = useState(5); // Zoomed out to show the whole province
+  
+  // Add state for database fires
+  const [dbFires, setDbFires] = useState<DbFire[]>([]);
+  const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
+  const [fireProperties, setFireProperties] = useState<FireProperties | null>(null);
+  const [isNBRLoading, setIsNBRLoading] = useState<boolean>(false);
+  // Add state for selected fire's FeatureCollection for the right panel
+  const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
+  // Add state for the selected grouped fire (to pass directly to FireDetailsPanel)
+  const [selectedGroupedFire, setSelectedGroupedFire] = useState<GroupedFire | null>(null);
+
+  const handleBasemapChange = (newBasemap: string) => {
+    setBasemap(newBasemap);
+  };
+  
+  // Handler for when database fires are loaded
+  const handleDbFiresLoaded = (loadedDbFires: DbFire[]) => {
+    setDbFires(loadedDbFires);
+  };
+  
+  // Handler for receiving fire properties
+  const handleFireProperties = (properties: FireProperties | null) => {
+    setFireProperties(properties);
+  };
+  
+  // Function to fetch fire details from the database
+  const fetchDbFireDetails = async (fireNumber: string) => {
+    try {
+      console.log('Getting details for DB fire:', fireNumber);
+      
+      // First check if we already have the fire in our dbFires state
+      const existingFire = dbFires.find(fire => fire.fireNumber === fireNumber);
+      
+      if (existingFire) {
+        console.log('Using existing DB fire data:', existingFire);
+        
+        // Create a dynamically-built object that preserves all DB fields
+        // First copy all properties from the existing fire
+        const fireProps: FireProperties = {
+          _isDbRecord: true,
+          FIRE_NUMBER: existingFire.fireNumber,
+          _dbSchema: true // Mark this as having the original DB schema
+        };
+        
+        // Dynamically copy all properties from the DB record
+        Object.entries(existingFire).forEach(([key, value]) => {
+          // Convert to the internal property name format if needed
+          if (key !== 'fireNumber') {
+            fireProps[key] = value;
+          }
+        });
+        
+        return fireProps;
+      }
+      
+      // If we don't have the fire in our state, fetch all records again
+      const response = await fetch('/pg-bs/', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch fire records: ${response.statusText}`);
+      }
+      
+      const allFires = await response.json();
+      console.log('All DB fires:', allFires);
+      
+      // Find the fire we're looking for
+      const targetFire = allFires.find((fire: DbFire) => fire.fire_number === fireNumber);
+      
+      if (targetFire) {
+        console.log('Found target fire in all records:', targetFire);
+        
+        // Create a dynamically-built object that preserves all DB fields
+        const fireProps: FireProperties = {
+          _isDbRecord: true,
+          FIRE_NUMBER: targetFire.fire_number,
+          _dbSchema: true // Mark this as having the original DB schema
+        };
+        
+        // Dynamically copy all properties from the DB record
+        Object.entries(targetFire).forEach(([key, value]) => {
+          // Skip the fire_number as we already have FIRE_NUMBER
+          if (key !== 'fire_number') {
+            fireProps[key] = value;
+          }
+        });
+        
+        return fireProps;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting DB fire details:', error);
+      return null;
+    }
+  };
+  
+  // Handler for DB fire selection
+  const handleDbFireSelect = (fireNumber: string | null, groupedFire?: GroupedFire | null) => {
+    console.log('NBRMap - Fire selected:', fireNumber, 'GroupedFire:', groupedFire);
+    
+    // Set the selected grouped fire for the details panel
+    if (groupedFire) {
+      setSelectedGroupedFire(groupedFire);
+    } else {
+      setSelectedGroupedFire(null);
+    }
+    
+    // Only update if the selection has actually changed
+    if (selectedDbFire !== fireNumber) {
+      setSelectedDbFire(fireNumber);
+      console.log('Selected DB fire:', fireNumber);
+      
+      // If a fire is selected, fetch its details
+      if (fireNumber) {
+        // Set loading state to show user something is happening
+        setFireProperties({ FIRE_NUMBER: fireNumber, _isLoading: true });
+        
+        fetchDbFireDetails(fireNumber)
+          .then(properties => {
+            if (properties) {
+              setFireProperties(properties);
+              console.log('DB fire properties loaded:', properties);
+            } else {
+              // Show error message if no data found
+              console.warn('No data returned for DB fire:', fireNumber);
+              setFireProperties({ 
+                FIRE_NUMBER: fireNumber,
+                _isDbRecord: true,
+                _hasError: true,
+                _errorMessage: 'No details found for this fire. The fire may not exist in the database.'
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Failed to load DB fire properties:', error);
+            // Show error message to the user
+            setFireProperties({ 
+              FIRE_NUMBER: fireNumber,
+              _isDbRecord: true, 
+              _hasError: true,
+              _errorMessage: 'Failed to load fire details. Please try again later.'
+            });
+          });
+      } else {
+        // Reset fire properties if no fire is selected
+        setFireProperties(null);
+      }
+    }
+  };
+
+  const handleNBRLoadingChange = (loading: boolean) => {
+    setIsNBRLoading(loading);
+  };
+
+  // Handler to receive FeatureCollection from OLMap
+  const handleSelectedFireFeatureCollection = (featureCollection: any) => {
+    console.log('NBRMap received featureCollection:', featureCollection);
+    setSelectedFireFeatureCollection(featureCollection);
+  };
+
+  // Log when selectedFireFeatureCollection changes
+  useEffect(() => {
+    console.log('selectedFireFeatureCollection updated:', selectedFireFeatureCollection);
+  }, [selectedFireFeatureCollection]);
+
+  return (
+    <div className="App">
+      <div className="app-layout">
+        {/* Left Panel - Fire Selection */}
+        <div className="left-panel">
+          {/* Database Fire Selector */}
+          <h3>Processed Burn Severity Fires</h3>
+          <FireSelector_db
+            fires={dbFires}
+            onFireSelect={handleDbFireSelect}
+            selectedFire={selectedDbFire}
+          />
+        </div>
+
+        {/* Center Panel - Map */}
+        <div className="center-panel">
+          <div className="map-container">
+            <OLMap 
+              center={center} 
+              zoom={zoom} 
+              basemap={basemap}
+              onDbFiresLoaded={handleDbFiresLoaded}
+              selectedDbFire={selectedDbFire}
+              onSelectedFireFeatureCollectionChange={handleSelectedFireFeatureCollection}
+            />
+          </div>
+          
+          <div className="bcgov-basemap-selector">
+            <BasemapSelector selectedBasemap={basemap} onBasemapChange={handleBasemapChange} />
+          </div>
+        </div>
+
+        {/* Right Panel - Fire Details */}
+        <div className="right-panel">
+          <h3>Processed Burn Severity Fire Details</h3>
+          {/* Pass both data sources, giving priority to grouped fire data */}
+          {selectedGroupedFire || selectedFireFeatureCollection ? (
+            <FireDetailsPanel 
+              groupedFire={selectedGroupedFire} 
+              featureCollection={selectedFireFeatureCollection} 
+            />
+          ) : (
+            <div className="debug-panel" style={{padding: '10px', color: '#666'}}>
+              <p>Waiting for fire data...</p>
+              <p>Select a fire from the dropdown to view details.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default NBRMap;

@@ -1,0 +1,398 @@
+// Common styles for selectors
+@mixin control-container {
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+@mixin input-base {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--bcgov-primary);
+    box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.1);
+  }
+}
+
+// Toggle Switch Styles
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  margin-right: 10px;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+
+    &:checked + .toggle-slider {
+      background-color: var(--bcgov-primary, #003366);
+
+      &:before {
+        transform: translateX(26px);
+      }
+    }
+
+    &:focus + .toggle-slider {
+      box-shadow: 0 0 1px var(--bcgov-primary, #003366);
+    }
+
+    &:disabled + .toggle-slider {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.4s;
+    border-radius: 34px;
+
+    &:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+  }
+}
+
+.toggle-container {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+
+  &.disabled {
+    color: #999;
+    cursor: not-allowed;
+  }
+}
+
+// Fire Selector
+.bcgov-fire-selector {
+  width: 100%;
+
+  &-header {
+    margin-bottom: 15px;
+  }
+
+  &-label {
+    h4 {
+      margin: 0 0 5px;
+      color: var(--bcgov-primary);
+      font-size: 16px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+    }
+  }
+
+  &-input-container {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  &-input {
+    @include input-base;
+    flex: 1;
+    width: 100%;
+  }
+
+  &-toggle {
+    @include input-base;
+    padding: 8px 12px;
+    background: white;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f5f5;
+    }
+  }
+
+  &-dropdown {
+    @include control-container;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+  }
+
+  &-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .fire-number {
+      font-weight: bold;
+      flex: 1;
+    }
+
+    .fire-severity-counts {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .severity-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      border-radius: 11px;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 0 6px;
+      color: white;
+
+      &.high {
+        background-color: rgba(204, 0, 0, 0.8);
+        border: 1px solid #cc0000;
+      }
+
+      &.medium {
+        background-color: rgba(255, 153, 51, 0.8);
+        border: 1px solid #ff9933;
+      }
+
+      &.low {
+        background-color: rgba(255, 255, 0, 0.8);
+        border: 1px solid #ffff00;
+        color: #333;
+      }
+
+      &.unburned,
+      &.unchanged {
+        background-color: rgba(0, 0, 0, 0.1);
+        border: 1px solid #000000;
+        color: #333;
+      }
+
+      &.unknown {
+        background-color: rgba(128, 128, 128, 0.6);
+        border: 1px solid #808080;
+      }
+    }
+
+    &:hover {
+      background-color: rgba(0, 51, 102, 0.05);
+    }
+
+    &.selected {
+      background-color: var(--bcgov-primary);
+      color: white;
+
+      &:hover {
+        background-color: var(--bcgov-secondary);
+      }
+
+      .severity-badge {
+        &.low,
+        &.unburned,
+        &.unchanged,
+        &.unknown {
+          color: #333;
+        }
+      }
+    }
+  }
+
+  &-no-results {
+    padding: 12px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    font-size: 14px;
+  }
+}
+
+// Basemap Selector
+.bcgov-basemap-selector {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  // No additional styling here - everything is now in basemap-options
+}
+
+.basemap-options {
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  width: 200px; // Fixed width for consistency
+  transform-origin: top right;
+  
+  &.collapsed {
+    width: auto;
+    min-width: 120px;
+    max-width: 140px;
+    border-radius: 100px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    
+    .basemap-header {
+      padding: 6px 12px;
+      border-radius: 100px;
+      background-color: white;
+    }
+    
+    .basemap-content {
+      max-height: 0;
+      padding: 0;
+      opacity: 0;
+      visibility: hidden; // Hide completely when collapsed
+    }
+    
+    .toggle-button {
+      background-color: #f0f0f0;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+    }
+  }
+  
+  &.expanded {
+    .basemap-header {
+      border-bottom: 1px solid #eee;
+      border-radius: 4px 4px 0 0;
+    }
+    
+    .basemap-content {
+      max-height: 200px;
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+  
+  .basemap-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    font-weight: 600;
+    color: var(--bcgov-primary);
+    cursor: pointer;
+    background-color: white;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background-color: #f5f5f5;
+    }
+    
+    .basemap-title {
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .toggle-button {
+      background: none;
+      border: none;
+      color: var(--bcgov-primary);
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0;
+      margin-left: 8px;
+      min-width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+    }
+  }
+  
+  .basemap-content {
+    padding: 12px;
+    transition: all 0.3s ease;
+    max-height: 200px; // Arbitrary large value to allow content to show
+    overflow: hidden;
+  }
+}
+
+.bcgov-basemap-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  &:hover {
+    transform: translateX(2px);
+  }
+
+  input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--bcgov-primary);
+    border-radius: 50%;
+    margin-right: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:checked {
+      border-width: 5px;
+    }
+  }
+
+  label {
+    font-size: 14px;
+    color: #444;
+    cursor: pointer;
+    user-select: none;
+  }
+}

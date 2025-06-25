@@ -9,7 +9,7 @@ import { PageHeader, PageFooter } from "./components/bcgov-components";
 
 // Import the two main pages of the app
 import LandingPage from "./pages/LandingPage";
-import MapPage from "./pages/MapPage";
+import BurnSeverity from "./pages/burn-severity";
 
 // Get the root HTML element where the React app will be mounted
 const appElement = document.getElementById("app"); 
@@ -22,14 +22,18 @@ if (appElement) {
       {/* BCGov-branded page header */}
       <PageHeader />
 
-      {/* Route configuration: defines what component to show for each URL path */}
-      <Routes>
-        {/* Home/landing page route */}
-        <Route path="/" element={<LandingPage />} />
+      {/* Main content area */}
+      <main className="bcgov-main">
+        {/* Route configuration: defines what component to show for each URL path */}
+        <Routes>
+          {/* Home/landing page route */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* Map page route */}
-        <Route path="/map" element={<MapPage />} />
-      </Routes>
+
+          {/* Burn Severity Map route */}
+          <Route path="/nbr" element={<BurnSeverity />} />
+        </Routes>
+      </main>
 
       {/* BCGov-branded page footer */}
       <PageFooter />
