@@ -225,61 +225,69 @@ async def read_burn_severity_by_fire(
     db: AsyncSession = Depends(get_async_db)
 ):
     """
-    Retrieves a specific burn severity record by its unique ID.
+    Retrieves all burn severity records matching the given fire number.
+    Returns them as a single FeatureCollection containing multiple features.
     """
     stmt = select(models.FireBurnSeverity).where(models.FireBurnSeverity.FIRE_NUMBER == fire_number)
     result = await db.execute(stmt)
-    record = result.scalars().first()
-    if record is None:
+    records = result.scalars().all()
+    if not records:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Burn record with ID {fire_number} not found."
+            detail=f"Burn records with fire number {fire_number} not found."
         )
     
-    # --- Transform the single db_record into schemas.FireBurnSeverityResponse ---
-    # 1. Convert WKBElement geometry from db_record back to Shapely geometry
-    shapely_geom_out = to_shape(record.geometry)
-    # 2. Convert Shapely geometry to GeoJSON dict
-    geojson_geometry_out = mapping(shapely_geom_out)
-
-    # 3. Calculate FEATURE_AREA_SQM and FEATURE_LENGTH_M
-    calculated_area_sq_m = shapely_geom_out.area
-    calculated_length_m = shapely_geom_out.length
-
-    # 4. Create BurnSeverityProps instance from db_record and calculated values
-    response_props = schemas.BurnSeverityProps(
-        FIRE_NUMBER=record.FIRE_NUMBER,
-        FIRE_YEAR=record.FIRE_YEAR,
-        PRE_FIRE_IMAGE=record.PRE_FIRE_IMAGE,
-        PRE_FIRE_IMAGE_DATE=record.PRE_FIRE_IMAGE_DATE,
-        POST_FIRE_IMAGE=record.POST_FIRE_IMAGE,
-        POST_FIRE_IMAGE_DATE=record.POST_FIRE_IMAGE_DATE,
-        COMMENTS=record.COMMENTS,
-        FIRE_STATUS=record.FIRE_STATUS,
-        BURN_SEVERITY_RATING=record.BURN_SEVERITY_RATING,
-        AREA_HA=record.AREA_HA,
-        FEATURE_AREA_SQM=calculated_area_sq_m,
-        FEATURE_LENGTH_M=calculated_length_m,
-    )
-
-    # 5. Create FireBurnSeverityFeature instance
-    fire_feature_response = schemas.FireBurnSeverityFeature(
-        type="Feature",
-        geometry=geojson_geometry_out,
-        properties=response_props
-    )
-
-    # 6. Create FireBurnSeverityResponse instance (FeatureCollection)
-    # Use the predefined dummy CRS for consistency
+    # Define a predefined dummy CRS for consistency
     dummy_crs = schemas.CRS(type="name", properties=schemas.CRSProperties(name="urn:ogc:def:crs:EPSG::4326"))
+    
+    # List to hold all features
+    features = []
+    
+    # Process each record and add to features list
+    for record in records:
+        # 1. Convert WKBElement geometry from db_record back to Shapely geometry
+        shapely_geom_out = to_shape(record.geometry)
+        # 2. Convert Shapely geometry to GeoJSON dict
+        geojson_geometry_out = mapping(shapely_geom_out)
 
+        # 3. Calculate FEATURE_AREA_SQM and FEATURE_LENGTH_M
+        calculated_area_sq_m = shapely_geom_out.area
+        calculated_length_m = shapely_geom_out.length
+
+        # 4. Create BurnSeverityProps instance from db_record and calculated values
+        response_props = schemas.BurnSeverityProps(
+            FIRE_NUMBER=record.FIRE_NUMBER,
+            FIRE_YEAR=record.FIRE_YEAR,
+            PRE_FIRE_IMAGE=record.PRE_FIRE_IMAGE,
+            PRE_FIRE_IMAGE_DATE=record.PRE_FIRE_IMAGE_DATE,
+            POST_FIRE_IMAGE=record.POST_FIRE_IMAGE,
+            POST_FIRE_IMAGE_DATE=record.POST_FIRE_IMAGE_DATE,
+            COMMENTS=record.COMMENTS,
+            FIRE_STATUS=record.FIRE_STATUS,
+            BURN_SEVERITY_RATING=record.BURN_SEVERITY_RATING,
+            AREA_HA=record.AREA_HA,
+            FEATURE_AREA_SQM=calculated_area_sq_m,
+            FEATURE_LENGTH_M=calculated_length_m,
+        )
+
+        # 5. Create FireBurnSeverityFeature instance
+        fire_feature_response = schemas.FireBurnSeverityFeature(
+            type="Feature",
+            geometry=geojson_geometry_out,
+            properties=response_props
+        )
+        
+        # Add the feature to our features list
+        features.append(fire_feature_response)
+
+    # 6. Create FireBurnSeverityResponse instance (FeatureCollection) with multiple features
     final_response = schemas.FireBurnSeverityResponse(
         type="FeatureCollection",
         crs=dummy_crs, # Use the predefined dummy CRS
-        features=[fire_feature_response]
+        features=features
     )
 
-    return final_response # Return the structured response
+    return final_response # Return the structured response with all features
 
 @app.get(
     "/docs/list/{fire_number}",
