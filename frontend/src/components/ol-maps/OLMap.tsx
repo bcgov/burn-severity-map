@@ -25,6 +25,7 @@ import { EventsKey } from 'ol/events';
 import StacMetadataDisplay from './StacMetadataDisplay';
 import { NBRCalculator } from './NBRCalculator';
 import BurnSeverityLegend from './BurnSeverityLegend';
+import BurnSeveritySummary from './BurnSeveritySummary';
 import type { Feature as GeoJSONFeature } from 'geojson';
 
 // Define constants for projections
@@ -175,8 +176,9 @@ const OLMap: React.FC<OLMapProps> = ({
   // State for the burn severity vector layer
   const [burnSeverityLayer, setBurnSeverityLayer] = useState<VectorLayer<VectorSource> | null>(null);
   
-  // State for the legend visibility
+  // State for the legend and summary visibility
   const [showLegend, setShowLegend] = useState<boolean>(false);
+  const [showSummary, setShowSummary] = useState<boolean>(true);
   
   // Add state for NIR and SWIR URLs
   const [nirUrl, setNirUrl] = useState<string | null>(null);
@@ -549,8 +551,9 @@ const OLMap: React.FC<OLMapProps> = ({
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstanceRef.current) return;
     try {
-      // Show the legend when fetching fire data
+      // Show the legend and summary when fetching fire data
       setShowLegend(true);
+      setShowSummary(true);
       
       // Fetch all records for this fire number as a single FeatureCollection with multiple features
       const response = await fetch(`/pg-bs/burn-severity/${fireNumber}`, {
@@ -1107,6 +1110,14 @@ const OLMap: React.FC<OLMapProps> = ({
         isVisible={showLegend}
         onClose={() => setShowLegend(false)}
       />
+
+      {/* Add the burn severity summary with area stats and chart */}
+      {selectedDbFire && selectedFireFeatureCollection && showSummary && (
+        <BurnSeveritySummary 
+          featureCollection={selectedFireFeatureCollection}
+          selectedFire={selectedDbFire}
+        />
+      )}
     </div>
   );
 };
