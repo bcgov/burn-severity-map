@@ -9,7 +9,7 @@
     "build:prod": "webpack --mode=production --node-env=production",
     "watch": "webpack --watch",
     "serve": "webpack serve",
-    "start": "webpack serve --config webpack.config.js --mode development --port 3000"
+    "start": "webpack serve --config webpack.config.js --mode development --port 8080"
   },
   "author": "",
   "license": "ISC",
@@ -47,6 +47,7 @@
     "leaflet": "^1.9.4",
     "ndarray": "^1.0.19",
     "ndarray-ops": "^1.2.2",
+    "oidc-client-ts": "^3.3.0",
     "ol": "^10.5.0",
     "ol-ext": "^4.0.31",
     "ol-stac": "^1.0.0-rc.10",
