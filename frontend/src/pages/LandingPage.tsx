@@ -16,7 +16,7 @@ const LandingPage = () => {
       ) : (
         <>
           {isAuthenticated ? ( // Render the link only if the user is authenticated
-            <Link to="/map">Go to Map</Link>
+            <Link to="/nbr">Burn Severity Analysis</Link>
           ) : (
             // Optionally, you can show a login button or a message for unauthenticated users
             <div>
@@ -25,7 +25,7 @@ const LandingPage = () => {
           )}
         </>
       )}
-      <Link to="/nbr">Burn Severity Analysis</Link>
+      
     </div>
   );
 };

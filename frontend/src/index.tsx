@@ -15,6 +15,7 @@ import { PageHeader, PageFooter } from "./components/bcgov-components";
 import LandingPage from "./pages/LandingPage"; // main page visable to all users
 import BurnSeverity from "./pages/burn-severity";
 import Callback from './pages/Callback'; // Your OIDC callback page
+import NBRMap from './pages/NBRMap';
 
 import ProtectedRoute from './auth/ProtectedRoute'; // Your protected route component
 
@@ -31,9 +32,10 @@ const App: React.FC = () => {
           {/* LandingPage should likely be your "/" route */}
           <Route path="/" element={<LandingPage />} /> 
           <Route path="/callback" element={<Callback />} />
+          <Route path="/nbr" element={<NBRMap />} />
 
           {/* Protected Routes */}
-          <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
+          {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
 
           {/* Fallback for unknown routes */}
           <Route path="*" element={<p>404 Not Found</p>} />
@@ -52,26 +54,10 @@ const appElement = document.getElementById("app");
 // Only render the app if the root element is found in the DOM
 if (appElement) {
   ReactDOM.createRoot(appElement).render(
-    // Router provides client-side routing context to the app
-    <Router>
-      {/* BCGov-branded page header */}
-      <PageHeader />
-
-      {/* Main content area */}
-      <main className="bcgov-main">
-        {/* Route configuration: defines what component to show for each URL path */}
-        <Routes>
-          {/* Home/landing page route */}
-          <Route path="/" element={<LandingPage />} />
-
-
-          {/* Burn Severity Map route */}
-          <Route path="/nbr" element={<BurnSeverity />} />
-        </Routes>
-      </main>
-
-      {/* BCGov-branded page footer */}
-      <PageFooter />
-    </Router>
+    <React.StrictMode> {/* Good practice to wrap in StrictMode for development */}
+      <App /> {/* Render your main App component */}
+    </React.StrictMode>
   );
+} else {
+  console.error("Root element with ID 'app' not found in the DOM.");
 }
