@@ -13,7 +13,7 @@ import { PageHeader, PageFooter } from "./components/bcgov-components";
 
 // Import pages of the app
 import LandingPage from "./pages/LandingPage"; // main page visable to all users
-import MapPage from "./pages/MapPage";
+import BurnSeverity from "./pages/burn-severity";
 import Callback from './pages/Callback'; // Your OIDC callback page
 
 import ProtectedRoute from './auth/ProtectedRoute'; // Your protected route component
@@ -52,11 +52,26 @@ const appElement = document.getElementById("app");
 // Only render the app if the root element is found in the DOM
 if (appElement) {
   ReactDOM.createRoot(appElement).render(
-    // Render your main 'App' component here.
-    // The App component itself already contains the Router, AuthProvider,
-    // Header, Footer, and Routes.
-    <React.StrictMode> {/* Good practice for development */}
-      <App />
-    </React.StrictMode>
+    // Router provides client-side routing context to the app
+    <Router>
+      {/* BCGov-branded page header */}
+      <PageHeader />
+
+      {/* Main content area */}
+      <main className="bcgov-main">
+        {/* Route configuration: defines what component to show for each URL path */}
+        <Routes>
+          {/* Home/landing page route */}
+          <Route path="/" element={<LandingPage />} />
+
+
+          {/* Burn Severity Map route */}
+          <Route path="/nbr" element={<BurnSeverity />} />
+        </Routes>
+      </main>
+
+      {/* BCGov-branded page footer */}
+      <PageFooter />
+    </Router>
   );
 }

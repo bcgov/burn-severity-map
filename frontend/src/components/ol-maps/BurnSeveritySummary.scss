@@ -1,0 +1,141 @@
+.burn-severity-summary {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  margin: 10px;
+  max-width: 400px;
+  border: 1px solid #e0e0e0;
+  font-family: 'BCSans', sans-serif;
+  position: absolute;
+  bottom: 45px;
+  left: 10px;
+  z-index: 10;
+
+  .summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+    
+    h3 {
+      margin: 0;
+      color: #003366;
+      font-size: 1.1em;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 1.5em;
+      cursor: pointer;
+      padding: 0 5px;
+      line-height: 1;
+      
+      &:hover {
+        color: #003366;
+      }
+    }
+  }
+
+  .total-area {
+    margin-bottom: 15px;
+    font-size: 0.9em;
+
+    strong {
+      font-size: 1.1em;
+      color: #003366;
+    }
+  }
+
+  .severity-table {
+    margin-bottom: 20px;
+    overflow-x: auto;
+    max-height: 200px;
+    overflow-y: auto;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9em;
+    }
+
+    th {
+      background-color: #f5f5f5;
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+      color: #444;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+    }
+
+    .severity-color {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+  }
+
+  .burn-severity-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 15px;
+
+    .chart-bar {
+      height: 24px;
+      min-width: 2px; // Ensure very small percentages are still visible
+      position: relative;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      transition: all 0.3s ease;
+
+      &:hover {
+        opacity: 0.9;
+        transform: scaleY(1.05);
+      }
+
+      .bar-label {
+        color: white;
+        padding: 0 8px;
+        font-size: 0.8em;
+        font-weight: bold;
+        text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+      }
+    }
+  }
+
+  &.empty, &.loading {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+  }
+}
+
+@media (max-width: 768px) {
+  .burn-severity-summary {
+    max-width: calc(100% - 20px);
+    left: 0;
+    right: 0;
+    margin: 10px auto;
+  }
+}
+
+/* Hidden state */
+.burn-severity-summary.hidden {
+  display: none;
+}

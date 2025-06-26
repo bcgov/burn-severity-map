@@ -25,6 +25,7 @@ const LandingPage = () => {
           )}
         </>
       )}
+      <Link to="/nbr">Burn Severity Analysis</Link>
     </div>
   );
 };
