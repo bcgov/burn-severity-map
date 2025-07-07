@@ -5,6 +5,7 @@ import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
 import type { Feature as GeoJSONFeature } from 'geojson';
+import { useAuth } from '../auth/AuthContext';
 
 // DbFire interface for records from database
 interface DbFire {
@@ -29,6 +30,8 @@ interface FireProperties {
 }
 
 function BurnSeverity() {
+  // Authentication
+  const { user, login, isAuthenticated, isLoadingAuth } = useAuth();
   const [basemap, setBasemap] = useState('osm');
   // Set initial center and zoom for all of British Columbia
   const [center] = useState<[number, number]>([-126.5, 54.5]); // Approximate center of BC
@@ -187,6 +190,7 @@ function BurnSeverity() {
 
   return (
     <div className="App">
+      {isAuthenticated ? (
       <div className="app-layout">
         {/* Left Panel - Fire Selection */}
         <div className="left-panel">
@@ -218,6 +222,12 @@ function BurnSeverity() {
           </div>
         </div>
       </div>
+      ):(
+      <div>
+        <p> Please log in to access bs</p>
+      </div>  
+        )
+      }
     </div>
   );
 }

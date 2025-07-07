@@ -4,6 +4,7 @@ import './NBRMap.scss';
 import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
+import { useAuth } from '../auth/AuthContext';
 
 // Import the GroupedFire interface directly from FireSelector_db
 // Interface for a single fire record (imported from FireSelector_db)
@@ -48,6 +49,9 @@ interface FireProperties {
 }
 
 function NBRMap() {
+  // Authentication
+  const { user, login, isAuthenticated, isLoadingAuth } = useAuth();
+
   const [basemap, setBasemap] = useState('osm');
   // Set initial center and zoom for all of British Columbia
   const [center] = useState<[number, number]>([-126.5, 54.5]); // Approximate center of BC
@@ -207,6 +211,8 @@ function NBRMap() {
 
   return (
     <div className="App">
+      
+      {isAuthenticated ? (
       <div className="app-layout">
         {/* Left Panel - Fire Selection */}
         <div className="left-panel">
@@ -236,6 +242,13 @@ function NBRMap() {
           </div>
         </div>
       </div>
+      ):(
+      <div>
+        <p> Please log in to access bs</p>
+      </div>  
+        )
+      
+      }
     </div>
   );
 }

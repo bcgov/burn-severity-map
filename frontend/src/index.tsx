@@ -32,11 +32,11 @@ const App: React.FC = () => {
           {/* LandingPage should likely be your "/" route */}
           <Route path="/" element={<LandingPage />} /> 
           <Route path="/callback" element={<Callback />} />
-          <Route path="/nbr" element={<NBRMap />} />
 
           {/* Protected Routes */}
           {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
-
+          <Route path="/nbr" element={<NBRMap />} />
+          <Route path="/burn-severity" element={<BurnSeverity />} />
           {/* Fallback for unknown routes */}
           <Route path="*" element={<p>404 Not Found</p>} />
         </Routes>
