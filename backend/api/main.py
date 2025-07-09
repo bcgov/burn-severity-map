@@ -15,7 +15,7 @@ from models import FireNumberList, FeatureCollection, Feature, Geometry, Feature
 
 app = FastAPI(title="Burn Severity API", version="1.0")
 
-@app.get("/fires", response_model=FireNumberList)
+@app.get("/burn-severity", response_model=FireNumberList)
 def list_fire_numbers():
     try:
         fire_numbers = get_unique_fire_numbers()
@@ -23,7 +23,7 @@ def list_fire_numbers():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/fire/{fire_number}", response_model=FeatureCollection)
+@app.get("/burn-severity/{fire_number}", response_model=FeatureCollection)
 def get_fire_by_number(fire_number: str):
     try:
         df = get_fire_features(fire_number)
