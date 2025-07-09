@@ -1,12 +1,11 @@
-import os
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from typing import List
 import json
 
-if os.path.exists('../../.env'):
-    from dotenv import load_dotenv
-    load_dotenv(dotenv_path="../../.env")
+# if os.path.exists('../../.env'):
+#     from dotenv import load_dotenv
+#     load_dotenv(dotenv_path="../../.env")
 
 from utils import s3_get_presigned_url, s3_list_objects
 from database import get_unique_fire_numbers, get_fire_features
