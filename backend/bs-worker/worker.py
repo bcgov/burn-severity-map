@@ -1,10 +1,13 @@
 import boto3
+from botocore.config import Config
 import geopandas
 import pandas as pd
 import os
 import sys
 import io
 import json
+import hashlib
+
 
 S3_ENDPOINT = os.getenv("S3_ENDPOINT")
 S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
@@ -48,10 +51,14 @@ def append_geojson_to_geoparquet_s3(
         aws_secret_access_key=s3_secret_access_key,
     )
 
+    existing_parquet_bytes = None
+    existing_gdf = None # Initialize to None
+
     # 1. Download the existing GeoParquet file
     try:
         response = s3_client.get_object(Bucket=bucket_name, Key=key)
         existing_parquet_bytes = response['Body'].read()
+        existing_gdf = geopandas.read_parquet(io.BytesIO(existing_parquet_bytes))
         print(f"Downloaded existing GeoParquet file: s3://{bucket_name}/{key}")
     except s3_client.exceptions.NoSuchKey:
         print(f"File s3://{bucket_name}/{key} does not exist. Creating a new one.")
@@ -73,13 +80,11 @@ def append_geojson_to_geoparquet_s3(
     new_gdf = geopandas.GeoDataFrame.from_features(features_list)
 
     # 2. Append new data to existing data (or create new if no existing file)
-    if existing_parquet_bytes:
+    if existing_gdf is not None:
         # Read existing GeoParquet into a GeoDataFrame
         existing_gdf = geopandas.read_parquet(io.BytesIO(existing_parquet_bytes))
         
-        # Ensure consistent CRS before concatenation (important for geospatial operations)
-        # If CRSs are different, you might need to reproject one of them.
-        # For simplicity, we'll assume consistency or that it's handled upstream.
+        # people might export the geojson to 3005
         if existing_gdf.crs and new_gdf.crs and existing_gdf.crs != new_gdf.crs:
             print(f"Warning: CRS mismatch. Existing: {existing_gdf.crs}, New: {new_gdf.crs}")
             print("Attempting to reproject new data to match existing CRS.")
@@ -103,14 +108,20 @@ def append_geojson_to_geoparquet_s3(
     output_buffer = io.BytesIO()
     combined_gdf.to_parquet(output_buffer, index=False)
     output_buffer.seek(0)
-    
+    hasher = hashlib.sha256()
+    hasher.update(output_buffer.getvalue())
+    output_buffer.seek(0) # Reset again after reading
+    local_sha256 = hasher.hexdigest()
+    print(f"Local SHA256 of data to be uploaded: {local_sha256}")
     # 4. Upload the combined (and overwritten) Parquet file back to S3
     try:
-        s3_client.put_object(
+        response = s3_client.put_object(
             Bucket=bucket_name,
             Key=key,
             Body=output_buffer,
-            ContentType='application/octet-stream' # Or 'application/x-parquet'
+            ContentType='application/x-parquet',
+            ChecksumAlgorithm='SHA256',
+            ChecksumSHA256=local_sha256
         )
         print(f"Successfully uploaded updated GeoParquet file to s3://{bucket_name}/{key}")
     except Exception as e:
@@ -123,8 +134,8 @@ if __name__ == "__main__":
     # For local MinIO, it might look like:
 
     BUCKET = S3_BUCKET_NAME
-    FILE_KEY = "bs.parquet"
-    geojson = sys.argv[0]
+    FILE_KEY = "burn-severity/bs.parquet"
+    geojson = sys.argv[1]
 
 
     # future humans might want to load geojson from object storage
@@ -141,31 +152,17 @@ if __name__ == "__main__":
     fc = json.loads(geojson_bytes)
     '''
     
+    # current human just wants to test this with a file system geojson
     assert os.path.exists(geojson)
-    fc = json.load(geojson)
+    with open(geojson) as f:
+        fc = json.load(f)
 
     append_geojson_to_geoparquet_s3(
         bucket_name=S3_BUCKET_NAME,
         key=FILE_KEY,
         new_geojson_data=fc,
         s3_endpoint_url=S3_ENDPOINT,
-        S3_ACCESS_KEY_id=S3_ACCESS_KEY,
-        aws_secret_access_key=S3_ACCESS_KEY
+        s3_access_key_id=S3_ACCESS_KEY,
+        s3_secret_access_key=S3_SECRET_KEY
     )
     
-    # Optional: Verify the content by downloading and reading the file
-    print("\n--- Verifying content ---")
-    s3_client_verify = boto3.client(
-        's3',
-        endpoint_url=S3_ENDPOINT,
-        aws_access_key_id=S3_ACCESS_KEY,
-        aws_secret_access_key=S3_ACCESS_KEY
-    )
-    try:
-        response_verify = s3_client_verify.get_object(Bucket=S3_BUCKET_NAME, Key=FILE_KEY)
-        verified_parquet_bytes = response_verify['Body'].read()
-        verified_gdf = geopandas.read_parquet(io.BytesIO(verified_parquet_bytes))
-        print("Current data in GeoParquet file:")
-        print(verified_gdf)
-    except Exception as e:
-        print(f"Error verifying file: {e}")
