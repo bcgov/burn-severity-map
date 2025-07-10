@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 import json
 
@@ -11,8 +12,23 @@ from utils import s3_get_presigned_url, s3_list_objects
 from database import get_unique_fire_numbers, get_fire_features
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
 
-
 app = FastAPI(title="Burn Severity API", version="1.0")
+
+
+# Allow your frontend origin
+origins = [
+    "http://localhost:8080",    # frontend dev server
+    "http://127.0.0.1:8080",    # optional
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, # or ["*"] to allow all
+    allow_credentials=True,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/burn-severity", response_model=FireNumberList)
 def list_fire_numbers():
