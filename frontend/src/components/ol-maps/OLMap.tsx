@@ -12,6 +12,9 @@ import ScaleLine from 'ol/control/ScaleLine';
 // Assuming other imports like BurnSeverityLegend are correct
 import BurnSeverityLegend from './BurnSeverityLegend'; 
 import BurnSeveritySummary from './BurnSeveritySummary';
+import { useAuth } from '../../auth/AuthContext';
+import { getFireData } from '../../utils/apiService'
+
 
 // ... other interfaces and constants ...
 
@@ -28,6 +31,8 @@ const OLMap: React.FC<OLMapProps> = ({
   basemap = 'osm',
   selectedDbFire,
 }) => {
+  const { isAuthenticated } = useAuth();
+  
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   
@@ -54,11 +59,7 @@ const OLMap: React.FC<OLMapProps> = ({
       setShowLegend(true);
       setShowSummary(true);
 
-      const response = await fetch(`/pg-bs/burn-severity/${fireNumber}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch geometry: ${response.status} ${response.statusText}`);
-      }
-      const featureCollection = await response.json();
+      const featureCollection = await getFireData(fireNumber);
       
       setSelectedFireFeatureCollection(featureCollection);
 

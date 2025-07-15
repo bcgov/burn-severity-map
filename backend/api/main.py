@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
 import json
+
+
+from oidc.oidcAuthorize import verify_token
 
 # if os.path.exists('../../.env'):
 #     from dotenv import load_dotenv
@@ -31,7 +33,9 @@ app.add_middleware(
 
 
 @app.get("/burn-severity", response_model=FireNumberList)
-def list_fire_numbers():
+# def list_fire_numbers(token_payload: dict = Depends(verify_token)): #use this if you want to protect the route
+def list_fire_numbers(token_payload: dict = Depends(verify_token)):
+    # protected route
     try:
         fire_numbers = get_unique_fire_numbers()
         return {"fire_numbers": fire_numbers}
@@ -39,7 +43,9 @@ def list_fire_numbers():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/burn-severity/{fire_number}", response_model=FeatureCollection)
-def get_fire_by_number(fire_number: str):
+def get_fire_by_number(fire_number: str, token_payload: dict = Depends(verify_token)):
+    # Protected route
+    # eg. N71148
     try:
         df = get_fire_features(fire_number)
         features = []
@@ -58,13 +64,15 @@ def get_fire_by_number(fire_number: str):
     "/docs/list/{fire_number}",
     summary="get list of documents related to fire_number"
 )
-async def get_docs(fire_number:str):
+async def get_docs(fire_number:str, token_payload: dict = Depends(verify_token)):
+    # Protected route
     pass
 
 @app.get(
     "/docs/download/{fire_number}"
 )
-async def download_file(prefix:str):
+async def download_file(prefix:str, token_payload: dict = Depends(verify_token)):
+    # Protected route
     """
     Returns a presigned URL for a file in S3-compliant storage.
     Client will make a direct GET request to this URL.

@@ -5,6 +5,7 @@ import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
 import { useAuth } from '../auth/AuthContext';
+import { getFireData, getFireNumbers } from "../utils/apiService";
 
 const NBRMap: React.FC = () => {
   const { user, login, isAuthenticated, isLoadingAuth } = useAuth();
@@ -26,11 +27,7 @@ const NBRMap: React.FC = () => {
   useEffect(() => {
     const fetchFireNumbers = async () => {
       try {
-        const response = await fetch('/pg-bs/burn-severity');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch fire numbers: ${response.statusText}`);
-        }
-        const data = await response.json();
+        const data = await getFireNumbers();
         // The API returns { "fire_numbers": [...] }, so we extract the array
         if (data && Array.isArray(data.fire_numbers)) {
           setFireNumbers(data.fire_numbers);
