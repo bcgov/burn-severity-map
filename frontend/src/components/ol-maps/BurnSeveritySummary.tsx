@@ -94,13 +94,14 @@ const BurnSeveritySummary: React.FC<BurnSeveritySummaryProps> = ({ featureCollec
 return (
   <div className="burn-severity-summary">
     {/* The Accordion component from the design system acts as a wrapper */}
-    <Accordion>
+    <Accordion 
+      defaultExpanded={true}>
       {/* Use the standard HTML <details> element for each accordion item */}
       <details>
         {/* The <summary> tag defines the visible, clickable header */}
         <summary>
           {/* Place your H2 directly inside the summary tag */}
-          <h2>Burn Severity Summary - {selectedFire}</h2>
+          <h3>Burn Severity Summary - {selectedFire}</h3>
         </summary>
 
         {/* All content below the <summary> (but still inside <details>) will be collapsible */}
