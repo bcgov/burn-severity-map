@@ -80,22 +80,29 @@ export const getFireData = async (fireNumber: string) => {
  * response = [{"key":str,"filename":str,"url":str}]
  */
 export const getFireDocuments = async (fireNumber: string) => {
-  // const response = await authedFetch(`/docs/download/${fireNumber}`);
-  // if (!response.ok) {
-  //   // handle non-2xx responses here.
-  //   const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
-  //   throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-  // }
-  // return response.json();
+  const response = await authedFetch(`/docs/download/${fireNumber}`);
+  if (!response.ok) {
+    // handle non-2xx responses here.
+    const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
+    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+  console.log("Raw response data:",data);
+  
+  if (!Array.isArray(data.files)) {
+    throw new Error("Unexpected response format: 'files' field is missing or not an array.");
+  }
 
-  //dummy date for now
-  const response = [{
-    'key': 'burn-severity/spectial_bs_map.pdf',
-    'filename': 'special_bs_map.pdf',
-    'url': 'https://geobc.com/total-bs/special_bs_map.pdf',
-  },];
-  return response;
+  return data.files;
+
+//dummy data for test
+  // const response = [{'key': 'burn-severity/V30558_interim_burn_severity.pdf', 'filename': 'V30558_interim_burn_severity.pdf', 'url': 'https://nrs.objectstore.gov.bc.ca:443/rczimv/burn-severity/V30558_interim_burn_severity.pdf?AWSAccessKeyId=nr-geobc-data-test&Signature=SLbQpFsOBJzJVztFwEomNfEnWIE%3D&Expires=1752868250'}, {'key': 'burn-severity/V30558_interim_burn_severity_2025.kml', 'filename': 'V30558_interim_burn_severity_2025.kml', 'url': 'https://nrs.objectstore.gov.bc.ca:443/rczimv/burn-severity/V30558_interim_burn_severity_2025.kml?AWSAccessKeyId=nr-geobc-data-test&Signature=MLg36X9FoqoUgOqynaI9BDUmfZI%3D&Expires=1752868252'}]
+  // return response;
+
 }
+
+
+
 /**
  * Fetches the list of all available fire numbers.
  * Protected endpoint
