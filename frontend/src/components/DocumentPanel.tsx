@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document } from '../utils/apiService';
+import './DocumentPanel.scss'
 
 interface DocumentPanelProps {
   selectedDbFire: string | null; // Corrected type to include null
@@ -20,9 +21,9 @@ const DocumentPanel: React.FC<DocumentPanelProps> = ({ selectedDbFire, documents
       return <p>No documents found for this fire.</p>;
     }
     return (
-      <ul>
+      <ul className="document-list">
         {documents.map((doc) => ( // Removed index as key, doc.key is better
-          <li key={doc.key}>
+          <li key={doc.key} >
             <a href={doc.url} target="_blank" rel="noopener noreferrer">
               {doc.filename}
             </a>
