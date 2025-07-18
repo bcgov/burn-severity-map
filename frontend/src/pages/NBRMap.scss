@@ -308,6 +308,26 @@
   background: #f5f5f5;
 }
 
+/* Right panel style */
+.right-panel {
+  width: 300px;
+  flex: 0 0 300px; // Fixed width, same as left-panel
+  background: white;
+  padding: 20px;
+  overflow-y: auto;
+  border-left: 1px solid #ddd; // Border on the left side
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1); // Shadow on the left
+  z-index: 2;
+
+  h2 {
+    color: var(--bcgov-primary);
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+    font-size: 1.17em; // Matches h3 font-size
+  }
+}
+
 /* Fire detail panel */
 .fire-detail-panel {
   height: 100%;

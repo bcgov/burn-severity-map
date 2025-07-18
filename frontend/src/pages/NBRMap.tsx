@@ -4,8 +4,9 @@ import './NBRMap.scss';
 import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
+import DocumentPanel from '../components/DocumentPanel'
 import { useAuth } from '../auth/AuthContext';
-import { getFireData, getFireNumbers } from "../utils/apiService";
+import { getFireData, getFireNumbers, getFireDocuments, Document } from "../utils/apiService";
 
 const NBRMap: React.FC = () => {
   const { user, login, isAuthenticated, isLoadingAuth } = useAuth();
@@ -18,7 +19,13 @@ const NBRMap: React.FC = () => {
   const [fireNumbers, setFireNumbers] = useState<string[]>([]);
   // State for the currently selected fire number
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
-
+  // State for the currently selected documents
+  const [ documents, setDocuments ] = useState<Document[]>([]);
+  const [ isLoading, setIsLoading ] = useState<boolean>(false);
+  const [ isRightPanelVisible, setRightPanelVisible ] = useState(true);
+  const toggleRightPanel = () => {
+  setRightPanelVisible(!isRightPanelVisible);
+  };
   const handleBasemapChange = (newBasemap: string) => {
     setBasemap(newBasemap);
   };
@@ -40,7 +47,26 @@ const NBRMap: React.FC = () => {
     fetchFireNumbers();
   }, []); // Empty dependency array ensures this runs only once on mount
 
-  
+  useEffect(() => {
+    if (!selectedDbFire) {
+      setDocuments([]);
+      return;
+    }
+  const getDocuments = async () => {
+    setIsLoading(true);
+    try {
+      const fetchedDocs = await getFireDocuments(selectedDbFire);
+      setDocuments(fetchedDocs);
+    }catch (error) {
+        console.error("Failed to fetch documents:", error);
+        setDocuments([]); // Clear documents on error
+      } finally {
+        setIsLoading(false); // Set loading to false after fetching is done
+      }
+  };
+  getDocuments();
+  }, [selectedDbFire]); // only should run if selected fire changes
+
   // Handler for when a fire is selected from the dropdown.
   // This function is now much simpler.
   const handleDbFireSelect = (fireNumber: string | null) => {
@@ -60,6 +86,12 @@ const NBRMap: React.FC = () => {
             onFireSelect={handleDbFireSelect}
             selectedFire={selectedDbFire}
           />
+          <h3>Documents</h3>
+          <DocumentPanel
+            selectedDbFire={ selectedDbFire }
+            documents= { documents }
+            isLoading= { isLoading }
+           />
         </div>
 
         {/* Center Panel - Map */}
@@ -78,6 +110,7 @@ const NBRMap: React.FC = () => {
             <BasemapSelector selectedBasemap={basemap} onBasemapChange={handleBasemapChange} />
           </div>
         </div>
+
       </div>
       ):(
       <div>

@@ -1,5 +1,12 @@
 import userManager from '../auth/authService';
 
+// documents returned by getFireDocuments
+export interface Document {
+  key: string;
+  filename: string;
+  url: string;
+}
+
 // Define your API's base URL. It's good practice to have this in an environment variable.
 const API_BASE_URL = 'http://localhost:8080/pg-bs'; // Your FastAPI backend URL
 /**
@@ -70,16 +77,24 @@ export const getFireData = async (fireNumber: string) => {
 };
 /**
  * Fetch the list of documents availiable for fire number
- * response = {"key":str,"filename":str,"url":str}
+ * response = [{"key":str,"filename":str,"url":str}]
  */
 export const getFireDocuments = async (fireNumber: string) => {
-  const response = await authedFetch(`/docs/download/${fireNumber}`);
-  if (!response.ok) {
-    // handle non-2xx responses here.
-    const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
-    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-  }
-  return response.json();
+  // const response = await authedFetch(`/docs/download/${fireNumber}`);
+  // if (!response.ok) {
+  //   // handle non-2xx responses here.
+  //   const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
+  //   throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+  // }
+  // return response.json();
+
+  //dummy date for now
+  const response = [{
+    'key': 'burn-severity/spectial_bs_map.pdf',
+    'filename': 'special_bs_map.pdf',
+    'url': 'https://geobc.com/total-bs/special_bs_map.pdf',
+  },];
+  return response;
 }
 /**
  * Fetches the list of all available fire numbers.

@@ -124,6 +124,11 @@
     color: #666;
     font-style: italic;
   }
+  
+  &.minimized {
+    // Custom styles for the minimized state, e.g., less padding
+    padding-bottom: 15px; 
+  }
 }
 
 @media (max-width: 768px) {
