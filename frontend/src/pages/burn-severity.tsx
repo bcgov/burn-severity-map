@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import '../style.scss';
-import './NBRMap.scss';
+import './burn-severity.scss';
 import OLMap from '../components/ol-maps/OLMap';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
+import DocumentPanel from '../components/DocumentPanel'
 import { useAuth } from '../auth/AuthContext';
+import { getFireData, getFireNumbers, getFireDocuments, Document } from "../utils/apiService";
+import { Accordion, AccordionGroup } from '@bcgov/design-system-react-components';
+import BurnSeveritySummary from '../components/ol-maps/BurnSeveritySummary';
 
-const NBRMap: React.FC = () => {
+const BurnSeverityPage: React.FC = () => {
   const { user, login, isAuthenticated, isLoadingAuth } = useAuth();
 
   const [basemap, setBasemap] = useState('osm');
@@ -17,7 +21,13 @@ const NBRMap: React.FC = () => {
   const [fireNumbers, setFireNumbers] = useState<string[]>([]);
   // State for the currently selected fire number
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
-
+  // State for the currently selected documents
+  const [ documents, setDocuments ] = useState<Document[]>([]);
+  const [ isLoading, setIsLoading ] = useState<boolean>(false);
+  const [ isRightPanelVisible, setRightPanelVisible ] = useState(true);
+  const toggleRightPanel = () => {
+  setRightPanelVisible(!isRightPanelVisible);
+  };
   const handleBasemapChange = (newBasemap: string) => {
     setBasemap(newBasemap);
   };
@@ -26,11 +36,7 @@ const NBRMap: React.FC = () => {
   useEffect(() => {
     const fetchFireNumbers = async () => {
       try {
-        const response = await fetch('/pg-bs/burn-severity');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch fire numbers: ${response.statusText}`);
-        }
-        const data = await response.json();
+        const data = await getFireNumbers();
         // The API returns { "fire_numbers": [...] }, so we extract the array
         if (data && Array.isArray(data.fire_numbers)) {
           setFireNumbers(data.fire_numbers);
@@ -43,7 +49,26 @@ const NBRMap: React.FC = () => {
     fetchFireNumbers();
   }, []); // Empty dependency array ensures this runs only once on mount
 
-  
+  useEffect(() => {
+    if (!selectedDbFire) {
+      setDocuments([]);
+      return;
+    }
+  const getDocuments = async () => {
+    setIsLoading(true);
+    try {
+      const fetchedDocs = await getFireDocuments(selectedDbFire);
+      setDocuments(fetchedDocs);
+    }catch (error) {
+        console.error("Failed to fetch documents:", error);
+        setDocuments([]); // Clear documents on error
+      } finally {
+        setIsLoading(false); // Set loading to false after fetching is done
+      }
+  };
+  getDocuments();
+  }, [selectedDbFire]); // only should run if selected fire changes
+
   // Handler for when a fire is selected from the dropdown.
   // This function is now much simpler.
   const handleDbFireSelect = (fireNumber: string | null) => {
@@ -63,6 +88,24 @@ const NBRMap: React.FC = () => {
             onFireSelect={handleDbFireSelect}
             selectedFire={selectedDbFire}
           />
+          <h3>Documents</h3>
+          <DocumentPanel
+            selectedDbFire={ selectedDbFire }
+            documents= { documents }
+            isLoading= { isLoading }
+           />
+          {/* <AccordionGroup>
+            <Accordion label='Documents'>
+              <DocumentPanel
+                selectedDbFire={ selectedDbFire }
+                documents= { documents }
+                isLoading= { isLoading }
+              />
+            </Accordion>
+            <Accordion>
+              <BurnSeveritySummary/>
+            </Accordion>
+          </AccordionGroup> */}
         </div>
 
         {/* Center Panel - Map */}
@@ -81,6 +124,7 @@ const NBRMap: React.FC = () => {
             <BasemapSelector selectedBasemap={basemap} onBasemapChange={handleBasemapChange} />
           </div>
         </div>
+
       </div>
       ):(
       <div>
@@ -93,4 +137,4 @@ const NBRMap: React.FC = () => {
   );
 };
 
-export default NBRMap;
+export default BurnSeverityPage;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Accordion } from '@bcgov/design-system-react-components';
+import { Accordion, Heading } from '@bcgov/design-system-react-components';
 import './BurnSeveritySummary.scss';
 
 // Define the colors to match the map symbology
@@ -90,21 +90,14 @@ const BurnSeveritySummary: React.FC<BurnSeveritySummaryProps> = ({ featureCollec
     return <div className="burn-severity-summary empty"><p>No burn severity data available for this fire</p></div>;
   }
 
-  // UPDATED: Replaced manual implementation with the Accordion component
+
 return (
   <div className="burn-severity-summary">
     {/* The Accordion component from the design system acts as a wrapper */}
     <Accordion 
-      defaultExpanded={true}>
-      {/* Use the standard HTML <details> element for each accordion item */}
-      <details>
-        {/* The <summary> tag defines the visible, clickable header */}
-        <summary>
-          {/* Place your H2 directly inside the summary tag */}
-          <h3>Burn Severity Summary - {selectedFire}</h3>
-        </summary>
-
-        {/* All content below the <summary> (but still inside <details>) will be collapsible */}
+      defaultExpanded={true}
+      label={`Burn Severity Summary: ${selectedFire}`}>
+      <div>
         <div className="total-area">
           Total Burn Area: <strong>{totalArea.toFixed(2)} ha</strong>
         </div>
@@ -152,7 +145,7 @@ return (
             </div>
           ))}
         </div>
-      </details>
+      </div>
     </Accordion>
   </div>
 );
