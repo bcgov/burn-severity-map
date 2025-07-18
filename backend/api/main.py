@@ -71,7 +71,7 @@ async def get_docs(fire_number:str, token_payload: dict = Depends(verify_token))
 @app.get(
     "/docs/download/{fire_number}"
 )
-async def download_file(prefix:str, token_payload: dict = Depends(verify_token)):
+async def download_file(fire_number:str, token_payload: dict = Depends(verify_token)):
     # Protected route
     """
     Returns a presigned URL for a file in S3-compliant storage.
@@ -79,7 +79,7 @@ async def download_file(prefix:str, token_payload: dict = Depends(verify_token))
     """
 
     # get list of s3 objects with the given prefix
-    obj_list = s3_list_objects(file_prefix=prefix)
+    obj_list = s3_list_objects(file_prefix=fire_number)
     if not obj_list:
         return HTTPException(status_code=404, detail="No files found for the given prefix.")
 
