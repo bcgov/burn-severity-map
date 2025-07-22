@@ -5,14 +5,14 @@ This is a GeoBC lightweight web mapping application demo built with **React**, *
 ## 🚀 Frontend Features
 
 - 🔁 Client-side routing with React Router  
-- 🗺️ Interactive map powered by Leaflet  
-- 🧭 Clean and modular component structure  
+- 🗺️ Interactive map powered by Open Layers 
+- 🧭 Messy and modular component structure  
 - 🎨 BCGov-branded layout with header and footer  
 - 📦 SCSS support for modular styling  
 
 ## 🚀 Backend Features
 
-- 🧭 Super clean slate (maybe fastapi, sqlalchemy, pydantic)
+- 🧭 Fastapi with authenticated routes, duckdb, geoparquet, pydantic
 
 ## 📁 Project Structure
 ```
@@ -35,7 +35,8 @@ frontend/src/                    # Frontend component
 ├── index.tsx                    # Main entry point and route setup
 |
 backend/                         # Backend component
-|── 
+|── api                          # fastapi
+|── bs-worker                    # utilities for loading source data to parquet
 |── 
 charts/                          # Helm deployment charts
 |── templates
