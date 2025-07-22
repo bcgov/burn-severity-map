@@ -127,18 +127,62 @@ def append_geojson_to_geoparquet_s3(
     except Exception as e:
         print(f"Error uploading file: {e}")
 
+def load_source_data():
+    """Lists files in an S3-compliant bucket with an optional prefix."""
+    obj_list = []
+    bucket_name = S3_BUCKET_NAME
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=S3_ACCESS_KEY,
+            aws_secret_access_key=S3_SECRET_KEY,
+            endpoint_url=S3_ENDPOINT,
+            #config=Config(signature_version='s3v4')
+        )
+
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"burn-severity/source/")
+        if 'Contents' in response:
+            for obj in response['Contents']:
+
+                # only append file that are not directories
+                if not obj['Key'].endswith('$') and not obj['Key'].endswith('/') and not obj['Key'].endswith('catalogs') and obj['Key'].endswith('.geojson'):
+                    obj_list.append(obj['Key'])
+
+        else:
+            print(f"No files found in bucket '{bucket_name}' with prefix '{file_prefix}'.")
+    except Exception as e:
+        print(f"Error listing files: {e}")
+    try:
+
+        for obj in obj_list:
+            response = s3_client.get_object(Bucket=bucket_name, Key=obj)
+            geojson_bytes = response['Body'].read() # not sure if we need it in chuncks or not
+            fc = json.loads(geojson_bytes)
+            append_geojson_to_geoparquet_s3(
+                bucket_name=S3_BUCKET_NAME,
+                key=FILE_KEY,
+                new_geojson_data=fc,
+                s3_endpoint_url=S3_ENDPOINT,
+                s3_access_key_id=S3_ACCESS_KEY,
+                s3_secret_access_key=S3_SECRET_KEY
+            )
+        return FILE_KEY
+    except Exception as e:
+        print(f"Error loading files: {e}")
 
 if __name__ == "__main__":
     # Configure your S3-compatible storage details
     # For AWS S3, you can omit s3_endpoint_url and rely on environment variables/IAM roles
     # For local MinIO, it might look like:
 
-    BUCKET = S3_BUCKET_NAME
+    #BUCKET = S3_BUCKET_NAME
     FILE_KEY = "burn-severity/bs.parquet"
-    geojson = sys.argv[1]
+    
+    # geojson = sys.argv[1]
 
 
     # future humans might want to load geojson from object storage
+
     '''
     s3_client_get_geojson = boto3.client(
         's3',
@@ -152,17 +196,20 @@ if __name__ == "__main__":
     fc = json.loads(geojson_bytes)
     '''
     
-    # current human just wants to test this with a file system geojson
-    assert os.path.exists(geojson)
-    with open(geojson) as f:
-        fc = json.load(f)
+    # # current human just wants to test this with a file system geojson
+    # assert os.path.exists(geojson)
+    # with open(geojson) as f:
+    #     fc = json.load(f)
 
-    append_geojson_to_geoparquet_s3(
-        bucket_name=S3_BUCKET_NAME,
-        key=FILE_KEY,
-        new_geojson_data=fc,
-        s3_endpoint_url=S3_ENDPOINT,
-        s3_access_key_id=S3_ACCESS_KEY,
-        s3_secret_access_key=S3_SECRET_KEY
-    )
+    # append_geojson_to_geoparquet_s3(
+    #     bucket_name=S3_BUCKET_NAME,
+    #     key=FILE_KEY,
+    #     new_geojson_data=fc,
+    #     s3_endpoint_url=S3_ENDPOINT,
+    #     s3_access_key_id=S3_ACCESS_KEY,
+    #     s3_secret_access_key=S3_SECRET_KEY
+    # )
     
+    # load all source data to geoparquet
+    load_source_data()
+
