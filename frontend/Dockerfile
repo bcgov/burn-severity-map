@@ -10,6 +10,9 @@ RUN npm run build
 # Stage 2: Serve with Caddy
 FROM caddy:alpine
 
+# Install curl for debugging purposes
+RUN apk add --no-cache curl
+
 # Copy the built frontend files
 COPY --from=builder /app/dist /usr/share/caddy
 
