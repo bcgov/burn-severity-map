@@ -1,14 +1,16 @@
 # Cadyfile
-:8080
+:8080 {
+    # Define your backend proxy first
+    handle /pg-bs/* {
+        uri strip_prefix /pg-bs
+        reverse_proxy fastapi-backend:8000
+    }
 
-root * /usr/share/caddy
-file_server
+    # Then, define your frontend serving.
+    # The order here is crucial: specific API handles before general file serving.
+    root * /usr/share/caddy
+    file_server
 
-handle /pg-bs/* {
-    rewrite * /{path}/
-    reverse_proxy backend:8000
+    # Fallback to index.html for all other routes not handled by the above
+    try_files {path} /index.html
 }
-
-
-# Serve index.html for all other routes (including /callback)
-try_files {path} /index.html
