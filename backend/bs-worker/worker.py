@@ -131,6 +131,7 @@ def load_source_data():
     """Lists files in an S3-compliant bucket with an optional prefix."""
     obj_list = []
     bucket_name = S3_BUCKET_NAME
+    file_prefix= "burn-severity/source/"
     try:
         s3_client = boto3.client(
             's3',
@@ -140,7 +141,7 @@ def load_source_data():
             #config=Config(signature_version='s3v4')
         )
 
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"burn-severity/source/")
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix="burn-severity/source/")
         if 'Contents' in response:
             for obj in response['Contents']:
 
