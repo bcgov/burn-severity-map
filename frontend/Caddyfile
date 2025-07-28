@@ -1,0 +1,14 @@
+# Cadyfile
+:8080
+
+root * /usr/share/caddy
+file_server
+
+handle /pg-bs/* {
+    rewrite * /{path}/
+    reverse_proxy backend:8000
+}
+
+
+# Serve index.html for all other routes (including /callback)
+try_files {path} /index.html

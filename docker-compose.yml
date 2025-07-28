@@ -1,15 +1,5 @@
 # Reusable vars
 x-var:
-  # - &POSTGRES_USER
-  #   ${POSTGRES_USER}
-  # - &POSTGRES_PASSWORD
-  #   ${POSTGRES_PASSWORD}
-  # - &POSTGRES_DATABASE
-  #   ${POSTGRES_DATABASE}
-  # - &POSTGRES_PORT
-  #   ${POSTGRES_PORT}
-  # - &POSTGRES_HOST
-  #   ${POSTGRES_HOST}
   - &BACKEND_PORT
     ${BACKEND_PORT}
   - &S3_ENDPOINT
@@ -23,26 +13,14 @@ x-var:
   - &PARQUET_PATH
     ${PARQUET_PATH}
 
-# x-postgres-vars: &postgres-vars
-#   POSTGRES_HOST: *POSTGRES_HOST
-#   POSTGRES_USER: *POSTGRES_USER
-#   POSTGRES_PASSWORD: *POSTGRES_PASSWORD
-#   POSTGRES_DATABASE: *POSTGRES_DATABASE
-#   POSTGRES_PORT: *POSTGRES_PORT
-
 x-backend-vars: &backend-vars
   BACKEND_PORT: *BACKEND_PORT
-  # POSTGRES_HOST: *POSTGRES_HOST
-  # POSTGRES_USER: *POSTGRES_USER
-  # POSTGRES_PASSWORD: *POSTGRES_PASSWORD
-  # POSTGRES_DATABASE: *POSTGRES_DATABASE
-  # POSTGRES_PORT: *POSTGRES_PORT
+
   S3_ENDPOINT: *S3_ENDPOINT
   S3_ACCESS_KEY: *S3_ACCESS_KEY
   S3_SECRET_KEY: *S3_SECRET_KEY
   S3_BUCKET_NAME: *S3_BUCKET_NAME
   PARQUET_PATH: *PARQUET_PATH
-
 
 services:
 
@@ -56,27 +34,17 @@ services:
       - "8000:8000"
     environment:
       <<: *backend-vars
-    # depends_on:
-    #   - postgres
     env_file:
       - .env
     volumes:
       - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  # postgres:
-  #   image: docker.io/postgis/postgis:latest
-  #   container_name: postgres-db
-  #   restart: always
-  #   environment:
-  #     <<: *postgres-vars
-  #   # env_file:
-  #   #   - .env
-  #   ports: 
-  #     - "5432:5432"
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8080:8080"
 
 volumes:
-  # pgdata:
   backend-data:
