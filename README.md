@@ -63,20 +63,15 @@ cd burn-severity-map
 
 2. **Start the backend and database containers**
 ```bash
-docker-compose up fastapi-backend postgres -d
+docker-compose up fastapi-backend
 ```
+
 your backend api should be at 
 http://localhost:8000
 Interactive API documentation:
 http://localhost:8000/docs  
 Backend developers may wish to run the api from venv. Use docker to start only the database with  
-```bash
-docker-compose up postgres -d
-```
-Stop your database with
-```bash
-docker-compose down
-```
+
 Start the backend with UV
 ```bash
 uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
@@ -89,12 +84,12 @@ npm install
 
 4. **Start the development server**
 ```bash
-npm run dev
+npm start
 ```
 
 ## 🧭 Usage
 - Home ( / ) – Simple landing page with a link to the map.
-- Map ( /map ) – Loads an interactive Leaflet map constrained to specific bounds and zoom levels
+- Map ( /burn-severity ) – Protected page loads an interactive Leaflet map constrained to specific bounds and zoom levels
 
 ## 🛠️ Technologies Used
 - React
@@ -102,3 +97,6 @@ npm run dev
 - React Router
 - SCSS
 - BCGov Design System
+- fastapi
+- Geoparquet
+- duckdb
