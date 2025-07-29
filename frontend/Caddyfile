@@ -1,16 +1,17 @@
-# Cadyfile
+# Cadyfile -- does not reverse proxy correctly curl -i  http://localhost:8080/pg-bs/docs
 :8080 {
-    # Define your backend proxy first
-    handle /pg-bs/* {
-        uri strip_prefix /pg-bs
-        reverse_proxy fastapi-backend:8000
-    }
-
-    # Then, define your frontend serving.
-    # The order here is crucial: specific API handles before general file serving.
     root * /usr/share/caddy
-    file_server
 
-    # Fallback to index.html for all other routes not handled by the above
-    try_files {path} /index.html
+    route {
+        # Reverse proxy API calls
+        handle_path /pg-bs/* {
+            reverse_proxy fastapi-backend:8000
+        }
+
+        # Serve static frontend files
+        handle {
+            try_files {path} /index.html
+            file_server
+        }
+    }
 }
