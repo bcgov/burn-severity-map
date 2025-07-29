@@ -20,6 +20,8 @@ class Fire:
         self.post_mosaic_date = ''
         self.lst_pre_image = []
         self.lst_post_image = []
+        self.lst_pre_dates = []
+        self.lst_post_dates = []
 
 
     def get_pre_date_range(self):

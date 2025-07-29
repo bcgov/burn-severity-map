@@ -6,16 +6,21 @@ import os, sys, shutil, traceback
 import numpy as np
 from collections import defaultdict
 import rasterio
-from rasterio.features import shapes
+from rasterio.features import shapes, sieve
+from rasterio.io import MemoryFile
 import rasterio.features
 import topojson as tp
 from rio_cogeo.profiles import cog_profiles
 from rio_cogeo.cogeo import cog_translate
+from io import BytesIO
+import zipfile
+import tempfile
 
 from util.environment import Environment
 from util.classes import ImageMetadata, Fire
 from util.wfs import WFS
 from util.stac import STAC
+from util.object_storage import ObjectStorage
 
 
 import geopandas as gpd
@@ -33,8 +38,8 @@ def run_app():
     result = burn_sev.gather_spatial()
     if not result:
         return
-    burn_sev.calculate_severity()
-    burn_sev.conversion()
+    barc, meta = burn_sev.calculate_severity()
+    burn_sev.conversion(barc=barc, meta=meta)
 
 def get_input_parameters():
     """
@@ -79,13 +84,21 @@ class InterimBurnSeverity:
         self.fire_number = fire
         self.fire_year = int(year)
         self.use_storage = object_storage
-        self.out_folder = output_folder
-        self.fire_folder = os.path.join(self.out_folder, f'{self.fire_year}-{self.fire_number}')
-        self.output_folder = os.path.join(self.fire_folder, 'output')
-        self.vector_folder = os.path.join(self.fire_folder, 'vectors')
-        self.export_folder = os.path.join(self.fire_folder, 'export')
-        self.barc_folder = os.path.join(self.output_folder, 'barc')
-        self.out_gdb = os.path.join(self.export_folder, f'interim_burn_severity_temp.gdb')
+        self.use_folder = True if output_folder else False
+        if self.use_folder:
+            self.out_folder = output_folder
+            self.fire_folder = os.path.join(self.out_folder, f'{self.fire_year}-{self.fire_number}')
+            self.output_folder = os.path.join(self.fire_folder, 'output')
+            self.export_folder = os.path.join(self.fire_folder, 'export')
+            self.out_gdb = os.path.join(self.export_folder, f'interim_burn_severity_temp.gdb')
+
+        if self.use_storage:
+            self.os_fire_folder = f'{self.fire_year}-{self.fire_number}'
+            self.os_output_folder = f'{self.os_fire_folder}/output'
+            self.os_export_folder = f'{self.os_fire_folder}/export'
+            self.os_barc_folder = f'{self.os_output_folder}/barc'
+
+
         self.start_date = None if not start_date else datetime.strptime(str(start_date).split(' ')[0], '%Y-%m-%d')
         self.end_date = None if not end_date else datetime.strptime(str(end_date).split(' ')[0], '%Y-%m-%d')
         self.cloud_cover = float(cloud_cover)
@@ -93,10 +106,14 @@ class InterimBurnSeverity:
         self.fire_status = ''
         self.sensor = sensor
 
-        self.S3_ENDPOINT = os.getenv('S3_ENDPOINT')
-        self.S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY')
-        self.S3_SECRET_KEY = os.getenv('S3_SECRET_KEY')
-        self.S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
+        if self.use_storage:
+            self.logger.info('Creating connection to object storage')
+            try:
+                self.obj_storage = ObjectStorage()
+            except Exception as e:
+                self.logger.error(f'ERROR: Could not create the object storage connection: {e}')
+                return
+
 
         self.fld_fire_num = 'FIRE_NUMBER'
         self.fld_fire_year = 'FIRE_YEAR'
@@ -137,11 +154,6 @@ class InterimBurnSeverity:
             if os.path.exists(fld):
                 shutil.rmtree(fld)
             os.makedirs(fld)
-        if not os.path.exists(self.vector_folder):
-            os.makedirs(self.vector_folder)
-
-        if not os.path.exists(self.barc_folder):
-            os.makedirs(self.barc_folder)
 
 
     def __del__(self) -> None:
@@ -246,58 +258,212 @@ class InterimBurnSeverity:
         return True
 
 
-    def conversion(self):
+    def calculate_severity(self):
 
-        barc_path = self.barc_folder
-        i = self.getfiles(barc_path,'.tif', self.fire_number)[0]
-        out_name = os.path.basename(i)
-        out_cog_name = os.path.splitext(os.path.basename(i))[0] + '_cog.tif'
-        barc_tif = os.path.join(self.export_folder, out_name)
-        out_cog = os.path.join(self.export_folder, out_cog_name)
+        stac = STAC(logger=self.logger)
+        lst_fires = self.gdf_fires[self.fld_fire_num].tolist()
+        for fire_number in lst_fires:
+            try:
+                #Load in shapefile
+                perimeter_gdf = self.gdf_fires[self.gdf_fires[self.fld_fire_num] == fire_number]
+               
+                perimeter_gdf['geometry'] = perimeter_gdf.geometry.buffer(500)
 
-        del_barc = self.getfiles(self.export_folder,'.tif', self.fire_number)
-        if del_barc:
-            for b in del_barc:
-                os.remove(b)
+                pre_fire_date = ''
+                post_fire_date = ''
+                temp_pre_fire_date = None
+                temp_post_fire_date = None
 
-        self.barc_filter(i,barc_tif)
+                pre_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_pre_date_range(),cloud_cover_threshold=self.cloud_cover)
+                if not pre_fire_items:
+                    self.logger.error('Could not find suitable pre-fire imagery. Try adjusting date range or cloud cover threshold.')
+                    return None
+                for item in pre_fire_items:
+                    self.dict_fires[self.fire_number].lst_pre_image.append(item.id)
+                    self.dict_fires[self.fire_number].lst_pre_dates.append(item.datetime.strftime('%Y-%m-%d'))
+                    if not temp_pre_fire_date:
+                        temp_pre_fire_date = item.datetime
+                    elif item.datetime < temp_pre_fire_date:
+                        temp_pre_fire_date = item.datetime
+                pre_fire_date = temp_pre_fire_date.strftime('%Y%m%d')
 
-        cog_profile = cog_profiles.get("deflate")
+                post_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_post_date_range(),cloud_cover_threshold=self.cloud_cover)
+                if not post_fire_items:
+                    self.logger.error('Could not find suitable post-fire imagery. Try adjusting date range or cloud cover threshold.')
+                    return None
+                for item in post_fire_items:
+                    self.dict_fires[self.fire_number].lst_post_image.append(item.id)
+                    self.dict_fires[self.fire_number].lst_post_dates.append(item.datetime.strftime('%Y-%m-%d'))
+                    if not temp_post_fire_date:
+                        temp_post_fire_date = item.datetime
+                    elif item.datetime > temp_post_fire_date:
+                        temp_post_fire_date = item.datetime
+                post_fire_date = temp_post_fire_date.strftime('%Y%m%d')
 
-        # Translate the input GeoTIFF to a COG
-        cog_translate(
-            barc_tif,  # Input GeoTIFF file path
-            out_cog,  # Output COG file path
-            cog_profile,  # COG profile to use
-            overview_resampling="nearest", # Resampling method for overviews
-            overview_level=5, # Number of overview levels to generate
-            quiet=True
-        )
 
+                output_pre = f'{self.fire_year}-{fire_number}_pre_nbr.tif'
+                output_post = f'{self.fire_year}-{fire_number}_post_nbr.tif'
+                output_dnbr = f'{self.fire_year}-{fire_number}_dnbr.tif'
+                output_scaled = f'{self.fire_year}-{fire_number}_scaled_dnbr.tif'
+                output_barc = f'{self.fire_year}-{fire_number}_{pre_fire_date}_{post_fire_date}_{self.sensor}_barc.tif'
+                output_filtered = f'{self.fire_year}-{fire_number}_{pre_fire_date}_{post_fire_date}_{self.sensor}_barc_filtered.tif'
+
+                output_pre_nbr_path = os.path.join(self.output_folder, output_pre) if self.use_folder else None
+                output_post_nbr_path = os.path.join(self.output_folder, output_post) if self.use_folder else None
+                output_dnbr_path = os.path.join(self.output_folder, output_dnbr) if self.use_folder else None
+                output_scaled_dnbr_path = os.path.join(self.output_folder, output_scaled) if self.use_folder else None
+                output_barc_path = os.path.join(self.output_folder, output_barc) if self.use_folder else None
+                output_filtered_path = os.path.join(self.export_folder, output_filtered) if self.use_folder else None
+                os_pre_nbr_path = f'{self.os_output_folder}/{output_pre}' if self.use_storage else None
+                os_post_nbr_path = f'{self.os_output_folder}/{output_post}' if self.use_storage else None
+                os_dnbr_path = f'{self.os_output_folder}/{output_dnbr}' if self.use_storage else None
+                os_scaled_dnbr_path = f'{self.os_output_folder}/{output_scaled}' if self.use_storage else None
+                os_barc_path = f'{self.os_barc_folder}/{output_barc}' if self.use_storage else None
+                os_filtered_path = f'{self.os_export_folder}/{output_filtered}' if self.use_storage else None
+
+
+                self.logger.info(f'Calculating PRE-FIRE NBR')
+                pre_nbr, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')
+                if pre_nbr is None:
+                    self.logger.error('Failed to calculate pre-fire NBR.')
+                    return None
+                self.logger.info('Pre-fire NBR calculation successful.')
+
+                self.logger.info('Writing pre-fire nbr to file')
+                self.write_raster(data=pre_nbr, meta=pre_meta, folder_path=output_pre_nbr_path, os_path=os_pre_nbr_path)
+
+
+                # 6. Calculate Post-fire NBR, aligning to the pre-fire grid
+                self.logger.info(f'Calculating POST-FIRE NBR')
+                target_shape_for_post = pre_nbr.shape # (1, height, width)
+                target_crs_for_post = pre_meta['crs']
+                target_transform_for_post = pre_transform
+
+                post_nbr, post_meta, _ = stac.create_nbr_mosaic(
+                    post_fire_items, 
+                    perimeter_gdf,
+                    target_transform=target_transform_for_post,
+                    target_crs=target_crs_for_post,
+                    target_shape=target_shape_for_post,
+                    aws_requester_pays=False,
+                    run_type='post'
+                )
+                if post_nbr is None:
+                    self.logger.error('Failed to calculate post-fire NBR.')
+                    return None
+                self.logger.info('Post-fire NBR calculation successful.')
+
+                self.logger.info('Writing post-fire nbr to file')
+                self.write_raster(data=post_nbr, meta=post_meta, folder_path=output_post_nbr_path, os_path=os_post_nbr_path)
+
+                # Ensure alignment before dNBR (should be guaranteed by calculate_nbr_for_item logic)
+                if pre_nbr.shape != post_nbr.shape:
+                    self.logger.error(f'CRITICAL ERROR: Pre-fire NBR shape {pre_nbr.shape} and Post-fire NBR shape {post_nbr.shape} '
+                          'do not match despite alignment efforts. Cannot proceed with dNBR calculation.')
+                    return None
+
+                # 7. Calculate dNBR
+                self.logger.info('Calculating dNBR (Pre-NBR - Post-NBR)')
+                # dNBR = NBR_prefire - NBR_postfire. Values typically range from -2 to +2.
+                # Often scaled by 1000 for easier interpretation in some contexts, but raw float is fine.
+                dnbr = pre_nbr - post_nbr
+                self.logger.info('dNBR calculation successful.')
+
+                # 8. Save dNBR raster
+                # The metadata for dNBR (transform, CRS, dimensions) should match the aligned NBRs (e.g., post_meta)
+                dnbr_meta = post_meta.copy() # post_meta already reflects the aligned grid
+                dnbr_meta.update({
+                    "driver": "GTiff",
+                    "dtype": "float32", # dNBR is float
+                    "count": 1,
+                    "nodata": np.nan # Ensure nodata is consistent
+                })
+
+                self.logger.info('Writing dnbr to file')
+                self.write_raster(data=dnbr, meta=dnbr_meta, folder_path=output_dnbr_path, os_path=os_dnbr_path)
+
+                
+                # 8. Calculate scaled dNBR
+                self.logger.info('Calculating scaled dNBR ((dNBR * 1000 + 275)/5)')
+                # dNBR = NBR_prefire - NBR_postfire. Values typically range from -2 to +2.
+                # Often scaled by 1000 for easier interpretation in some contexts, but raw float is fine.
+                scaled_dnbr = (dnbr*1000 + 275)/5
+                self.logger.info('** scaled dNBR calculation successful')
+
+                s_dnbr_meta = post_meta.copy() # post_meta already reflects the aligned grid
+                s_dnbr_meta.update({
+                    "driver": "GTiff",
+                    "dtype": "float32", # dNBR is float
+                    "count": 1,
+                    "nodata": np.nan # Ensure nodata is consistent
+                })
+
+                self.logger.info('Writing scaled dnbr to file')
+                self.write_raster(data=scaled_dnbr, meta=s_dnbr_meta, folder_path=output_scaled_dnbr_path, os_path=os_scaled_dnbr_path)
+
+
+                high_sev = np.where(scaled_dnbr >= 187, 4, 0)
+                med_sev = np.where((scaled_dnbr >= 110) & (scaled_dnbr < 187), 3, 0)
+                low_sev = np.where((scaled_dnbr >= 76) & (scaled_dnbr < 110), 2, 0)
+                no_sev = np.where(scaled_dnbr < 76, 1, 0)
+                barc = no_sev + low_sev + med_sev + high_sev
+
+                s_class_meta = post_meta.copy() # post_meta already reflects the aligned grid
+                s_class_meta.update({
+                    "driver": "GTiff",
+                    "dtype": "uint8", # dNBR is float
+                    "count": 1,
+                    "nodata": 0 # Ensure nodata is consistent
+                })
+
+                # try:
+                self.logger.info('Writing barc to file')
+                self.write_raster(data=barc.astype(np.uint8), meta=s_class_meta, folder_path=output_barc_path, os_path=os_barc_path)
+
+                self.logger.info('Filtering barc to remove fragments less thatn 10 m2')
+                barc_filter = sieve(source=barc.astype(np.uint8), size=10)
+
+                filter_meta = s_class_meta.copy()
+                filter_meta.update(
+                    dtype=rasterio.uint8,
+                    count=1,
+                    compress='lzw'
+                )
+
+
+                self.logger.info('Writing filtered barc to file')
+                self.write_raster(data=barc_filter.astype(np.uint8), meta=filter_meta, folder_path=output_filtered_path, os_path=os_filtered_path)
+
+                return barc_filter, s_class_meta
+
+    
+            except Exception as e:
+                # failed.append(firenumber)
+                traceback.print_exc()
+                err = ''.join(traceback.format_exc())
+                params = os.path.join(self.output_folder,'errors.txt')
+                with open(params, 'w') as f:
+                     f.write(f'\n{err}')
+
+    def conversion(self, barc, meta):
 
         lst_dfs = []
     
-        barc_name = os.path.basename(barc_tif)
-        self.logger.info(f'converting {barc_name} to polygon')
-        fire_number = barc_name.rsplit('_')[1]
-        pre_img = barc_name.rsplit('_')[2]
-        post_img = barc_name.rsplit('_')[3]
-        
-        with rasterio.Env():
-            with rasterio.open(barc_tif) as src:
-                image = src.read(1)
-                crs = src.crs
-                results = (
-                    {'properties': {'raster_val': v}, 'geometry': s}
-                    for i, (s, v) in enumerate(shapes(image, mask=None, transform=src.transform))
-                )
+        # barc_name = os.path.basename(barc_tif)
+        self.logger.info('Converting to polygon')
+
+        results = ({'properties': {'raster_val': v}, 'geometry': s}
+                    for i, (s, v) in enumerate(shapes(barc, mask=None, transform=meta['transform'])))
+
+
+
         geoms = list(results)
-        gdf = gpd.GeoDataFrame.from_features(geoms, crs=crs)
+        gdf = gpd.GeoDataFrame.from_features(geoms, crs=meta['crs'])
         gdf = gdf.drop(gdf[gdf.raster_val > 4].index)
         gdf = gdf.rename({'raster_val': 'gridcode'}, axis=1)
         #FIRE_NUMBER
         f = 'FIRE_NUMBER'
-        gdf[f] = fire_number
+        gdf[f] = self.fire_number
         self.logger.info('    - added fire number to feature class')
         #FIRE_YEAR
         f = 'FIRE_YEAR'
@@ -311,7 +477,7 @@ class InterimBurnSeverity:
         self.logger.info('    - added pre img to feature class')
         #PRE_FIRE_IMAGE_DATE
         f = "PRE_FIRE_IMAGE_DATE"
-        pre_img_date_str = pre_img[0:4] + '-' + pre_img[4:6] + '-' + pre_img[6:8]
+        pre_img_date_str = ','.join([dt for dt in list(set(self.dict_fires[self.fire_number].lst_pre_dates))])
         gdf[f] = pre_img_date_str
         self.logger.info('    - added pre img date to feature class')
         #POST_FIRE_IMAGE
@@ -322,7 +488,7 @@ class InterimBurnSeverity:
         self.logger.info('    - added post img to feature class')
         #POST_FIRE_IMAGE_DATE
         f = "POST_FIRE_IMAGE_DATE"
-        post_img_date_str = post_img[0:4] + '-' + post_img[4:6] + '-' + post_img[6:8]
+        post_img_date_str = ','.join([dt for dt in list(set(self.dict_fires[self.fire_number].lst_post_dates))])
         gdf[f] = post_img_date_str
         self.logger.info('    - added post img date to feature class')
         #COMMENTS
@@ -349,7 +515,7 @@ class InterimBurnSeverity:
 
         topo = tp.Topology(f_gdf, prequantize=True)
         s_gdf = topo.toposimplify(1).to_gdf().to_crs('EPSG:3005')
-        clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == fire_number])
+        clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number])
 
         gpdf_singlepoly = clip_gdf.explode()
 
@@ -358,8 +524,10 @@ class InterimBurnSeverity:
         gpdf_singlepoly['FEATURE_LENGTH_M'] = gpdf_singlepoly.geometry.length
 
         gpdf_4326 = gpdf_singlepoly.to_crs(4326)
-        gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
-        gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
+        # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
+        self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
+        self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
+        # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
         try:
             final_gdf = gpd.read_file(filename=output_gdb_final, layer=gdb_name_final, driver='OpenFileGDB')
@@ -374,171 +542,84 @@ class InterimBurnSeverity:
 
         self.logger.info('Processing complete')
 
-    
-    def calculate_severity(self):
+    def write_json(self, data: gpd.geodataframe, folder_path: str=None, os_path: str=None, file_name: str=None):
 
-        lst_fires = self.gdf_fires[self.fld_fire_num].tolist()
-        for fire_number in lst_fires:
+        if folder_path and self.use_folder:
             try:
-                #Load in shapefile
-                perimeter_gdf = self.gdf_fires[self.gdf_fires[self.fld_fire_num] == fire_number]
-                output_pre_nbr_path = os.path.join(self.output_folder, fire_number +'_pre_nbr.tif')
-                output_post_nbr_path = os.path.join(self.output_folder, fire_number +'_post_nbr.tif')
-                output_dnbr_path = os.path.join(self.output_folder, fire_number +'_dnbr.tif')
-                output_scaled_dnbr_path = os.path.join(self.output_folder, fire_number +'_scaled_dnbr.tif')
-                perimeter_gdf['geometry'] = perimeter_gdf.geometry.buffer(500)
-
-                pre_fire_date = ''
-                post_fire_date = ''
-
-                pre_fire_item = STAC.search_stac(self, sensor=self.sensor, bbox=perimeter_gdf.to_crs('EPSG:4326').total_bounds, daterange=self.dict_fires[self.fire_number].get_pre_date_range(),cloud_cover_threshold=self.cloud_cover)
-                if not pre_fire_item:
-                    self.logger.error('Could not find suitable pre-fire imagery. Try adjusting date range or cloud cover threshold.')
-                    return None
-                self.dict_fires[self.fire_number].lst_pre_image.append(pre_fire_item.id)
-                self.logger.info(f"Found PRE-FIRE scene: {pre_fire_item.id} (Date: {pre_fire_item.datetime}, Cloud: {pre_fire_item.properties.get('eo:cloud_cover', 'N/A'):.2f}%)")
-                pre_fire_date = pre_fire_item.datetime.strftime('%Y%m%d')
-
-                post_fire_item = STAC.search_stac(self, sensor=self.sensor, bbox=perimeter_gdf.to_crs('EPSG:4326').total_bounds, daterange=self.dict_fires[self.fire_number].get_post_date_range(),cloud_cover_threshold=self.cloud_cover)
-                if not post_fire_item:
-                    self.logger.error('Could not find suitable post-fire imagery. Try adjusting date range or cloud cover threshold.')
-                    return None
-                self.dict_fires[self.fire_number].lst_post_image.append(post_fire_item.id)
-                self.logger.info(f"Found POST-FIRE scene: {post_fire_item.id} (Date: {post_fire_item.datetime}, Cloud: {post_fire_item.properties.get('eo:cloud_cover', 'N/A'):.2f}%)")
-                post_fire_date = post_fire_item.datetime.strftime('%Y%m%d')
-
-                self.logger.info(f'Calculating PRE-FIRE NBR for scene {pre_fire_item.id}')
-                pre_nbr, pre_meta, pre_transform = STAC.calculate_nbr_for_item(self, pre_fire_item, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')
-                if pre_nbr is None:
-                    self.logger.error('Failed to calculate pre-fire NBR.')
-                    return None
-                self.logger.info('Pre-fire NBR calculation successful.')
-                # Save Pre-fire NBR if path provided
-                if output_pre_nbr_path:
-                    try:
-                        with rasterio.open(output_pre_nbr_path, 'w', **pre_meta) as dst:
-                            dst.write(pre_nbr.astype(np.float32))
-                        self.logger.info(f'Pre-fire NBR saved to: {output_pre_nbr_path}')
-                    except Exception as e:
-                        self.logger.error(f'Error saving Pre-fire NBR GeoTIFF: {e}')
-
-                # 6. Calculate Post-fire NBR, aligning to the pre-fire grid
-                self.logger.info(f'Calculating POST-FIRE NBR for scene {post_fire_item.id} (aligning to pre-fire grid)')
-                target_shape_for_post = pre_nbr.shape # (1, height, width)
-                target_crs_for_post = pre_meta['crs']
-                target_transform_for_post = pre_transform
-
-                post_nbr, post_meta, _ = STAC.calculate_nbr_for_item(self,
-                    post_fire_item, 
-                    perimeter_gdf,
-                    target_transform=target_transform_for_post,
-                    target_crs=target_crs_for_post,
-                    target_shape=target_shape_for_post,
-                    aws_requester_pays=False,
-                    run_type='post'
-                )
-                if post_nbr is None:
-                    self.logger.error('Failed to calculate post-fire NBR.')
-                    return None
-                self.logger.info('Post-fire NBR calculation successful.')
-                # Save Pre-fire NBR if path provided
-                if output_post_nbr_path:
-                    try:
-                        with rasterio.open(output_post_nbr_path, 'w', **post_meta) as dst:
-                            dst.write(post_nbr.astype(np.float32))
-                        self.logger.info(f'Post-fire NBR saved to: {output_post_nbr_path}')
-                    except Exception as e:
-                        self.logger.error(f'Error saving Post-fire NBR GeoTIFF: {e}')
-
-                # Ensure alignment before dNBR (should be guaranteed by calculate_nbr_for_item logic)
-                if pre_nbr.shape != post_nbr.shape:
-                    self.logger.error(f'CRITICAL ERROR: Pre-fire NBR shape {pre_nbr.shape} and Post-fire NBR shape {post_nbr.shape} '
-                          'do not match despite alignment efforts. Cannot proceed with dNBR calculation.')
-                    return None
-
-                # 7. Calculate dNBR
-                self.logger.info('Calculating dNBR (Pre-NBR - Post-NBR)')
-                # dNBR = NBR_prefire - NBR_postfire. Values typically range from -2 to +2.
-                # Often scaled by 1000 for easier interpretation in some contexts, but raw float is fine.
-                dnbr = pre_nbr - post_nbr
-                self.logger.info('dNBR calculation successful.')
-
-                # 8. Save dNBR raster
-                # The metadata for dNBR (transform, CRS, dimensions) should match the aligned NBRs (e.g., post_meta)
-                dnbr_meta = post_meta.copy() # post_meta already reflects the aligned grid
-                dnbr_meta.update({
-                    "driver": "GTiff",
-                    "dtype": "float32", # dNBR is float
-                    "count": 1,
-                    "nodata": np.nan # Ensure nodata is consistent
-                })
-
-                try:
-                    with rasterio.open(output_dnbr_path, 'w', **dnbr_meta) as dst:
-                        dst.write(dnbr.astype(np.float32)) # dnbr is (1, height, width)
-                    self.logger.info(f'dNBR GeoTIFF successfully saved to: {output_dnbr_path}')
-                    # return output_dnbr_path
-                except Exception as e:
-                    self.logger.error(f'Error saving dNBR GeoTIFF to \'{output_dnbr_path}\': {e}')
-                    return None
-                
-                # 8. Calculate scaled dNBR
-                self.logger.info('Calculating scaled dNBR ((dNBR * 1000 + 275)/5)')
-                # dNBR = NBR_prefire - NBR_postfire. Values typically range from -2 to +2.
-                # Often scaled by 1000 for easier interpretation in some contexts, but raw float is fine.
-                scaled_dnbr = (dnbr*1000 + 275)/5
-                self.logger.info('** scaled dNBR calculation successful')
-
-                s_dnbr_meta = post_meta.copy() # post_meta already reflects the aligned grid
-                s_dnbr_meta.update({
-                    "driver": "GTiff",
-                    "dtype": "float32", # dNBR is float
-                    "count": 1,
-                    "nodata": np.nan # Ensure nodata is consistent
-                })
-
-                try:
-                    with rasterio.open(output_scaled_dnbr_path, 'w', **s_dnbr_meta) as dst:
-                        dst.write(scaled_dnbr.astype(np.float32)) # dnbr is (1, height, width)
-                    self.logger.info(f'dNBR scaled GeoTIFF successfully saved to: {output_scaled_dnbr_path}')
-                    # return output_dnbr_path
-                except Exception as e:
-                    self.logger.error(f'Error saving dNBR scaled GeoTIFF to \'{output_scaled_dnbr_path}\': {e}')
-                    return None
-
-                high_sev = np.where(scaled_dnbr >= 187, 4, 0)
-                med_sev = np.where((scaled_dnbr >= 110) & (scaled_dnbr < 187), 3, 0)
-                low_sev = np.where((scaled_dnbr >= 76) & (scaled_dnbr < 110), 2, 0)
-                no_sev = np.where(scaled_dnbr < 76, 1, 0)
-                classes = no_sev + low_sev + med_sev + high_sev
-
-                s_class_meta = post_meta.copy() # post_meta already reflects the aligned grid
-                s_class_meta.update({
-                    "driver": "GTiff",
-                    "dtype": "uint8", # dNBR is float
-                    "count": 1,
-                    "nodata": 0 # Ensure nodata is consistent
-                })
-
-                try:
-                    out_barc_file = 'BARC_' + fire_number + '_' + pre_fire_date + '_' + post_fire_date + '_S2.tif'
-                    output_classified_dnbr_path = os.path.join(self.barc_folder, out_barc_file)
-                    with rasterio.open(output_classified_dnbr_path, 'w', **s_class_meta) as dst:
-                        dst.write(classes.astype(np.uint8)) # dnbr is (1, height, width)
-                    self.logger.info(f'dNBR classified GeoTIFF successfully saved to: {output_classified_dnbr_path}')
-                    return output_classified_dnbr_path
-                except Exception as e:
-                    self.logger.error(f'Error saving classified dNBR GeoTIFF to \'{output_classified_dnbr_path}\': {e}')
-                    return None
-
-    
+                data.to_file(os.path.join(folder_path, file_name), 'GeoJSON')
             except Exception as e:
-                # failed.append(firenumber)
-                traceback.print_exc()
-                err = ''.join(traceback.format_exc())
-                params = os.path.join(self.output_folder,'errors.txt')
-                with open(params, 'w') as f:
-                     f.write(f'\n{err}')
+                self.logger.error(f'Error writing local json file {os.path.join(folder_path, file_name)}: {e}')
+
+       
+        if self.use_storage and os_path:
+            try:
+                geojson_string = data.to_json()
+                geojson_bytes = geojson_string.encode('utf-8')
+                self.obj_storage.write_json(file_path=f'{os_path}/{file_name}', geo_json=geojson_bytes)
+            except Exception as e:
+                self.logger.error(f'Error writing object storage file {os_path}: {e}')    
+
+    def write_shapefile(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None, file_name: str=None):
+        if folder_path and self.use_folder:
+            out_path = os.path.join(folder_path, 'shapefile')
+            if not os.path.exists(out_path):
+                os.makedirs(out_path)
+        else:
+            out_path = tempfile.TemporaryDirectory()
+
+        data.to_file(os.path.join(out_path, file_name), driver='ESRI Shapefile')
+
+        zip_buffer = BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for root, _, files in os.walk(out_path):
+                for f in files:
+                    file_path = os.path.join(root, f)
+                    arcname = os.path.relpath(file_path, out_path)
+                    zf.write(file_path, arcname)
+
+        if self.use_storage and os_path:
+            try:
+                zip_buffer.seek(0)
+                self.obj_storage.write_shape(file_path=f'{os_path}/{file_name.replace('.shp', '.zip')}', zip_buffer=zip_buffer)
+
+            except Exception as e:
+                self.logger.error(f'Error writing object storage file {os_path}: {e}')
+
+    def write_raster(self, data: np.ndarray, meta, folder_path: str=None, os_path: str=None):
+
+        cog_profile = cog_profiles.get('deflate')
+        try:
+            with MemoryFile() as mem_src:
+                with mem_src.open(**meta) as src_dataset:
+                    try:
+                        src_dataset.write(data)
+                    except:
+                        src_dataset.write_band(1, data.astype(rasterio.uint8))
+
+
+                with MemoryFile() as mem_dst_cog:
+                    cog_translate(mem_src, mem_dst_cog.name, cog_profile, in_memory=True, quiet=True)
+                
+                    mem_dst_cog.seek(0)
+                    cog_bytes = mem_dst_cog.read()
+
+                    try:
+                        if self.use_folder and folder_path:
+                            with open(folder_path, 'wb') as local_file:
+                                local_file.write(cog_bytes)
+                    except Exception as e:
+                        self.logger.error(f'Error writing local file {folder_path}: {e}')
+
+                    try:
+                        if self.use_storage and os_path:
+                            mem_dst_cog.seek(0)
+                            self.obj_storage.write_image(file_path=os_path, raster=mem_dst_cog)
+                    except Exception as e:
+                        self.logger.error(f'Error writing object storage file {os_path}: {e}')
+
+        except Exception as e:
+            self.logger.error(f'An unexpected error occured during COG creation: {e}')
 
 
     @staticmethod
@@ -553,34 +634,6 @@ class InterimBurnSeverity:
             return 'Medium'
         elif x['gridcode'] == 4:
             return 'High'
-       
-
-    @staticmethod
-    def barc_filter(reclassed_raster,out_raster):
-
-        src_ds = rasterio.open(reclassed_raster, dtype=rasterio.uint8)
-        out_ds = None
-        out_ds = rasterio.features.sieve(source=src_ds, size=10)
-
-        kwargs = src_ds.meta
-        kwargs.update(
-            dtype=rasterio.uint8,
-            count=1,
-            compress='lzw'
-        )
-
-        with rasterio.open(out_raster, 'w', **kwargs) as dst:
-            dst.write_band(1, out_ds.astype(rasterio.uint8))
-
-
-    @staticmethod
-    def getfiles(d, ext, fire):
-        paths = []
-        for file in os.listdir(d):
-            #if file.endswith(ext) and not file.endswith('_clip.tif'):
-            if file.endswith(ext) and fire in file and 'raw' not in file and 'scale' not in file:
-                paths.append(os.path.join(d, file))
-        return(paths)    
         
 
 if __name__ == '__main__':

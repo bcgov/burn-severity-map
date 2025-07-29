@@ -6,6 +6,9 @@ from rasterio import mask
 import geopandas as gpd
 import numpy as np
 import rasterio
+from rasterio import merge
+from shapely.geometry import shape, box
+import logging
 
 class STAC:
     s2_url = 'https://earth-search.aws.element84.com/v1'
@@ -16,16 +19,14 @@ class STAC:
     l8_collection_id = ''
     l9_collection_id = ''
 
-    def __init__(self):
-        pass
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
 
 
-
-    # --- Helper function to search STAC API for Sentinel-2 scenes ---
     def search_stac(self, sensor: str, 
-                    bbox: list, 
+                    perimeter_gdf: gpd.GeoDataFrame, 
                     daterange: str, 
-                    cloud_cover_threshold: float):
+                    cloud_cover_threshold: float) -> list:
 
         if sensor == 'S2':
             stac_api_url = STAC.s2_url
@@ -34,32 +35,123 @@ class STAC:
 
         try:
             client = Client.open(stac_api_url)
-            search = client.search(
-                collections=[collection_id],
-                bbox=bbox,
-                datetime=daterange,
-                query={'eo:cloud_cover': {'lt': cloud_cover_threshold}},
-                sortby=[
-                    {'field': 'properties.eo:cloud_cover', 'direction': 'asc'}, # Least cloudy first
-                    {'field': 'properties.datetime', 'direction': 'desc'}      # Most recent within criteria
-                ],
-                max_items=10 # Fetch a few items to check for availability
-            )
-            items = list(search.items())
-            if not items:
-                self.logger.warning(f'No suitable Sentinel-2 scenes found for date range {daterange}, bbox {bbox}, '
-                      f'and cloud cover < {cloud_cover_threshold}% in collection {collection_id}.')
-                return None
 
-            # Select the first valid item (already sorted by preference)
-            # We could add more checks here if needed (e.g., data coverage)
-            return items[0]
-        except Exception as e:
-            self.logger.error(f'Error during STAC search ({stac_api_url}): {e}')
-            return None
+            uncovered_geom = perimeter_gdf.union_all()
+            selected_items = []
+            searched_item_ids = set()
+
+            self.logger.info('    - Starting iterative search for full coverage')
+
+            # Limit iterations to prevent infinite loops
+            max_iterations = 50
+            for i in range(max_iterations):
+                if uncovered_geom.is_empty:
+                    self.logger.info('    - Perimeter is fully covered')
+                    break
+
+                self.logger.info(f'    - Iteration {i+1}: Area left to cover: {uncovered_geom.area:.4f} degrees^2')
+
+                # Search for the best tile covering the remaining area
+                search = client.search(
+                    collections=[collection_id],
+                    intersects=uncovered_geom,
+                    datetime=daterange,
+                    query={'eo:cloud_cover': {'lt': cloud_cover_threshold}},
+                    sortby=[
+                        {'field': 'properties.eo:cloud_cover', 'direction': 'asc'}, # Least cloudy first
+                        {'field': 'properties.datetime', 'direction': 'desc'}      # Most recent within criteria
+                    ],
+                    max_items=100  # Fetch a batch of candidates
+                )
+
+                best_item_found = None
+                for item in search.items():
+                    if item.id in searched_item_ids:
+                        continue  # Skip if we've already selected or processed this tile
+
+                    # Check for intersection again, as 'intersects' with bbox can be broad
+                    item_geom = shape(item.geometry)
+                    if item_geom.intersects(uncovered_geom):
+                        best_item_found = item
+                        break # Found the best available candidate for this iteration
+                
+                if best_item_found:
+                    item_id = best_item_found.id
+                    item_date = best_item_found.datetime.date()
+                    cloud_cover = best_item_found.properties.get('eo:cloud_cover', 'N/A')
+                    self.logger.info(f'    -> Selected tile {item_id} (Date: {item_date}, Cloud: {cloud_cover}%)')
+
+                    selected_items.append(best_item_found)
+                    searched_item_ids.add(item_id)
+
+                    # Update the uncovered area
+                    item_geom = shape(best_item_found.geometry)
+                    uncovered_geom = uncovered_geom.difference(item_geom)
+                else:
+                    self.logger.info('    - No more suitable intersecting tiles found in STAC')
+                    if not selected_items:
+                        self.logger.warning('    - Warning: could not find any tiles for the given criteria')
+                    else:
+                        self.logger.warning(f'    - Warning: Could not cover the entire perimeter. Proceeding with {len(selected_items)} tiles')
+                        break
+            else:
+                self.logger.warning(f'    - Warning: Reached max iterations ({max_iterations}). Proceeding with partial coverage if any')
+            
+            if selected_items:
+                dates_used = {item.datetime.date() for item in selected_items}
+                if len(dates_used) > 1:
+                    self.logger.warning('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                    self.logger.warning('!!! WARNING: Tiles from multiple dates were used to create this mosaic     !!!')
+                    self.logger.warning(f'!!! Dates: {sorted(list(dates_used))}')
+                    self.logger.warning('!!! This can introduce inconsistencies due to varying atmospheric conditions !!!')
+                    self.logger.warning('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
+            return selected_items
         
+        except Exception as e:
+            self.logger.error(f'Error during STAC search for full coverage ({stac_api_url}): {e}')
+            return []
 
-    def calculate_nbr_for_item(self, item: 'pystac.Item', 
+
+    def create_nbr_mosaic(self, stac_items: list,
+                          perimeter_gdf: gpd.GeoDataFrame, 
+                          target_transform=None, 
+                          target_crs=None, 
+                          target_shape=None,
+                          aws_requester_pays: bool = False,
+                          run_type: str='pre'):
+        datasets_to_merge = []
+        self.logger.info(f'    - Processing {len(stac_items)} tiles to create a mosaic')
+
+        for item in stac_items:
+            nbr_array, meta = self.__calculate_nbr_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
+            if nbr_array is not None and nbr_array.size > 0:
+                memfile = rasterio.io.MemoryFile()
+                with memfile.open(**meta) as dataset:
+                    dataset.write(nbr_array)
+                datasets_to_merge.append(memfile.open())
+            else:
+                self.logger.info(f'    - Skipping empty or invalid NBR result for item {item.id}')
+        if not datasets_to_merge:
+            self.logger.warning('    - No valid datasets could be processed for the mosaic')
+            return None, None, None
+
+        self.logger.info(f'    - Merging {len(datasets_to_merge)} processed tiles into a single mosaic')
+        try:
+            mosaic, out_trans = merge.merge(datasets_to_merge)
+            out_meta = datasets_to_merge[0].meta.copy()
+            out_meta.update({'height': mosaic.shape[1], 'width': mosaic.shape[2], 'transform': out_trans, 'crs': target_crs})
+        except Exception as e:
+            self.logger.error(f'    - Error during rasterio.merge: {e}')
+            return None, None, None
+        finally:
+            for ds in datasets_to_merge:
+                ds.close()
+        self.logger.info('    - Mosaic created successfully')
+        return mosaic, out_meta, out_trans
+
+
+    def __calculate_nbr_for_item(self, item: 'pystac.Item', 
                                perimeter_gdf: gpd.GeoDataFrame, 
                                target_transform=None, 
                                target_crs=None, 
@@ -104,7 +196,7 @@ class STAC:
             # Try to find common alternatives if specific keys are missing
             if 'rededge1' in available_keys and 'swir16' in available_keys : # B5 and B11 (less common for NBR)
                  self.logger.info('Found \'rededge1\' and \'swir16\'. Note: NBR typically uses B8 (NIR) and B12 (SWIR2.2).')
-            return None, None, None
+            return None, None
 
         nir_href = item.assets[nir_asset_key].href
         swir_href = item.assets[swir_asset_key].href
@@ -123,132 +215,108 @@ class STAC:
                     raster_crs = src_nir_meta_check.crs
                     if not raster_crs:
                         self.logger.error(f'Error: NIR COG {nir_href} has no CRS defined.')
-                        return None, None, None
+                        return None, None
                     # Ensure perimeter_gdf has a CRS, if not, assume WGS84
-                    if perimeter_gdf.crs is None:
+                    if perimeter_gdf.crs != target_crs:
                         self.logger.warning('Perimeter GeoJSON has no CRS. Assuming EPSG:4326 (WGS84).')
-                        perimeter_gdf_proj = perimeter_gdf.set_crs("EPSG:4326", allow_override=True).to_crs(raster_crs)
+                        perimeter_gdf_proj = perimeter_gdf.to_crs(target_crs)
                     else:
-                        perimeter_gdf_proj = perimeter_gdf.to_crs(raster_crs)
+                        perimeter_gdf_proj = perimeter_gdf
 
-                clip_geom = [geom.__geo_interface__ for geom in perimeter_gdf_proj.geometry]
+                bounds = perimeter_gdf_proj.total_bounds
+                left, bottom, right, top = bounds
+                resolution = 10
+                out_width = int((right - left) / resolution)
+                out_height = int((top - bottom) / resolution)
 
-                with rasterio.open(nir_href) as src:
-                    nir_data, nir_transform = mask.mask(src, clip_geom, crop=True, nodata=0) # S2 L2A fill is 0
-                    # Scale factor for Sentinel-2 L2A surface reflectance (0-10000 to 0-1.0)
-                    # Handle potential nodata values (often 0 for S2 L2A before scaling)
-                    nir_data = nir_data.astype(np.float32)
-                    nodata_mask_nir = (nir_data == src.nodata) | (nir_data == 0) # Consider 0 as nodata for S2 L2A before scaling
+                out_transform = rasterio.transform.from_bounds(left, bottom, right, top, out_width, out_height)
+
+
+
+                with rasterio.open(nir_href) as src_nir:
+                    nir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
+                    reproject(
+                        source=rasterio.band(src_nir,1),
+                        destination=nir_reprojected,
+                        src_transform=src_nir.transform,
+                        src_crs=src_nir.crs,
+                        dst_transform=out_transform,
+                        dst_crs=target_crs,
+                        resampling=Resampling.bilinear,
+                        src_nodata=src_nir.nodata,
+                        dst_nodata=np.nan
+                    )
+                    nir_data = nir_reprojected[0]
+                    nodata_mask_nir = (nir_data == src_nir.nodata) | (nir_data == 0) # Consider 0 as nodata for S2 L2A before scaling
                     nir_data /= 10000.0
                     nir_data[nodata_mask_nir] = np.nan # Set actual nodata to NaN after scaling
-                    meta = src.meta.copy()
 
-                # # Read SWIR band, clipped
-                # swir_align = os.path.join(self.output_folder, f'{self.fire_number}_{run_type}_swir_align.tif')
 
-                swir_align = STAC.resample_raster_to_match(source_path=swir_href, reference_path=nir_href)
-                with swir_align.open(driver='GTiff') as src:
-                    
-                    swir_data, swir_transform = mask.mask(src, clip_geom, crop=True, nodata=0)
-                    swir_data = swir_data.astype(np.float32)
-                    nodata_mask_swir = (swir_data == src.nodata) | (swir_data == 0)
+                # Process SWIR band
+                with rasterio.open(swir_href) as src_swir:
+                    # Reproject SWIR data to the target_crs
+                    swir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
+                    reproject(
+                        source=rasterio.band(src_swir, 1), # Assuming single band for SWIR, adjust if multiple
+                        destination=swir_reprojected,
+                        src_transform=src_swir.transform,
+                        src_crs=src_swir.crs,
+                        dst_transform=out_transform,
+                        dst_crs=target_crs,
+                        resampling=Resampling.bilinear,
+                        src_nodata=src_swir.nodata,
+                        dst_nodata=np.nan
+                    )
+                    swir_data = swir_reprojected[0] # remove band dimension
+                    nodata_mask_swir = np.isnan(swir_data) | (swir_data == 0) # account for potential 0 values as nodata
                     swir_data /= 10000.0
                     swir_data[nodata_mask_swir] = np.nan
-                del swir_align
             except Exception as e:
-                self.logger.error(f'Error reading or clipping COG data for item {item.id}: {e}')
-                return None, None, None
+                self.logger.error(f'Error reading/reprojecting COG data for item {item.id}: {e}')
+                return None, None
 
-        # Ensure arrays have the same shape after clipping.
-        # This should hold if bands are from the same S2 tile and clipped identically.
-        if nir_data.shape != swir_data.shape:
-            self.logger.warning(f'Warning: NIR ({nir_data.shape}) and SWIR ({swir_data.shape}) from item {item.id} '
-                  'have different shapes after clipping. This may indicate an issue with data alignment '
-                  'or perimeter intersection. Attempting to proceed but dNBR results may be affected.')
-            # This could be a point of failure or inaccurate results.
-            # A more robust solution might involve aligning them to a common grid here,
-            # but the target_transform logic below should handle it if this is the 'post' image.
-
-        current_meta_crs = meta['crs'] # CRS from the opened NIR COG
-        current_transform = nir_transform # Transform from the clipped NIR data
-
-        # If target_transform, target_crs, and target_shape are provided (e.g., from pre-fire NBR),
-        # resample (reproject) the current bands to match that target grid.
-        if target_transform is not None and target_crs is not None and target_shape is not None:
-            self.logger.info(f'Aligning item {item.id} to target grid: CRS={target_crs}, Shape={target_shape}')
-
-            aligned_nir_data = np.empty(target_shape, dtype=np.float32)
-            reproject(
-                source=nir_data,
-                destination=aligned_nir_data,
-                src_transform=current_transform,
-                src_crs=current_meta_crs,
-                dst_transform=target_transform,
-                dst_crs=target_crs,
-                resampling=Resampling.bilinear,
-                dst_nodata=np.nan # Use NaN for areas outside source extent during reprojection
-            )
-            nir_data = aligned_nir_data
-
-            aligned_swir_data = np.empty(target_shape, dtype=np.float32)
-            reproject(
-                source=swir_data, # SWIR data using its own transform before alignment
-                destination=aligned_swir_data,
-                src_transform=swir_transform, # Use SWIR's original transform
-                src_crs=current_meta_crs,    # Assume SWIR has same CRS as NIR from same S2 scene
-                dst_transform=target_transform,
-                dst_crs=target_crs,
-                resampling=Resampling.bilinear,
-                dst_nodata=np.nan
-            )
-            swir_data = aligned_swir_data
-
-            # Update meta and transform to reflect the target alignment
-            final_transform = target_transform
-            meta.update({
-                "crs": target_crs,
-                "transform": target_transform,
-                "width": target_shape[2], # target_shape is (bands, height, width)
-                "height": target_shape[1],
-                "nodata": np.nan # Ensure nodata is consistently NaN
-            })
-        else:
-            # This is the first NBR being calculated (e.g., pre-fire).
-            # Its transform, CRS, and shape will become the target for subsequent NBRs.
-            final_transform = current_transform
-            meta.update({
-                "transform": final_transform,
-                "width": nir_data.shape[2],
-                "height": nir_data.shape[1],
-                "nodata": np.nan # Ensure nodata is consistently NaN
-            })
-
-        # Calculate NBR = (NIR - SWIR) / (NIR + SWIR)      
+        # Calculate NBR on the reprojected and aligned data
         numerator = nir_data - swir_data
         denominator = nir_data + swir_data
-
-        nbr = np.full(nir_data.shape, np.nan, dtype=np.float32) # Initialize with NaNs
-
-        # Valid mask: denominator is not zero, and neither numerator nor denominator is NaN
+        nbr = np.full(nir_data.shape, np.nan, dtype=np.float32)
         valid_mask = (denominator != 0) & ~np.isnan(denominator) & ~np.isnan(numerator)
         nbr[valid_mask] = numerator[valid_mask] / denominator[valid_mask]
+        nbr = np.clip(nbr, -1.0, 1.0)
 
-        nbr = np.clip(nbr, -1.0, 1.0) # NBR values are theoretically between -1 and 1
-        # nbr = np.where(~shp_mask, nbr, -9999)
+        clip_geom = [geom.__geo_interface__ for geom in perimeter_gdf_proj.geometry]
 
-        # Update meta for single-band NBR output
-        meta.update({
+        # Create a temporary in-memory dataset to apply the mask
+        # This dataset will have the correct CRS and transform of our target
+        temp_meta = {
             "driver": "GTiff",
-            "dtype": "float32",
-            "count": 1, # Single band (NBR)
-            # nodata already set to np.nan
+            "height": nbr.shape[0],
+            "width": nbr.shape[1],
+            "count": 1,
+            "dtype": nbr.dtype,
+            "crs": target_crs, # Set the CRS to target_crs
+            "transform": out_transform,
+            "nodata": np.nan
+        }
+
+        with rasterio.io.MemoryFile() as memfile:
+            with memfile.open(**temp_meta) as temp_dataset:
+                temp_dataset.write(nbr, 1) # Write the NBR array to the temporary dataset
+                clipped_nbr_array, clipped_transform = rasterio.mask.mask(temp_dataset, clip_geom, crop=True, nodata=np.nan)
+
+        # Update metadata for the final clipped output
+        meta = temp_meta.copy()
+        meta.update({
+            "transform": clipped_transform,
+            "width": clipped_nbr_array.shape[2],
+            "height": clipped_nbr_array.shape[1],
+            "crs": target_crs # Ensure CRS is explicitly set here as well
         })
 
-        return nbr, meta, final_transform
+        return clipped_nbr_array, meta
     
 
     @staticmethod
-    def resample_raster_to_match(source_path, reference_path) -> MemoryFile:
+    def resample_raster_to_match(source_path, ref_transform, ref_crs, ref_width, ref_height) -> MemoryFile:
         """
         Resamples a source raster to match the resolution and CRS of a reference raster.
 
@@ -257,9 +325,6 @@ class STAC:
             reference_path (str): Path to the reference raster file.
             output_path (str): Path to save the resampled output raster.
         """
-        with rasterio.open(reference_path) as ref:
-            ref_transform = ref.transform
-            ref_crs = ref.crs
 
         with rasterio.open(source_path) as src:
             # Calculate the transformation from the source to the reference CRS
@@ -272,8 +337,8 @@ class STAC:
             out_meta.update({
                 "crs": ref_crs,
                 "transform": ref_transform,
-                "width": ref.width,
-                "height": ref.height
+                "width": ref_width,
+                "height": ref_height
             })
 
 
