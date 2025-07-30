@@ -13,6 +13,7 @@ import topojson as tp
 from rio_cogeo.profiles import cog_profiles
 from rio_cogeo.cogeo import cog_translate
 from io import BytesIO
+from pathlib import Path
 import zipfile
 import tempfile
 
@@ -31,17 +32,20 @@ warnings.filterwarnings('ignore')
 
 
 def run_app():
-    fire, year, sensor, output_folder, object_storage, s_date, e_date, cloud, logger = get_input_parameters()
-    burn_sev = InterimBurnSeverity(fire=fire, year=year, output_folder=output_folder, object_storage=object_storage, sensor=sensor, 
-                                   start_date=s_date, end_date=e_date, cloud_cover=cloud, logger=logger)
+    
+        fire, year, sensor, output_folder, object_storage, s_date, e_date, cloud, logger = get_input_parameters()
+        burn_sev = InterimBurnSeverity(fire=fire, year=year, output_folder=output_folder, object_storage=object_storage, sensor=sensor, 
+                                       start_date=s_date, end_date=e_date, cloud_cover=cloud, logger=logger)
+        try:
+            result = burn_sev.gather_spatial()
+            if not result:
+                return
+            barc, meta = burn_sev.calculate_severity()
+            burn_sev.conversion(barc=barc, meta=meta)
+        except Exception as e:
+            logger.error(f'Could not complete the burn severity analysis: {e}')
+        del burn_sev
 
-    result = burn_sev.gather_spatial()
-    if not result:
-        return
-    barc, meta = burn_sev.calculate_severity()
-    burn_sev.conversion(barc=barc, meta=meta)
-
-    del burn_sev
 
 def get_input_parameters():
     """
@@ -87,19 +91,7 @@ class InterimBurnSeverity:
         self.fire_year = int(year)
         self.use_storage = object_storage
         self.use_folder = True if output_folder else False
-        if self.use_folder:
-            self.out_folder = output_folder
-            self.fire_folder = os.path.join(self.out_folder, f'{self.fire_year}-{self.fire_number}')
-            self.output_folder = os.path.join(self.fire_folder, 'output')
-            self.export_folder = os.path.join(self.fire_folder, 'export')
-            self.out_gdb = os.path.join(self.export_folder, f'interim_burn_severity_temp.gdb')
-
-        if self.use_storage:
-            self.os_fire_folder = f'{self.fire_year}-{self.fire_number}'
-            self.os_output_folder = f'{self.os_fire_folder}/output'
-            self.os_export_folder = f'{self.os_fire_folder}/export'
-            self.os_barc_folder = f'{self.os_output_folder}/barc'
-
+        
 
         self.start_date = None if not start_date else datetime.strptime(str(start_date).split(' ')[0], '%Y-%m-%d')
         self.end_date = None if not end_date else datetime.strptime(str(end_date).split(' ')[0], '%Y-%m-%d')
@@ -107,14 +99,35 @@ class InterimBurnSeverity:
         self.logger = logger
         self.fire_status = ''
         self.sensor = sensor
+        self.out_folder = output_folder
+        self.fire_folder = None
+        self.output_folder = None
+        self.export_folder = None
+        self.os_fire_folder = None
+        self.os_output_folder = None
+        self.os_export_folder = None
+
+        if self.use_folder:
+            self.fire_folder = os.path.join(self.out_folder, f'{self.fire_year}-{self.fire_number}')
+            self.output_folder = os.path.join(self.fire_folder, 'output')
+            self.export_folder = os.path.join(self.fire_folder, 'export')
+            self.out_gdb = os.path.join(self.export_folder, f'interim_burn_severity_temp.gdb')
+
+            for fld in [self.output_folder, self.export_folder]:
+                if os.path.exists(fld):
+                    shutil.rmtree(fld)
+                os.makedirs(fld)
 
         if self.use_storage:
+            self.os_fire_folder = f'{self.fire_year}-{self.fire_number}'
+            self.os_output_folder = f'{self.os_fire_folder}/output'
+            self.os_export_folder = f'{self.os_fire_folder}/export'
             self.logger.info('Creating connection to object storage')
             try:
                 self.obj_storage = ObjectStorage()
             except Exception as e:
                 self.logger.error(f'ERROR: Could not create the object storage connection: {e}')
-                return
+                return 
 
 
         self.fld_fire_num = 'FIRE_NUMBER'
@@ -152,10 +165,7 @@ class InterimBurnSeverity:
         self.gdf_fires = None
         self.fire_boundary = None
 
-        for fld in [self.output_folder, self.export_folder]:
-            if os.path.exists(fld):
-                shutil.rmtree(fld)
-            os.makedirs(fld)
+            
 
 
     def __del__(self) -> None:
@@ -276,6 +286,7 @@ class InterimBurnSeverity:
                 temp_pre_fire_date = None
                 temp_post_fire_date = None
 
+                self.logger.info('Searching for pre-fire imagery')
                 pre_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_pre_date_range(),cloud_cover_threshold=self.cloud_cover)
                 if not pre_fire_items:
                     self.logger.error('Could not find suitable pre-fire imagery. Try adjusting date range or cloud cover threshold.')
@@ -289,10 +300,11 @@ class InterimBurnSeverity:
                         temp_pre_fire_date = item.datetime
                 pre_fire_date = temp_pre_fire_date.strftime('%Y%m%d')
 
+                self.logger.info('Searching for post-fire imagery')
                 post_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_post_date_range(),cloud_cover_threshold=self.cloud_cover)
                 if not post_fire_items:
                     self.logger.error('Could not find suitable post-fire imagery. Try adjusting date range or cloud cover threshold.')
-                    return None
+                    raise Exception
                 for item in post_fire_items:
                     self.dict_fires[self.fire_number].lst_post_image.append(item.id)
                     self.dict_fires[self.fire_number].lst_post_dates.append(item.datetime.strftime('%Y-%m-%d'))
@@ -320,7 +332,7 @@ class InterimBurnSeverity:
                 os_post_nbr_path = f'{self.os_output_folder}/{output_post}' if self.use_storage else None
                 os_dnbr_path = f'{self.os_output_folder}/{output_dnbr}' if self.use_storage else None
                 os_scaled_dnbr_path = f'{self.os_output_folder}/{output_scaled}' if self.use_storage else None
-                os_barc_path = f'{self.os_barc_folder}/{output_barc}' if self.use_storage else None
+                os_barc_path = f'{self.os_output_folder}/{output_barc}' if self.use_storage else None
                 os_filtered_path = f'{self.os_export_folder}/{output_filtered}' if self.use_storage else None
 
 
@@ -506,14 +518,7 @@ class InterimBurnSeverity:
         f_gdf = f_gdf.drop(['gridcode'], axis=1)
 
 
-        #recalculate AREA_HA field
-        self.logger.info('Creating final geodatabase')
-
-        #copy final layer to a new database
-        gdb_name_final = f'interim_burn_severity_{self.fire_year}'
-
-        #create fgdb to hold outputs:
-        output_gdb_final = self.out_gdb.replace('_temp','')
+        
 
         topo = tp.Topology(f_gdf, prequantize=True)
         s_gdf = topo.toposimplify(1).to_gdf().to_crs('EPSG:3005')
@@ -531,16 +536,25 @@ class InterimBurnSeverity:
         self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
         # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
-        try:
-            final_gdf = gpd.read_file(filename=output_gdb_final, layer=gdb_name_final, driver='OpenFileGDB')
-            final_gdf = final_gdf.explode()
-            if (final_gdf == self.fire_number).any().any():
-                self.logger.info(f'{self.fire_number} exists in the database already, removing')
-                final_gdf = final_gdf[final_gdf[self.fld_fire_num] != self.fire_number]
-            final_gdf = pd.concat([final_gdf, gpdf_singlepoly])
-            final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
-        except Exception as e:
-            gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
+        if self.use_folder:
+            try:
+                #recalculate AREA_HA field
+                self.logger.info('Creating final geodatabase')
+
+                #copy final layer to a new database
+                gdb_name_final = f'interim_burn_severity_{self.fire_year}'
+
+                #create fgdb to hold outputs:
+                output_gdb_final = self.out_gdb.replace('_temp','')
+                final_gdf = gpd.read_file(filename=output_gdb_final, layer=gdb_name_final, driver='OpenFileGDB')
+                final_gdf = final_gdf.explode()
+                if (final_gdf == self.fire_number).any().any():
+                    self.logger.info(f'{self.fire_number} exists in the database already, removing')
+                    final_gdf = final_gdf[final_gdf[self.fld_fire_num] != self.fire_number]
+                final_gdf = pd.concat([final_gdf, gpdf_singlepoly])
+                final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
+            except Exception as e:
+                gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
 
         self.logger.info('Processing complete')
 
@@ -562,12 +576,14 @@ class InterimBurnSeverity:
                 self.logger.error(f'Error writing object storage file {os_path}: {e}')    
 
     def write_shapefile(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None, file_name: str=None):
+        temp_dir = None
         if folder_path and self.use_folder:
             out_path = os.path.join(folder_path, 'shapefile')
             if not os.path.exists(out_path):
                 os.makedirs(out_path)
         else:
-            out_path = tempfile.TemporaryDirectory()
+            temp_dir = tempfile.TemporaryDirectory()
+            out_path = temp_dir.name
 
         data.to_file(os.path.join(out_path, file_name), driver='ESRI Shapefile')
 
@@ -587,6 +603,8 @@ class InterimBurnSeverity:
 
             except Exception as e:
                 self.logger.error(f'Error writing object storage file {os_path}: {e}')
+        if temp_dir:
+            temp_dir.cleanup()
 
     def write_raster(self, data: np.ndarray, meta, folder_path: str=None, os_path: str=None):
 
@@ -610,6 +628,7 @@ class InterimBurnSeverity:
                         if self.use_folder and folder_path:
                             with open(folder_path, 'wb') as local_file:
                                 local_file.write(cog_bytes)
+                            self.logger.info(f'    - File written to local at {folder_path}')
                     except Exception as e:
                         self.logger.error(f'Error writing local file {folder_path}: {e}')
 
@@ -617,6 +636,7 @@ class InterimBurnSeverity:
                         if self.use_storage and os_path:
                             mem_dst_cog.seek(0)
                             self.obj_storage.write_image(file_path=os_path, raster=mem_dst_cog)
+                            self.logger.info(f'    - File written to object storage at {os_path}')
                     except Exception as e:
                         self.logger.error(f'Error writing object storage file {os_path}: {e}')
 
