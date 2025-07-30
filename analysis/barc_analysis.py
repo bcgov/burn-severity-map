@@ -41,6 +41,8 @@ def run_app():
     barc, meta = burn_sev.calculate_severity()
     burn_sev.conversion(barc=barc, meta=meta)
 
+    del burn_sev
+
 def get_input_parameters():
     """
     Function:
