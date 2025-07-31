@@ -8,7 +8,6 @@ from collections import defaultdict
 import rasterio
 from rasterio.features import shapes, sieve
 from rasterio.io import MemoryFile
-import rasterio.features
 import topojson as tp
 from rio_cogeo.profiles import cog_profiles
 from rio_cogeo.cogeo import cog_translate
@@ -317,6 +316,8 @@ class InterimBurnSeverity:
 
                 output_pre = f'{self.fire_year}-{fire_number}_pre_nbr.tif'
                 output_post = f'{self.fire_year}-{fire_number}_post_nbr.tif'
+                output_pre_rgb = f'{self.fire_year}-{fire_number}_pre_rgb.jpg'
+                output_post_rgb = f'{self.fire_year}-{fire_number}_post_rgb.jpg'
                 output_dnbr = f'{self.fire_year}-{fire_number}_dnbr.tif'
                 output_scaled = f'{self.fire_year}-{fire_number}_scaled_dnbr.tif'
                 output_barc = f'{self.fire_year}-{fire_number}_{pre_fire_date}_{post_fire_date}_{self.sensor}_barc.tif'
@@ -324,17 +325,40 @@ class InterimBurnSeverity:
 
                 output_pre_nbr_path = os.path.join(self.output_folder, output_pre) if self.use_folder else None
                 output_post_nbr_path = os.path.join(self.output_folder, output_post) if self.use_folder else None
+                output_pre_rgb_path = os.path.join(self.output_folder, output_pre_rgb) if self.use_folder else None
+                output_post_rgb_path = os.path.join(self.output_folder, output_post_rgb) if self.use_folder else None
                 output_dnbr_path = os.path.join(self.output_folder, output_dnbr) if self.use_folder else None
                 output_scaled_dnbr_path = os.path.join(self.output_folder, output_scaled) if self.use_folder else None
                 output_barc_path = os.path.join(self.output_folder, output_barc) if self.use_folder else None
                 output_filtered_path = os.path.join(self.export_folder, output_filtered) if self.use_folder else None
                 os_pre_nbr_path = f'{self.os_output_folder}/{output_pre}' if self.use_storage else None
                 os_post_nbr_path = f'{self.os_output_folder}/{output_post}' if self.use_storage else None
+                os_pre_rgb_path = f'{self.os_output_folder}/{output_pre_rgb}' if self.use_storage else None
+                os_post_rgb_path = f'{self.os_output_folder}/{output_post_rgb}' if self.use_storage else None
                 os_dnbr_path = f'{self.os_output_folder}/{output_dnbr}' if self.use_storage else None
                 os_scaled_dnbr_path = f'{self.os_output_folder}/{output_scaled}' if self.use_storage else None
                 os_barc_path = f'{self.os_output_folder}/{output_barc}' if self.use_storage else None
                 os_filtered_path = f'{self.os_export_folder}/{output_filtered}' if self.use_storage else None
 
+                self.logger.info(f'Creating PRE-FIRE RGB')
+                pre_rgb, pre_meta, pre_transform = stac.create_rgb_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')
+                if pre_rgb is None:
+                    self.logger.error('Failed to create pre-fire RGB.')
+                    return None
+                self.logger.info('Pre-fire RGB creation successful.')
+
+                self.logger.info('Writing pre-fire rgb to file')
+                self.write_raster(data=pre_rgb, meta=pre_meta, folder_path=output_pre_rgb_path, os_path=os_pre_rgb_path)
+                
+                self.logger.info(f'Creating POST-FIRE RGB')
+                post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='post')
+                if post_rgb is None:
+                    self.logger.error('Failed to create post-fire RGB.')
+                    return None
+                self.logger.info('Post-fire RGB creation successful.')
+
+                self.logger.info('Writing post-fire rgb to file')
+                self.write_raster(data=post_rgb, meta=post_meta, folder_path=output_post_rgb_path, os_path=os_post_rgb_path)
 
                 self.logger.info(f'Calculating PRE-FIRE NBR')
                 pre_nbr, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')

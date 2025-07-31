@@ -2,6 +2,7 @@ from pystac_client import Client
 from rasterio.session import AWSSession
 from rasterio.warp import reproject, Resampling, calculate_default_transform
 from rasterio.io import MemoryFile
+from rasterio.transform import array_bounds
 from rasterio import mask
 import geopandas as gpd
 import numpy as np
@@ -121,7 +122,7 @@ class STAC:
                           aws_requester_pays: bool = False,
                           run_type: str='pre'):
         datasets_to_merge = []
-        self.logger.info(f'    - Processing {len(stac_items)} tiles to create a mosaic')
+        self.logger.info(f'    - Processing {len(stac_items)} tiles to create an NBR mosaic')
 
         for item in stac_items:
             nbr_array, meta = self.__calculate_nbr_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
@@ -133,21 +134,59 @@ class STAC:
             else:
                 self.logger.info(f'    - Skipping empty or invalid NBR result for item {item.id}')
         if not datasets_to_merge:
-            self.logger.warning('    - No valid datasets could be processed for the mosaic')
+            self.logger.warning('    - No valid datasets could be processed for the NBR mosaic')
             return None, None, None
 
-        self.logger.info(f'    - Merging {len(datasets_to_merge)} processed tiles into a single mosaic')
+        self.logger.info(f'    - Merging {len(datasets_to_merge)} processed tiles into a single NBR mosaic')
         try:
             mosaic, out_trans = merge.merge(datasets_to_merge)
             out_meta = datasets_to_merge[0].meta.copy()
             out_meta.update({'height': mosaic.shape[1], 'width': mosaic.shape[2], 'transform': out_trans, 'crs': target_crs})
         except Exception as e:
-            self.logger.error(f'    - Error during rasterio.merge: {e}')
+            self.logger.error(f'    - Error during rasterio.merge for NBR mosaic: {e}')
             return None, None, None
         finally:
             for ds in datasets_to_merge:
                 ds.close()
-        self.logger.info('    - Mosaic created successfully')
+        self.logger.info('    - NBR Mosaic created successfully')
+        return mosaic, out_meta, out_trans
+
+
+    def create_rgb_mosaic(self, stac_items: list,
+                          perimeter_gdf: gpd.GeoDataFrame, 
+                          target_transform=None, 
+                          target_crs=None, 
+                          target_shape=None,
+                          aws_requester_pays: bool = False,
+                          run_type: str='pre'):
+        datasets_to_merge = []
+        self.logger.info(f'    - Processing {len(stac_items)} tiles to create am RGB mosaic')
+
+        for item in stac_items:
+            rgb_array, meta = self.__calculate_rgb_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
+            if rgb_array is not None and rgb_array.size > 0:
+                memfile = rasterio.io.MemoryFile()
+                with memfile.open(**meta) as dataset:
+                    dataset.write(rgb_array)
+                datasets_to_merge.append(memfile.open())
+            else:
+                self.logger.info(f'    - Skipping empty or invalid RGB result for item {item.id}')
+        if not datasets_to_merge:
+            self.logger.warning('    - No valid datasets could be processed for the RGB mosaic')
+            return None, None, None
+
+        self.logger.info(f'    - Merging {len(datasets_to_merge)} processed tiles into a single RGB mosaic')
+        try:
+            mosaic, out_trans = merge.merge(datasets_to_merge)
+            out_meta = datasets_to_merge[0].meta.copy()
+            out_meta.update({'height': mosaic.shape[1], 'width': mosaic.shape[2], 'transform': out_trans, 'crs': target_crs})
+        except Exception as e:
+            self.logger.error(f'    - Error during rasterio.merge for RGB mosaic: {e}')
+            return None, None, None
+        finally:
+            for ds in datasets_to_merge:
+                ds.close()
+        self.logger.info('    - RGB Mosaic created successfully')
         return mosaic, out_meta, out_trans
 
 
@@ -314,6 +353,80 @@ class STAC:
 
         return clipped_nbr_array, meta
     
+
+    def __calculate_rgb_for_item(self, item: 'pystac.Item', 
+                               perimeter_gdf: gpd.GeoDataFrame, 
+                               target_transform=None, 
+                               target_crs=None, 
+                               target_shape=None,
+                               aws_requester_pays: bool = False,
+                               run_type: str='pre'):
+        """
+        Internal helper to create a 3-band RGB array for one STAC item, clipped to the perimeter's BOUNDING BOX.
+        If target_crs is provided, the tile is reprojected.
+        """
+        band_keys = {'red': ('B04', 'red'), 'green': ('B03', 'green'), 'blue': ('B02', 'blue')}
+        assets = {}
+        for band, keys in band_keys.items():
+            found_key = next((k for k in keys if k in item.assets), None)
+            if not found_key:
+                self.logger.warning(f'Warning: Could not find {band.capitalize()} band asset in STAC item \'{item.id}\'. Skipping this tile for RGB.')
+                return None, None
+            assets[band] = item.assets[found_key].href
+        aws_session = AWSSession(requester_pays=aws_requester_pays)
+        env_settings = rasterio.Env(session=aws_session, GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_DIR', CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif")
+        rgb_bands_data = []
+        with env_settings:
+            try:
+                with rasterio.open(assets['red']) as src_meta_check:
+                    raster_crs = src_meta_check.crs
+                    meta = src_meta_check.meta.copy()
+                    if perimeter_gdf.crs is None:
+                        perimeter_gdf_proj = perimeter_gdf.set_crs("EPSG:4326", allow_override=True).to_crs(raster_crs)
+                    else:
+                        perimeter_gdf_proj = perimeter_gdf.to_crs(raster_crs)
+
+                bbox = perimeter_gdf_proj.total_bounds
+                clip_geom = [box(*bbox)]
+
+                for band_name in ['red', 'green', 'blue']:
+                    with rasterio.open(assets[band_name]) as src:
+                        band_data, transform = rasterio.mask.mask(src, clip_geom, crop=True, nodata=0)
+                        rgb_bands_data.append(band_data[0])
+                final_transform = transform
+            except Exception as e:
+                self.logger.warning(f'Warning: Error reading/clipping RGB COG for item {item.id}. Skipping. Error: {e}')
+                return None, None
+
+        rgb_array = np.stack(rgb_bands_data, axis=0)
+        meta.update({"driver": "GTiff", "dtype": "uint16", "count": 3, "nodata": 0, "transform": final_transform, "width": rgb_array.shape[2], "height": rgb_array.shape[1]})
+
+        if not target_crs:
+            return rgb_array, meta
+
+        try:
+            src_bounds = array_bounds(meta['height'], meta['width'], meta['transform'])
+            dst_transform, dst_width, dst_height = calculate_default_transform(
+                meta['crs'], target_crs, meta['width'], meta['height'], *src_bounds
+            )
+            dst_meta = meta.copy()
+            dst_meta.update({'crs': target_crs, 'transform': dst_transform, 'width': dst_width, 'height': dst_height})
+            destination = np.empty((meta['count'], dst_height, dst_width), dtype=meta['dtype'])
+
+            reproject(
+                source=rgb_array,
+                destination=destination,
+                src_transform=meta['transform'],
+                src_crs=meta['crs'],
+                dst_transform=dst_transform,
+                dst_crs=target_crs,
+                resampling=Resampling.bilinear,
+                dst_nodata=0
+            )
+            return destination, dst_meta
+        except Exception as e:
+            self.logger.error(f'Error: Failed to reproject tile {item.id}. Skipping. Error: {e}')
+            return None, None
 
     @staticmethod
     def resample_raster_to_match(source_path, ref_transform, ref_crs, ref_width, ref_height) -> MemoryFile:
