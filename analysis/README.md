@@ -9,7 +9,7 @@ The `barc_analysis.py` script is the core of this project. It takes a fire numbe
 ## Technologies
 * rasterio
 * geopandas
-* STAC and Cloud Optimized GeoTif (COG)
+* STAC and Cloud Optimized Geoif (COG)
 * WFS
 
 ## 📂 Outputs
