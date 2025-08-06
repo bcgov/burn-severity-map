@@ -70,6 +70,9 @@ def get_input_parameters():
         args = parser.parse_args()
         if not args.output_folder and not args.object_storage:
             raise ValueError('An output folder and/or and the object storage folder must be indicated.  Use the -f and -o flags')
+        
+        if str(args.sensor) != 'S2':
+            raise AttributeError('The analysis can only use Sentinel 2 imagery at this time.  Please change the parameter to \'S2\'')
 
         logger = Environment.setup_logger(args)
 
@@ -77,6 +80,10 @@ def get_input_parameters():
 
     except ValueError as v:
         logging.error(f'Value Error: Missing arguments - {v}')
+        sys.exit(1)
+
+    except AttributeError as a:
+        logging.error(f'Sensor Error: Incorrect Sensor - {a}')
         sys.exit(1)
 
     except Exception as e:
@@ -316,8 +323,8 @@ class InterimBurnSeverity:
 
                 output_pre = f'{self.fire_year}-{fire_number}_pre_nbr.tif'
                 output_post = f'{self.fire_year}-{fire_number}_post_nbr.tif'
-                output_pre_rgb = f'{self.fire_year}-{fire_number}_pre_rgb.jpg'
-                output_post_rgb = f'{self.fire_year}-{fire_number}_post_rgb.jpg'
+                output_pre_rgb = f'{self.fire_year}-{fire_number}_pre_rgb.tif'
+                output_post_rgb = f'{self.fire_year}-{fire_number}_post_rgb.tif'
                 output_dnbr = f'{self.fire_year}-{fire_number}_dnbr.tif'
                 output_scaled = f'{self.fire_year}-{fire_number}_scaled_dnbr.tif'
                 output_barc = f'{self.fire_year}-{fire_number}_{pre_fire_date}_{post_fire_date}_{self.sensor}_barc.tif'
