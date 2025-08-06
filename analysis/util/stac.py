@@ -12,13 +12,12 @@ from shapely.geometry import shape, box
 import logging
 
 class STAC:
-    s2_url = 'https://earth-search.aws.element84.com/v1'
-    l8_url = ''
-    l9_url = ''
+    s2_stac_url = 'https://earth-search.aws.element84.com/v1'
+    ls_stac_url = 'https://planetarycomputer.microsoft.com/api/stac/v1'
+
 
     s2_collection_id = 'sentinel-2-l2a'
-    l8_collection_id = ''
-    l9_collection_id = ''
+    ls_collection_id = 'landsat-c2-l2'
 
     def __init__(self, logger: logging.Logger):
         self.logger = logger
@@ -30,8 +29,11 @@ class STAC:
                     cloud_cover_threshold: float) -> list:
 
         if sensor == 'S2':
-            stac_api_url = STAC.s2_url
+            stac_api_url = STAC.s2_stac_url
             collection_id = STAC.s2_collection_id
+        elif sensor == 'LS':
+            stac_api_url = STAC.ls_stac_url
+            collection_id = STAC.ls_collection_id
 
 
         try:
@@ -160,7 +162,7 @@ class STAC:
                           aws_requester_pays: bool = False,
                           run_type: str='pre'):
         datasets_to_merge = []
-        self.logger.info(f'    - Processing {len(stac_items)} tiles to create am RGB mosaic')
+        self.logger.info(f'    - Processing {len(stac_items)} tiles to create an RGB mosaic')
 
         for item in stac_items:
             rgb_array, meta = self.__calculate_rgb_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
@@ -224,6 +226,9 @@ class STAC:
         # Microsoft Planetary Computer STAC: 'B08', 'B12'
         if 'nir' in item.assets and 'swir22' in item.assets:
             nir_asset_key = 'nir'
+            swir_asset_key = 'swir22'
+        elif 'nir08' in item.assets and 'swir22' in item.assets:
+            nir_asset_key = 'nir08'
             swir_asset_key = 'swir22'
         elif 'B08' in item.assets and 'B12' in item.assets:
             nir_asset_key = 'B08'
