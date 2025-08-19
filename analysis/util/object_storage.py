@@ -1,7 +1,7 @@
 import boto3
 from botocore.client import Config
 import os
-
+from io import BytesIO
 import hashlib # Import hashlib for MD5 calculation
 
 class ObjectStorage:
@@ -66,3 +66,19 @@ class ObjectStorage:
                                   ChecksumAlgorithm='SHA256',
                                   ChecksumSHA256=local_sha256
                                   )
+    def write_pdf(self, file_path: str, pdf_buffer: BytesIO) -> bool:
+        pdf_buffer.seek(0)
+        hasher = hashlib.sha256()
+        hasher.update(pdf_buffer.getvalue())
+        pdf_buffer.seek(0)
+        local_sha256 = hasher.hexdigest()
+
+        self.s3_client.put_object(
+            Bucket=self.S3_BUCKET_NAME,
+            Key=f'{self.S3_RESULT_FOLDER}/{file_path}',
+            Body=pdf_buffer,
+            ContentType='application/pdf',
+            ChecksumAlgorithm='SHA256',
+            ChecksumSHA256=local_sha256
+        )
+        return True

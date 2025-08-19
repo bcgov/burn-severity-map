@@ -21,7 +21,7 @@ from util.classes import ImageMetadata, Fire
 from util.wfs import WFS
 from util.stac import STAC
 from util.object_storage import ObjectStorage
-
+from util.qgis_map_robot import bs_map_exporter
 
 import geopandas as gpd
 import pandas as pd
@@ -171,9 +171,6 @@ class InterimBurnSeverity:
         self.gdf_fires = None
         self.fire_boundary = None
 
-            
-
-
     def __del__(self) -> None:
         pass
 
@@ -196,7 +193,6 @@ class InterimBurnSeverity:
                 gdf_fires = gdf_fires.dissolve()
                 int_fire_count = gdf_fires.shape[0]
         return gdf_fires, int_fire_count
-
 
     def gather_spatial(self) -> None:
         self.logger.info(f'Extracting {self.fire_number} from current fire layer')
@@ -274,7 +270,6 @@ class InterimBurnSeverity:
                                                  post_start_date=post_start_date, post_end_date=post_end_date)
 
         return True
-
 
     def calculate_severity(self):
 
@@ -565,6 +560,7 @@ class InterimBurnSeverity:
         # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
         self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
         self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
+        
         # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
         if self.use_folder:
@@ -630,7 +626,7 @@ class InterimBurnSeverity:
         if self.use_storage and os_path:
             try:
                 zip_buffer.seek(0)
-                self.obj_storage.write_shape(file_path=f'{os_path}/{file_name.replace('.shp', '.zip')}', zip_buffer=zip_buffer)
+                self.obj_storage.write_shape(file_path=f'{os_path}/{file_name.replace(".shp", ".zip")}', zip_buffer=zip_buffer)
 
             except Exception as e:
                 self.logger.error(f'Error writing object storage file {os_path}: {e}')
@@ -673,6 +669,33 @@ class InterimBurnSeverity:
 
         except Exception as e:
             self.logger.error(f'An unexpected error occured during COG creation: {e}')
+
+    def wite_pdf_map(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> str:
+        temp_folder = os.getenv('TMPDIR','/tmp')
+        file='fire_bs.geojson'
+        try:
+            if folder_path and self.use_folder:
+                output = Path.joinpath(folder_path,file)
+            elif self.use_storage and os_path:
+                output = Path.joinpath(temp_folder,file)
+            export_bs = data.to_file(output, 'GeoJSON')
+            assert os.path.exists(output), f'Failed to find exported burn severity geojson: {output}'
+        except Exception as e:
+            self.logger.error(f'Error writing temp geojson file before map export: {e}')
+        try:
+            result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=export_bs,\
+                        output=output,layer_name='bs',layout_name='burnmap')
+        except Exception as e:
+            self.logger.error(f'Error exporting map: {e}')
+        
+        if self.use_storage and os_path:
+            try:
+                with open(result, 'rb') as f:
+                    pdf_bytes = f.read()
+                pdf_bites = BytesIO(pdf_bytes)
+                self.obj_storage.write_pdf(file_path=f'{os_path}/{file_name}', pdf_buffer=pdf_bites)
+            except Exception as e:
+                self.logger.error(f'Error writing object storage file {os_path}: {e}')    
 
 
     @staticmethod
