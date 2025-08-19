@@ -560,7 +560,7 @@ class InterimBurnSeverity:
         # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
         self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
         self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
-        
+        self.write_pdf_map(data=gpdf_4326,folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
         # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
         if self.use_folder:
@@ -670,7 +670,7 @@ class InterimBurnSeverity:
         except Exception as e:
             self.logger.error(f'An unexpected error occured during COG creation: {e}')
 
-    def wite_pdf_map(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> str:
+    def write_pdf_map(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> str:
         temp_folder = os.getenv('TMPDIR','/tmp')
         file='fire_bs.geojson'
         try:
@@ -684,7 +684,7 @@ class InterimBurnSeverity:
             self.logger.error(f'Error writing temp geojson file before map export: {e}')
         try:
             result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=export_bs,\
-                        output=output,layer_name='bs',layout_name='burnmap')
+                        output=Path(temp_folder,file_name),layer_name='bs',layout_name='burnmap')
         except Exception as e:
             self.logger.error(f'Error exporting map: {e}')
         
