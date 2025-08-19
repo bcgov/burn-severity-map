@@ -125,7 +125,8 @@ if __name__ == '__main__':
            "year": "2025",
            "sensor": "S2",
            "object_storage": true,
-           "cloud": "15"
+           "cloud": "15",
+           "e_date": "2025-08-04"
          }'
     """
 
