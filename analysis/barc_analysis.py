@@ -670,32 +670,47 @@ class InterimBurnSeverity:
         except Exception as e:
             self.logger.error(f'An unexpected error occured during COG creation: {e}')
 
-    def write_pdf_map(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> str:
-        temp_folder = os.getenv('TMPDIR','/tmp')
+    def write_pdf_map(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> bool:
+        '''
+        writes pdf map to file or object storage
+
+        '''
+        temp_folder = Path(os.getenv('TMPDIR','/tmp'))
         file='fire_bs.geojson'
-        try:
-            if folder_path and self.use_folder:
-                output = Path.joinpath(folder_path,file)
-            elif self.use_storage and os_path:
-                output = Path.joinpath(temp_folder,file)
-            export_bs = data.to_file(output, 'GeoJSON')
-            assert os.path.exists(output), f'Failed to find exported burn severity geojson: {output}'
-        except Exception as e:
-            self.logger.error(f'Error writing temp geojson file before map export: {e}')
-        try:
-            result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=export_bs,\
-                        output=Path(temp_folder,file_name),layer_name='bs',layout_name='burnmap')
-        except Exception as e:
-            self.logger.error(f'Error exporting map: {e}')
+        # setup paths 
+        # TODO: Fix this logic to fit combinations of local and object storage exports
+        if folder_path and self.use_folder:
+            folder_path = Path(folder_path)
+            output_geojson = folder_path.joinpath(file)
+            temp_pdf = temp_folder.joinpath(file_name)
+        elif self.use_storage and os_path:
+            output_geojson = temp_folder.joinpath(file)
+            temp_pdf = temp_folder.joinpath(file_name)
+
+        # export geojson for map layer new datasource
+        data.to_file(output_geojson, 'GeoJSON')
+        assert os.path.exists(output_geojson), f'Failed to find exported burn severity geojson: {output_geojson}'
+     
+        # create pdf map using qgis template
+        result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson),\
+                    output=str(temp_pdf),layer_name='bs',layout_name='burnmap')
         
-        if self.use_storage and os_path:
-            try:
-                with open(result, 'rb') as f:
-                    pdf_bytes = f.read()
-                pdf_bites = BytesIO(pdf_bytes)
-                self.obj_storage.write_pdf(file_path=f'{os_path}/{file_name}', pdf_buffer=pdf_bites)
-            except Exception as e:
-                self.logger.error(f'Error writing object storage file {os_path}: {e}')    
+        # write bs pdf to objectstore
+        if self.use_storage:
+            with open(result, 'rb') as f:
+                pdf_bytes = f.read()
+            pdf_bites = BytesIO(pdf_bytes)
+            obj_store_path = f'{os_path}/{file_name}'
+            self.obj_storage.write_pdf(file_path=obj_store_path, pdf_buffer=pdf_bites)          
+            self.logger.info(f'Exported pdf to object storage {obj_store_path}')
+        else:
+            self.logger.info(f'Exported pdf to {temp_pdf}')
+        # cleanup
+        if os.path.exists(output_geojson):
+            os.remove(output_geojson)
+        if os.path.exists(temp_pdf):
+            os.remove(temp_pdf)
+        return True
 
 
     @staticmethod

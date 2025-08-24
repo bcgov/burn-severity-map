@@ -21,23 +21,28 @@ COPY . .
 # Install Python dependencies
 RUN pip3 install --break-system-packages -r requirements.txt
 
+# Install debugpy for remote debugging
+RUN pip3 install --break-system-packages debugpy
+
 # ENV
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV QT_QPA_PLATFORM=offscreen
 ENV PYTHONPATH=/usr/share/qgis/python
-ENV TMPDIR=/app/tmp
+ENV TMPDIR=/tmp
 
 # Create a non-root user and group
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 # Create app and temp directories with proper permissions
 WORKDIR /app
-RUN mkdir -p /app/tmp && chown -R appuser:appgroup /app
+#RUN mkdir -p /app/tmp && chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser
 
 # Set the entrypoint to run the script
 CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+#CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "--wait-for-client", "barc_analysis.py", "K51121", "2025", "S2", "-o", "-c", "15", "-e", "2025-08-04"]
+
 
