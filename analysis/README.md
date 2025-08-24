@@ -53,7 +53,7 @@ To run this project install the dependencies using uv
 2.  **Start the analysis container**
     ```bash
     podman build -t bstool .
-    podman run -p 5000:5000 bstool --env-file=../.env
+    podman run -p 5000:5000  --env-file=../.env bstool
     ```
 
 ## 🚀Usage
