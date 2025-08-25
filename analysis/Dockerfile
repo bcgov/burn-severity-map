@@ -22,7 +22,8 @@ COPY . .
 RUN pip3 install --break-system-packages -r requirements.txt
 
 # Install debugpy for remote debugging
-RUN pip3 install --break-system-packages debugpy
+RUN pip3 install --break-system-packages debugpy && \
+    pip3 install --break-system-packages gunicorn==23.0.0
 
 # ENV
 ENV PYTHONDONTWRITEBYTECODE=1
