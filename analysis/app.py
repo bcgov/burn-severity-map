@@ -5,7 +5,7 @@
 
 from flask import Flask, request, jsonify
 import subprocess
-
+import traceback
 # Initialize the Flask application
 app = Flask(__name__)
 
@@ -103,7 +103,8 @@ def run_analysis_endpoint():
         }), 500 # 500 Internal Server Error
     except Exception as e:
         # Handle other potential errors, such as failing to start the subprocess
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+        print(traceback.format_exc())  # Log the traceback to stdout (or use logging)
+        return jsonify({"error": "An unexpected error occurred."}), 500
 @app.route('/health', methods=['GET'])
 def health_check():
     """
