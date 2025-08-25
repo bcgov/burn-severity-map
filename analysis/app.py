@@ -4,8 +4,11 @@
 
 
 from flask import Flask, request, jsonify
+import re
 import subprocess
 import traceback
+from datetime import datetime
+
 # Initialize the Flask application
 app = Flask(__name__)
 
@@ -43,16 +46,43 @@ def run_analysis_endpoint():
         return jsonify({"error": "Invalid JSON"}), 400
 
     # Extract parameters from the JSON payload
-    fire = data.get('fire')
-    year = data.get('year')
-    sensor = data.get('sensor')
-    s_date = data.get('s_date')
-    e_date = data.get('e_date')
-    cloud = data.get('cloud', '10')
+    fire = data.get('fire') # fire number in the format like N51605 where the fire number allways is a alphabetical character followed by 5 numbers
+    year = data.get('year') # fire year ranging from 2020 to current year
+    sensor = data.get('sensor') # must be from a list of  ['S2'] may be expanded to include Landsat
+    s_date = data.get('s_date') # date in format "2025-08-04"
+    e_date = data.get('e_date') # date in format "2025-08-04"
+    cloud = data.get('cloud', '10') # number in range 0:100
 
-    # Validate required parameters
-    if not all([fire, year, sensor]):
-        return jsonify({"error": "Missing required parameters: fire, year, and sensor are required."}), 400
+    # Validate fire format: one letter followed by 5 digits
+    if not fire or not re.match(r'^[A-Za-z]\d{5}$', fire):
+        return jsonify({"error": "Invalid fire format. Expected format: A12345"}), 400
+
+    # Validate year
+    current_year = datetime.now().year
+    if not isinstance(year, int) or not (2020 <= year <= current_year):
+        return jsonify({"error": f"Invalid year. Must be between 2020 and {current_year}."}), 400
+
+    # Validate sensor
+    allowed_sensors = ['S2']  # Expand this list as needed
+    if sensor not in allowed_sensors:
+        return jsonify({"error": f"Invalid sensor. Allowed values: {allowed_sensors}"}), 400
+
+    # Validate dates
+    date_format = "%Y-%m-%d"
+    for date_label, date_value in [('s_date', s_date), ('e_date', e_date)]:
+        if date_value:
+            try:
+                datetime.strptime(date_value, date_format)
+            except ValueError:
+                return jsonify({"error": f"Invalid {date_label}. Expected format: YYYY-MM-DD"}), 400
+
+    # Validate cloud percentage
+    try:
+        cloud = int(cloud)
+        if not (0 <= cloud <= 100):
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": "Cloud must be an integer between 0 and 100."}), 400
 
     # Construct the command to run the analysis script
     command = [
