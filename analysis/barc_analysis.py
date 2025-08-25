@@ -21,7 +21,7 @@ from util.classes import ImageMetadata, Fire
 from util.wfs import WFS
 from util.stac import STAC
 from util.object_storage import ObjectStorage
-
+from util.qgis_map_robot import bs_map_exporter
 
 import geopandas as gpd
 import pandas as pd
@@ -70,6 +70,9 @@ def get_input_parameters():
         args = parser.parse_args()
         if not args.output_folder and not args.object_storage:
             raise ValueError('An output folder and/or and the object storage folder must be indicated.  Use the -f and -o flags')
+        
+        if str(args.sensor) != 'S2':
+            raise AttributeError('The analysis can only use Sentinel 2 imagery at this time.  Please change the parameter to \'S2\'')
 
         logger = Environment.setup_logger(args)
 
@@ -77,6 +80,10 @@ def get_input_parameters():
 
     except ValueError as v:
         logging.error(f'Value Error: Missing arguments - {v}')
+        sys.exit(1)
+
+    except AttributeError as a:
+        logging.error(f'Sensor Error: Incorrect Sensor - {a}')
         sys.exit(1)
 
     except Exception as e:
@@ -164,9 +171,6 @@ class InterimBurnSeverity:
         self.gdf_fires = None
         self.fire_boundary = None
 
-            
-
-
     def __del__(self) -> None:
         pass
 
@@ -189,7 +193,6 @@ class InterimBurnSeverity:
                 gdf_fires = gdf_fires.dissolve()
                 int_fire_count = gdf_fires.shape[0]
         return gdf_fires, int_fire_count
-
 
     def gather_spatial(self) -> None:
         self.logger.info(f'Extracting {self.fire_number} from current fire layer')
@@ -268,7 +271,6 @@ class InterimBurnSeverity:
 
         return True
 
-
     def calculate_severity(self):
 
         stac = STAC(logger=self.logger)
@@ -316,8 +318,8 @@ class InterimBurnSeverity:
 
                 output_pre = f'{self.fire_year}-{fire_number}_pre_nbr.tif'
                 output_post = f'{self.fire_year}-{fire_number}_post_nbr.tif'
-                output_pre_rgb = f'{self.fire_year}-{fire_number}_pre_rgb.jpg'
-                output_post_rgb = f'{self.fire_year}-{fire_number}_post_rgb.jpg'
+                output_pre_rgb = f'{self.fire_year}-{fire_number}_pre_rgb.tif'
+                output_post_rgb = f'{self.fire_year}-{fire_number}_post_rgb.tif'
                 output_dnbr = f'{self.fire_year}-{fire_number}_dnbr.tif'
                 output_scaled = f'{self.fire_year}-{fire_number}_scaled_dnbr.tif'
                 output_barc = f'{self.fire_year}-{fire_number}_{pre_fire_date}_{post_fire_date}_{self.sensor}_barc.tif'
@@ -558,6 +560,7 @@ class InterimBurnSeverity:
         # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
         self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
         self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
+        self.write_pdf_map(data=gpdf_4326,folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
         # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
         if self.use_folder:
@@ -623,7 +626,7 @@ class InterimBurnSeverity:
         if self.use_storage and os_path:
             try:
                 zip_buffer.seek(0)
-                self.obj_storage.write_shape(file_path=f'{os_path}/{file_name.replace('.shp', '.zip')}', zip_buffer=zip_buffer)
+                self.obj_storage.write_shape(file_path=f'{os_path}/{file_name.replace(".shp", ".zip")}', zip_buffer=zip_buffer)
 
             except Exception as e:
                 self.logger.error(f'Error writing object storage file {os_path}: {e}')
@@ -666,6 +669,48 @@ class InterimBurnSeverity:
 
         except Exception as e:
             self.logger.error(f'An unexpected error occured during COG creation: {e}')
+
+    def write_pdf_map(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> bool:
+        '''
+        writes pdf map to file or object storage
+
+        '''
+        temp_folder = Path(os.getenv('TMPDIR','/tmp'))
+        file='fire_bs.geojson'
+        # setup paths 
+        # TODO: Fix this logic to fit combinations of local and object storage exports
+        if folder_path and self.use_folder:
+            folder_path = Path(folder_path)
+            output_geojson = folder_path.joinpath(file)
+            temp_pdf = temp_folder.joinpath(file_name)
+        elif self.use_storage and os_path:
+            output_geojson = temp_folder.joinpath(file)
+            temp_pdf = temp_folder.joinpath(file_name)
+
+        # export geojson for map layer new datasource
+        data.to_file(output_geojson, 'GeoJSON')
+        assert os.path.exists(output_geojson), f'Failed to find exported burn severity geojson: {output_geojson}'
+     
+        # create pdf map using qgis template
+        result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson),\
+                    output=str(temp_pdf),layer_name='bs',layout_name='burnmap')
+        
+        # write bs pdf to objectstore
+        if self.use_storage:
+            with open(result, 'rb') as f:
+                pdf_bytes = f.read()
+            pdf_bites = BytesIO(pdf_bytes)
+            obj_store_path = f'{os_path}/{file_name}'
+            self.obj_storage.write_pdf(file_path=obj_store_path, pdf_buffer=pdf_bites)          
+            self.logger.info(f'Exported pdf to object storage {obj_store_path}')
+        else:
+            self.logger.info(f'Exported pdf to {temp_pdf}')
+        # cleanup
+        if os.path.exists(output_geojson):
+            os.remove(output_geojson)
+        if os.path.exists(temp_pdf):
+            os.remove(temp_pdf)
+        return True
 
 
     @staticmethod
