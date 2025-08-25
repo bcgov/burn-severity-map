@@ -8,8 +8,10 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
+  getAccessToken: () => Promise<string | null>;
   isLoadingAuth: boolean;
   authError: Error | null;
+  
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -120,10 +122,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    const currentUser = await userManager.getUser();
+    if (currentUser && !currentUser.expired) {
+      return currentUser.access_token;
+    }
+    return null;
+  }, []);
+
   const isAuthenticated = !!user && !user.expired; // Derive isAuthenticated
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, isLoadingAuth, authError }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, getAccessToken, isLoadingAuth, authError }}>
       {children}
     </AuthContext.Provider>
   );

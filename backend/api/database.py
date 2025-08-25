@@ -1,64 +1,38 @@
+import duckdb
 import os
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import declarative_base
 
-# --- Configuration ---
-# Replace with your actual PostgreSQL connection string
-# Format: "postgresql+asyncpg://username:password@host:port/database_name"
-DATABASE_URL = f"postgresql+asyncpg://{os.getenv('POSTGRES_USER')}:{os.getenv("POSTGRES_PASSWORD")}@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DATABASE')}"
-# It's often better to load this from environment variables or a config file in real projects.
-print (DATABASE_URL)
-# Create the SQLAlchemy asynchronous engine
-async_engine = create_async_engine(
-    DATABASE_URL,
-    echo=True,  # Set to False in production for less verbose logging
-    # future=True # Included by default in SQLAlchemy 2.0
-)
+# Optional: Load environment variables for S3 credentials
+S3_ENDPOINT = os.getenv("S3_ENDPOINT").replace("https://","").replace(":443","")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
-# Create a base class for declarative class definitions
-Base = declarative_base()
+PARQUET_KEY = os.getenv("PARQUET_PATH")
+PARQUET_PATH = f's3://{S3_BUCKET_NAME}/{PARQUET_KEY}'
 
-# Create an asynchronous session factory
-AsyncSessionLocal = async_sessionmaker(
-    bind=async_engine,
-    expire_on_commit=False,  # Good default for FastAPI usage
-    class_=AsyncSession       # Use AsyncSession for the session class
-)
+# Initialize DuckDB connection
+con = duckdb.connect(database=':memory:')
+con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute("INSTALL spatial; LOAD spatial;")
 
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+# Configure S3 access
+con.execute(f"SET s3_access_key_id='{S3_ACCESS_KEY}';")
+con.execute(f"SET s3_secret_access_key='{S3_SECRET_KEY}';")
+con.execute(f"SET s3_endpoint='{S3_ENDPOINT}';")
+con.execute("SET s3_url_style='path';")
+
+def get_unique_fire_numbers():
+    query = f"""
+        SELECT DISTINCT FIRE_NUMBER
+        FROM '{PARQUET_PATH}'
+        ORDER BY FIRE_NUMBER
     """
-    Dependency that provides an asynchronous database session per request.
-    Ensures the session is properly closed after the request.
-    """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            # For a "read" operation, commit might not be necessary.
-            # For "write" operations, if the endpoint logic itself doesn't commit,
-            # this commit here might be too broad.
-            # Typically, explicit commits are done in the endpoint/service layer
-            # right after successful write operations.
-            # For simplicity in the original example, a commit was placed here.
-            # Consider if you want a commit here or in the endpoint logic.
-            # If you handle transactions per endpoint, you might not need commit() here.
-            # await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    return [row[0] for row in con.execute(query).fetchall()]
 
-async def create_db_and_tables():
+def get_fire_features(fire_number: str):
+    query = f"""
+        SELECT ST_AsGeoJSON(geometry) AS geometry, *
+        FROM '{PARQUET_PATH}'
+        WHERE FIRE_NUMBER = ?
     """
-    Asynchronously creates all database tables defined by Base.metadata.
-    This is typically called once on application startup.
-    For production, consider using Alembic for migrations.
-    """
-    async with async_engine.begin() as conn:
-        # This will create the "burn_class_enum_type" ENUM type in PostgreSQL
-        # (if defined in your models and not already existing)
-        # and then the tables.
-        # await conn.run_sync(Base.metadata.drop_all) # Uncomment to drop all tables (for testing)
-        await conn.run_sync(Base.metadata.create_all)
-    print("Database tables checked/created.")
+    return con.execute(query, [fire_number]).fetchdf()

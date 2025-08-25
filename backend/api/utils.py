@@ -28,7 +28,7 @@ def s3_list_objects(bucket_name=S3_BUCKET_NAME, file_prefix=""):
     """Lists files in an S3-compliant bucket with an optional prefix."""
     obj_list = []
     try:
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=file_prefix)
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"burn-severity/{file_prefix}")
         if 'Contents' in response:
             print(f"Files in bucket '{bucket_name}' (prefix: '{file_prefix}'):")
             for obj in response['Contents']:

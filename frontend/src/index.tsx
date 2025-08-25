@@ -15,7 +15,7 @@ import { PageHeader, PageFooter } from "./components/bcgov-components";
 import LandingPage from "./pages/LandingPage"; // main page visable to all users
 import BurnSeverity from "./pages/burn-severity";
 import Callback from './pages/Callback'; // Your OIDC callback page
-import NBRMap from './pages/NBRMap';
+
 
 import ProtectedRoute from './auth/ProtectedRoute'; // Your protected route component
 
@@ -35,7 +35,6 @@ const App: React.FC = () => {
 
           {/* Protected Routes */}
           {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
-          <Route path="/nbr" element={<NBRMap />} />
           <Route path="/burn-severity" element={<BurnSeverity />} />
           {/* Fallback for unknown routes */}
           <Route path="*" element={<p>404 Not Found</p>} />
