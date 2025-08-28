@@ -25,6 +25,14 @@ x-backend-vars: &backend-vars
 
 
 services:
+  frontend:
+    image: burn-sev-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend-bs
+    ports:
+      - "8080:8080"
 
   fastapi-backend:
     image: burn-sev-backend:latest
