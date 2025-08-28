@@ -1,6 +1,5 @@
 # Reusable vars
 x-var:
-
   - &BACKEND_PORT
     ${BACKEND_PORT}
   - &S3_ENDPOINT
@@ -14,7 +13,6 @@ x-var:
   - &PARQUET_PATH
     ${PARQUET_PATH}
 
-
 x-backend-vars: &backend-vars
   BACKEND_PORT: *BACKEND_PORT
   S3_ENDPOINT: *S3_ENDPOINT
@@ -22,7 +20,6 @@ x-backend-vars: &backend-vars
   S3_SECRET_KEY: *S3_SECRET_KEY
   S3_BUCKET_NAME: *S3_BUCKET_NAME
   PARQUET_PATH: *PARQUET_PATH
-
 
 services:
   frontend:
@@ -50,6 +47,12 @@ services:
       - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8080:8080"
+
   analysis-backend:
     image: analysis-backend:latest
     build:
@@ -66,6 +69,7 @@ services:
       - analysis-data:/app/data
     command: ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
        
+
 volumes:
   backend-data:
   analysis-data:
