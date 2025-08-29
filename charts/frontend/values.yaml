@@ -46,11 +46,11 @@ frontend:
     # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
     type: ClusterIP
     # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-    port: 3000 # this is the service port, where it will be exposed internally to the namespace
-    targetPort: 3000 # this is the container port where the app listens on
+    port: 8080 # this is the service port, where it will be exposed internally to the namespace
+    targetPort: 8080 # this is the container port where the app listens on
   route:
     timeout: 300s
-    targetPort: 3000 # match the service
+    targetPort: 8080 # match the service
   # add pdb??? 
   configMap:
     enabled: true
@@ -80,6 +80,14 @@ frontend:
     #    hosts:
     #      - chart-example.local
 
+  securityContext:
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
 # serviceAccount:
 #   # Specifies whether a service account should be created
@@ -101,14 +109,6 @@ frontend:
 
 # podSecurityContext: {}
 #   # fsGroup: 2000
-
-# securityContext: {}
-#   # capabilities:
-#   #   drop:
-#   #   - ALL
-#   # readOnlyRootFilesystem: true
-#   # runAsNonRoot: true
-#   # runAsUser: 1000
 
 # resources:
 #   limits:
