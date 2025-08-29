@@ -28,6 +28,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: frontend-bs
+    depends_on:
+      - fastapi-backend
     ports:
       - "8080:8080"
 
@@ -46,12 +48,6 @@ services:
     volumes:
       - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "8080:8080"
 
   analysis-backend:
     image: analysis-backend:latest
