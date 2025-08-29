@@ -1,0 +1,19 @@
+name: Build and Publish
+on:
+  workflow_dispatch:
+
+jobs:
+  builds:
+    name: Builds
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        package: [frontend]
+    timeout-minutes: 10
+    steps:
+      - uses: bcgov-nr/action-builder-ghcr@v2.3.0
+        with:
+          keep_versions: 5
+          package: ${{ matrix.package }}
+          tag: latest
+          tag_fallback: latest
