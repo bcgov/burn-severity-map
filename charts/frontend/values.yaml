@@ -36,10 +36,10 @@ frontend:
   resources:
     limits:
       cpu: 250m
-      memory: 500Mi
+      memory: 750Mi
     requests:
       cpu: 250m
-      memory: 750Mi
+      memory: 500Mi
 
   # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
   service:
@@ -54,6 +54,14 @@ frontend:
   # add pdb??? 
   configMap:
     enabled: true
+
+  # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
 
   # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
   ingress:
@@ -119,14 +127,6 @@ frontend:
 #   httpGet:
 #     path: /
 #     port: http
-
-# # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
-# autoscaling:
-#   enabled: true
-#   minReplicas: 3
-#   maxReplicas: 7
-#   targetCPUUtilizationPercentage: 80
-#   # targetMemoryUtilizationPercentage: 80
 
 # # Additional volumes on the output Deployment definition.
 # volumes: []
