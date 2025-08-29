@@ -1,0 +1,18 @@
+# Cadyfile -- does not reverse proxy correctly curl -i  http://localhost:8080/pg-bs/docs
+:8080 {
+    root * /usr/share/caddy
+
+    route {
+        # Reverse proxy API calls
+        handle_path /pg-bs/* {
+            reverse_proxy fastapi-backend:8000
+        }
+
+        # Serve static frontend files
+        handle {
+            try_files {path} /index.html
+            file_server
+        }
+    }
+}
+
