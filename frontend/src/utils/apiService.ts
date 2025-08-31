@@ -1,3 +1,4 @@
+// apiService.ts
 import userManager from '../auth/authService';
 
 // documents returned by getFireDocuments
@@ -9,6 +10,7 @@ export interface Document {
 
 // Define your API's base URL. It's good practice to have this in an environment variable.
 const API_BASE_URL = 'http://localhost:8080/pg-bs'; // Your FastAPI backend URL
+const ANALYSIS_API_BASE_URL = 'http://localhost:5000'
 /**
  * A wrapper around the native fetch function that automatically adds the
  * OIDC Authorization header to API requests.
@@ -61,11 +63,58 @@ async function authedFetch(endpoint: string, options: RequestInit = {}): Promise
 
 // --- Define your specific API functions here ---
 
+
+export interface HealthResponse {
+  status: 'ok' | 'degraded' | 'unreachable';
+  object_storage: 'connected' | 'unreachable';
+  analysis_backend: 'ok' | 'degraded' | 'unreachable';
+}
+
+/**
+ * Fetches system health status from both FastAPI and Analysis backend.
+ * Unprotected endpoint
+ */
+export const fetchHealth = async (): Promise<HealthResponse> => {
+  try {
+    // Fetch FastAPI backend health
+    const backendResponse = await fetch(`${API_BASE_URL}/health`);
+    if (!backendResponse.ok) {
+      throw new Error(`Backend health check failed with status ${backendResponse.status}`);
+    }
+    const backendHealth = await backendResponse.json();
+
+    // Fetch Analysis backend health
+    const analysisResponse = await fetch(`${ANALYSIS_API_BASE_URL}/health`);
+    if (!analysisResponse.ok) {
+      throw new Error(`Analysis health check failed with status ${analysisResponse.status}`);
+    }
+    const analysisHealth = await analysisResponse.json();
+
+    // Combine both responses
+    const combinedHealth: HealthResponse = {
+      status: backendHealth.status,
+      object_storage: backendHealth.object_storage,
+      analysis_backend: analysisHealth.status,
+    };
+
+    return combinedHealth;
+  } catch (error) {
+    console.error('Health check error:', error);
+    return {
+      status: 'unreachable',
+      object_storage: 'unreachable',
+      analysis_backend: 'unreachable',
+    };
+  }
+};
+
+
 /**
  * Fetches the features for a specific fire number.
  * @param fireNumber The fire number to look up.
  * @returns A Promise that resolves to the feature collection data.
  */
+
 export const getFireData = async (fireNumber: string) => {
   const response = await authedFetch(`/burn-severity/${fireNumber}`);
   if (!response.ok) {
