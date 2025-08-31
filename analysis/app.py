@@ -4,6 +4,7 @@
 
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import re
 import subprocess
 import traceback
@@ -11,6 +12,7 @@ from datetime import datetime
 
 # Initialize the Flask application
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:8080"])
 
 def run_script(command):
     """

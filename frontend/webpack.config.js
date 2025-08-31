@@ -23,7 +23,13 @@ const config = {
         target: 'http://localhost:8000',
         changeOrigin: true,
         pathRewrite: { '^/pg-bs': '' },
+      },
+      {
+        context: ['/healthcheck', '/run-analysis'],
+        target: 'http://localhost:5000',
+        changeOrigin: true
       }
+
     ],
     historyApiFallback: true,
   },

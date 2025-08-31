@@ -39,6 +39,8 @@ cligj==0.7.2
     # via rasterio
 flask==3.1.1
     # via analysis (pyproject.toml)
+flask-cors==6.0.1
+    # via analysis (pyproject.toml)
 geopandas==1.1.1
     # via analysis (pyproject.toml)
 idna==3.10
