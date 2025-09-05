@@ -25,6 +25,8 @@ COPY --from=builder /app/dist /usr/share/caddy
 
 # Copy the Caddyfile
 COPY Caddyfile /etc/caddy/Caddyfile
+RUN chown -R caddy:caddy /data /config /etc/caddy
+USER caddy
 
 # Run as root (safe in containerized environments unless restricted)
 USER root
