@@ -28,4 +28,4 @@ COPY Caddyfile /etc/caddy/Caddyfile
 RUN chmod -R 777 /data /config
 
 # Run as root (safe in containerized environments unless restricted)
-# USER root
+USER root
