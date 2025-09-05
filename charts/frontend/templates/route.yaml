@@ -7,7 +7,7 @@ metadata:
   annotations:
     haproxy.router.openshift.io/timeout: {{ .Values.frontend.route.timeout }}
 spec:
-  host: {{ include "charts.fullname" . }}.{{ .Values.domain }}
+  host: {{ include "charts.fullname" . }}.{{ .Values.frontend.domain }}
   port:
     targetPort: {{ .Values.frontend.route.targetPort }}
   to:

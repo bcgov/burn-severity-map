@@ -75,6 +75,10 @@ frontend:
     # readOnlyRootFilesystem: true
     runAsNonRoot: true
     allowPrivilegeEscalation: false
+    # make sure the pod/container runs as UID 1000 (the default for Caddy) and has write permissions
+    runAsUser: 1000 
+    runAsGroup: 1000
+    fsGroup: 1000
 
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
 # serviceAccount:
