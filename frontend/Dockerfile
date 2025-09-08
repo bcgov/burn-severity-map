@@ -14,8 +14,7 @@ FROM caddy:alpine
 RUN apk add --no-cache ca-certificates curl
 
 # Copy the built frontend files
-# COPY --from=builder /app/dist /usr/share/caddy
-COPY --from=builder /app/dist/browser /srv
+COPY --from=builder /app/dist /usr/share/caddy
 
 # Copy the Caddyfile
 COPY Caddyfile /etc/caddy/Caddyfile
