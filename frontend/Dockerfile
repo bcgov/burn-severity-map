@@ -17,20 +17,22 @@ RUN apk add --no-cache curl libcap
 # This may fail in some environments, so we make it non-fatal
 RUN setcap -r /usr/bin/caddy || echo "setcap failed (non-fatal in buildx)"
 
-# Create necessary directories
-RUN mkdir -p /config/caddy /data/caddy
+# Create necessary directories and set ownership
+RUN mkdir -p /config/caddy /data/caddy/locks \
+    && addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser \
+    && chown -R appuser:appgroup /config /data /usr/share/caddy
 
 # Copy the built frontend files
 COPY --from=builder /app/dist /usr/share/caddy
 
 # Copy the Caddyfile
-COPY Caddyfile /etc/caddy/Caddyfile
+COPY --chown=appuser:appgroup Caddyfile /etc/caddy/Caddyfile
 
 # Create a non-root user and group
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+# RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
-# Run as root (safe in containerized environments unless restricted)
-# USER appuser
+# Run as appuser (non-root) (safe in containerized environments unless restricted)
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost/ || exit 1
