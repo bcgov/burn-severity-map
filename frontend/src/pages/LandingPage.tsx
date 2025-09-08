@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom'; // React Router component for client-side navigation
 import "./LandingPage.scss"; // SCSS styles specific to the landing page
 import { useAuth } from '../auth/AuthContext';
+import HealthStatus from '../components/HealthStatus';
 
 // Functional component for the landing (home) page
 const LandingPage = () => {
@@ -26,8 +27,14 @@ const LandingPage = () => {
         </>
       )}
       
+
+      {/* Health status display */}
+      <div style={{ marginTop: '2rem' }}>
+        <HealthStatus />
+      </div>
     </div>
   );
 };
 
-export default LandingPage;
+export default LandingPage
+

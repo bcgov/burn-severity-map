@@ -11,7 +11,7 @@ from oidc.oidcAuthorize import verify_token
 #     load_dotenv(dotenv_path="../../.env")
 
 from utils import s3_get_presigned_url, s3_list_objects
-from database import get_unique_fire_numbers, get_fire_features
+from database import get_unique_fire_numbers, get_fire_features,check_connection
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
 
 app = FastAPI(title="Burn Severity API", version="1.0")
@@ -98,3 +98,12 @@ async def download_file(fire_number:str, token_payload: dict = Depends(verify_to
     
     return JSONResponse({"files": files})
 
+@app.get("/health", summary="Health Check", tags=["Monitoring"])
+async def health_check():
+    db_status = check_connection()
+
+    status = {
+        "status":"ok" if db_status else "degraded",
+        "object_storage": "connected" if db_status else "unreachable"
+    }
+    return JSONResponse(content=status, status_code=200 if db_status else 503)
