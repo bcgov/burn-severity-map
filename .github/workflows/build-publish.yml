@@ -11,6 +11,11 @@ jobs:
         package: [frontend]
     timeout-minutes: 10
     steps:
+      - name: Checkout specific branch (helm-chart)
+        uses: actions/checkout@v4
+        with:
+          ref: helm-chart
+
       - uses: bcgov-nr/action-builder-ghcr@v2.3.0
         with:
           keep_versions: 5
