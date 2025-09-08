@@ -25,7 +25,12 @@ COPY --from=builder /app/dist /usr/share/caddy
 
 # Copy the Caddyfile
 COPY Caddyfile /etc/caddy/Caddyfile
-RUN chmod -R 777 /data /config
+
+# Create a non-root user and group
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 # Run as root (safe in containerized environments unless restricted)
-USER root
+# USER appuser
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost/ || exit 1
