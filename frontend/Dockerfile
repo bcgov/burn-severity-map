@@ -14,11 +14,13 @@ FROM caddy:alpine
 RUN apk add --no-cache ca-certificates curl
 
 # Copy the built frontend files
-COPY --from=builder /app/dist /usr/share/caddy
+# COPY --from=builder /app/dist /usr/share/caddy
+COPY --from=builder /app/dist/browser /srv
 
 # Copy the Caddyfile
 COPY Caddyfile /etc/caddy/Caddyfile
 
+# format the Caddyfile
 RUN caddy fmt --overwrite /etc/caddy/Caddyfile
 
 # Ports, healthcheck, non-root user
