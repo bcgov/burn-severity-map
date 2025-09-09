@@ -51,6 +51,7 @@ frontend:
   route:
     timeout: 300s
     targetPort: 8080 # match the service
+  domain: "apps.silver.devops.gov.bc.ca" # silver cluster
   # add pdb??? 
   configMap:
     enabled: true
@@ -63,11 +64,6 @@ frontend:
     targetCPUUtilizationPercentage: 80
     # targetMemoryUtilizationPercentage: 80
 
-  route:
-    timeout: 300s
-    targetPort: 8080 # match the service
-  domain: "apps.silver.devops.gov.bc.ca" # silver cluster
-
   securityContext:
     # capabilities:
     #   drop:
@@ -79,6 +75,13 @@ frontend:
     # runAsUser: 1000 
     # runAsGroup: 1000
     # fsGroup: 1000
+
+  # Additional volumes on the output Deployment definition.
+  volumes: 
+  - name: data
+    emptyDir: {}
+  - name: config
+    emptyDir: {}
 
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
 # serviceAccount:
@@ -119,13 +122,6 @@ frontend:
 #   httpGet:
 #     path: /
 #     port: http
-
-# # Additional volumes on the output Deployment definition.
-# volumes: []
-# # - name: foo
-# #   secret:
-# #     secretName: mysecret
-# #     optional: false
 
 # # Additional volumeMounts on the output Deployment definition.
 # volumeMounts: []
