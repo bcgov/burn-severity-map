@@ -76,6 +76,12 @@ frontend:
     # runAsGroup: 1000
     # fsGroup: 1000
 
+  # Additional volumeMounts on the output Deployment definition.
+  volumeMounts:
+  - name: data
+    mountPath: /data
+  - name: config
+    mountPath: /config
   # Additional volumes on the output Deployment definition.
   volumes: 
   - name: data
@@ -122,12 +128,6 @@ frontend:
 #   httpGet:
 #     path: /
 #     port: http
-
-# # Additional volumeMounts on the output Deployment definition.
-# volumeMounts: []
-# # - name: foo
-# #   mountPath: "/etc/foo"
-# #   readOnly: true
 
 # nodeSelector: {}
 
