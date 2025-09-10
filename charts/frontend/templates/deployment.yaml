@@ -1,12 +1,14 @@
+{{- if .Values.frontend.enabled}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "charts.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "charts.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.frontend.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.frontend.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
@@ -29,12 +31,11 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
-          {{- with .Values.frontend.securityContext }}
           securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            capabilities:
+              add: [ "NET_BIND_SERVICE" ]
           image: "{{ .Values.frontend.image.registry }}/{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          imagePullPolicy: {{ default "Always" .Values.frontend.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.frontend.service.port }}
@@ -71,3 +72,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
