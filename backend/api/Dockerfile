@@ -4,10 +4,11 @@ FROM python:3.12-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
 
 # Download the 0.7.9 installer
-ADD https://astral.sh/uv/0.7.9/install.sh /uv-installer.sh
+#ADD https://astral.sh/uv/0.7.9/install.sh /uv-installer.sh
 
-# Run the installer then remove it
-RUN sh /uv-installer.sh --global && rm /uv-installer.sh
+## Run the installer then remove it
+# RUN sh /uv-installer.sh --global && rm /uv-installer.sh
+RUN curl -sSf https://astral.sh/uv/install.sh | sh -s -- --global
 
 # Ensure the installed binary is on the `PATH`
 # ENV PATH="/root/.local/bin/:$PATH"

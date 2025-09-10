@@ -35,46 +35,24 @@ spec:
             {{- toYaml .Values.backend.securityContext | nindent 12 }}
           {{- end }}
           image: "{{.Values.backend.image.registry}}/{{.Values.backend.image.repository}}:{{.Values.backend.image.tag}}"
-          imagePullPolicy: {{ .Values.backend.imagePullPolicy }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           envFrom:
             {{- if .Values.backend.configMap.enabled }}
             - configMapRef:
-                name: {{ include "backend.fullname" . }}-config
+                name: {{ include "backend.fullname" . }}
             {{- end }}
           env:
-            - name: LOG_LEVEL
-              value: info
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{.Release.Name}}-backend
-                  key: POSTGRES_USER
-            - name: POSTGRES_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: {{.Release.Name}}-database
-                  key: password
-            - name: PGDATABASE
-              valueFrom:
-                secretKeyRef:
-                  name: {{.Release.Name}}-backend
-                  key: POSTGRES_DATABASE
-            - name: PGUSER
-              valueFrom:
-                secretKeyRef:
-                  name: {{.Release.Name}}-backend
-                  key: POSTGRES_USER
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{.Release.Name}}-database
-                  key: password
-            - name: POSTGRES_HOST_READER
-              value: {{ include "fullname" . }}-bitnamipg
-            - name: POSTGRES_HOST_WRITER
-              value: {{ include "fullname" . }}-bitnamipg
-            - name: PGHOST
-              value: {{ include "fullname" . }}-bitnamipg
+            {{- range .Values.backend.env }}
+              - name: {{ .name }}
+              {{- if .value }}
+                value: {{ quote .value }}
+              {{- else if .valueFrom }}
+                valueFrom:
+{{ toYaml .valueFrom | indent 18 }}
+              {{- end }}
+            {{- end }}
+
+
           ports:
             - name: http
               containerPort: {{ .Values.backend.service.targetPort }}
@@ -99,11 +77,17 @@ spec:
           #   initialDelaySeconds: 15
           #   periodSeconds: 30
           #   timeoutSeconds: 5
-          resources: # this is optional
+
+          resources:
+            {{- if .Values.backend.resources.requests }}
             requests:
-              {{- toYaml .Values.backend.resources.requests | nindent 12 }}
+          {{ toYaml .Values.backend.resources.requests | indent 12 }}
+            {{- end }}
+            {{- if .Values.backend.resources.limits }}
             limits:
-              {{- toYaml .Values.backend.resources.limits | nindent 12 }}
+          {{ toYaml .Values.backend.resources.limits | indent 12 }}
+            {{- end }}
+
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
