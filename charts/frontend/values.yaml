@@ -48,11 +48,11 @@ frontend:
     type: ClusterIP
     # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
     port: 80 # this is the service port, where it will be exposed internally to the namespace
-    targetPort: 8080 # this is the container port where the app listens on
+    targetPort: 3000 # this is the container port where the app listens on
     protocol: TCP
   route:
     timeout: 300s
-    targetPort: 8080 # match the service
+    targetPort: 3000 # match the service
   ingress:
     annotations:
       route.openshift.io/termination: edge
