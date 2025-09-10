@@ -15,7 +15,6 @@ ENV UV_TOOL_BIN_DIR=/usr/local/bin
 
 # Set extension directory
 ENV EXTENSION_DIRECTORY=/tmp/duckdb_extensions
-RUN mkdir /tmp/duckdb_extensions
 
 # Install the project's dependencies using the lockfile and settings
 RUN --mount=type=cache,target=/root/.cache/uv \
