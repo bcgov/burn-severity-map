@@ -11,7 +11,7 @@ PARQUET_KEY = os.getenv("PARQUET_PATH")
 PARQUET_PATH = f's3://{S3_BUCKET_NAME}/{PARQUET_KEY}'
 
 # Initialize DuckDB connection
-con = duckdb.connect(database=':memory:')
+con = duckdb.connect("/tmp/mydb.duckdb")
 con.execute("INSTALL httpfs; LOAD httpfs;")
 con.execute("INSTALL spatial; LOAD spatial;")
 
