@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 ADD https://astral.sh/uv/0.7.9/install.sh /uv-installer.sh
 
 # Run the installer then remove it
-RUN sh /uv-installer.sh && rm /uv-installer.sh
+RUN sh /uv-installer.sh --global && rm /uv-installer.sh
 
 # Ensure the installed binary is on the `PATH`
-ENV PATH="/root/.local/bin/:$PATH"
+# ENV PATH="/root/.local/bin/:$PATH"
 
 # add api
 ADD . /api
