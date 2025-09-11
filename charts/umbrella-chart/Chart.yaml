@@ -1,0 +1,11 @@
+# umbrella-chart/Chart.yaml
+dependencies:
+  - name: frontend
+    version: 1.0.0
+    repository: file://../frontend
+  - name: backend-api
+    version: 1.0.0
+    repository: file://../backend-api
+  - name: analysis
+    version: 1.0.0
+    repository: file://../analysis
