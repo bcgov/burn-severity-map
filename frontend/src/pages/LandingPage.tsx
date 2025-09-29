@@ -18,10 +18,9 @@ const LandingPage = () => {
       ) : (
         <>
           {isAuthenticated ? ( // Render the link only if the user is authenticated
-            <div>
+            <div className='link-container'>
             <Link to="/burn-severity">View BS Analysis</Link>
-            <br />
-            <Link to="/severity-configuration">Configure Severity Settings</Link>
+            <Link to="/severity-configuration">Configure BS Analysis</Link>
             </div>
           ) : (
             // Optionally, you can show a login button or a message for unauthenticated users

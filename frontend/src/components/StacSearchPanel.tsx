@@ -1,10 +1,11 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, CSSProperties } from 'react';
 import { MapContext } from './MapContext';
 import { Extent } from 'ol/extent';
 import { toLonLat } from 'ol/proj';
 import { getBottomLeft, getTopRight } from 'ol/extent';
 import { Accordion, AccordionGroup, Button, Switch } from '@bcgov/design-system-react-components';
 import Fire from './FireSelector';
+import { PuffLoader } from 'react-spinners';
 
 
 interface StacSearchCriteria {
@@ -53,6 +54,7 @@ const StacSearchPanel: React.FC = () => {
   const [selectedPreImageId, setSelectedPreImageId] = useState<string | null>(null);
   const [selectedPostImageId, setSelectedPostImageId] = useState<string | null>(null);
   const [analysisReady, setAnalysisReady] = useState<boolean>(false);
+  const [analysisRunning, setAnalysisRunning] = useState<boolean>(false);
 
   useEffect(() => {
     if (!bounds) return;
@@ -86,6 +88,53 @@ const StacSearchPanel: React.FC = () => {
     const postDate = new Date(ignitionDate);
     postDate.setMonth(ignitionDate.getMonth() + searchCriteria.postOffset);
     return { preDate, postDate };
+  };
+
+  const handleStartAnalysis = async () => {
+    const url = "http://localhost:5000/run-analysis";
+    const defaultCloud = "10";
+    const currentYear = new Date().getFullYear();
+    const thisYear = analysisConfig.year ?? new Date().getFullYear().toString();
+    const sCloud = analysisConfig.preImageCloud ?? defaultCloud;
+    const eCloud = analysisConfig.postImageCloud ?? defaultCloud;
+    const cloud = Math.max(Number(sCloud), Number(eCloud)).toString();
+    setAnalysisRunning(true);
+
+    const payload: Record<string, any> = {
+      fire: analysisConfig.fire_number,
+      year: thisYear,
+      cloud: cloud,
+      sensor: "S2",
+      object_storage: true,
+    };
+
+    if (analysisConfig.preImageDate) payload.s_date = analysisConfig.preImageDate;
+    if (analysisConfig.postImageDate) payload.e_date = analysisConfig.postImageDate;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        setAnalysisRunning(false);
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Analysis result:", result);
+      alert("Analysis started successfully!");
+    } catch (error) {
+      setAnalysisRunning(false);
+      console.error("Error running analysis:", error);
+      alert("Failed to start analysis.");
+    } finally {
+      setAnalysisRunning(false);
+    }
   };
 
   const handlePreOffsetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,9 +319,15 @@ const StacSearchPanel: React.FC = () => {
         <Button onPress={handleSearch} isDisabled={loading}>
           {loading ? 'Searching...' : 'Load images'}
         </Button>
-        <Button style= {{marginLeft:'0.5em'}} isDisabled={!analysisReady}>
+        <Button style= {{marginLeft:'0.5em'}} onPress={handleStartAnalysis} isDisabled={!analysisReady || analysisRunning}>
           Start Analysis
         </Button>
+        {/* Conditionally render the PuffLoader */}
+        {analysisRunning && (
+        <div className='analysis-spinner'>
+          <PuffLoader color="#003366" size={150} />
+        </div>
+        )}
         {error && <p style={{ color: 'red' }}>Error: {error}</p>}
         {searchResults.length > 0 && (
           <div>
