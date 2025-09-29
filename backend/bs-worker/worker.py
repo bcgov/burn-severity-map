@@ -131,7 +131,7 @@ def load_source_data():
     """Lists files in an S3-compliant bucket with an optional prefix."""
     obj_list = []
     bucket_name = S3_BUCKET_NAME
-    file_prefix= "burn-severity/source/"
+    file_prefix= "burn-severity/"
     try:
         s3_client = boto3.client(
             's3',
@@ -141,13 +141,14 @@ def load_source_data():
             #config=Config(signature_version='s3v4')
         )
 
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix="burn-severity/source/")
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix="burn-severity/")
         if 'Contents' in response:
             for obj in response['Contents']:
 
                 # only append file that are not directories
-                if not obj['Key'].endswith('$') and not obj['Key'].endswith('/') and not obj['Key'].endswith('catalogs') and obj['Key'].endswith('.geojson'):
+                if not obj['Key'].endswith('$') and not obj['Key'].endswith('/') and not obj['Key'].endswith('catalogs') and obj['Key'].endswith('.json'):
                     obj_list.append(obj['Key'])
+                
 
         else:
             print(f"No files found in bucket '{bucket_name}' with prefix '{file_prefix}'.")
