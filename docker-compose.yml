@@ -63,7 +63,7 @@ services:
       - .env
     volumes:
       - analysis-data:/app/data
-    command: ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+    command: ["gunicorn", "--timeout", "1800" , "--bind", "0.0.0.0:5000", "app:app"]
        
 
 volumes:
