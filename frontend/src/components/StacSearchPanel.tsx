@@ -97,7 +97,7 @@ const StacSearchPanel: React.FC = () => {
     const thisYear = analysisConfig.year ?? new Date().getFullYear().toString();
     const sCloud = analysisConfig.preImageCloud ?? defaultCloud;
     const eCloud = analysisConfig.postImageCloud ?? defaultCloud;
-    const cloud = Math.max(Number(sCloud), Number(eCloud)).toString();
+    const cloud =  Math.max(Number(sCloud)+1, Number(eCloud)+1).toString();
     setAnalysisRunning(true);
 
     const payload: Record<string, any> = {
@@ -127,7 +127,7 @@ const StacSearchPanel: React.FC = () => {
 
       const result = await response.json();
       console.log("Analysis result:", result);
-      alert("Analysis started successfully!");
+      
     } catch (error) {
       setAnalysisRunning(false);
       console.error("Error running analysis:", error);
