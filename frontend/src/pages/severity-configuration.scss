@@ -1,0 +1,27 @@
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+#root {
+  height: 100vh;
+}
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+.sidebar {
+  align-items: center;
+  width: 350px;
+  padding: 10px;
+  background-color: #f4f4f4;
+  border-right: 1px solid #ccc;
+  overflow-y: auto;
+}
+
+.map-container {
+  flex: 1;
+  height: 100%;
+}

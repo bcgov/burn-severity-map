@@ -11,13 +11,18 @@ const LandingPage = () => {
     // Container div styled with the "home-container" class
     <div className="home-container">
       <h1> Welcome to the bs application!</h1>
+      
 
       {isLoadingAuth ? ( // Show a loading message while authentication status is being determined
         <p>Loading authentication status...</p>
       ) : (
         <>
           {isAuthenticated ? ( // Render the link only if the user is authenticated
-            <Link to="/burn-severity">Burn Severity Analysis</Link>
+            <div>
+            <Link to="/burn-severity">View BS Analysis</Link>
+            <br />
+            <Link to="/severity-configuration">Configure Severity Settings</Link>
+            </div>
           ) : (
             // Optionally, you can show a login button or a message for unauthenticated users
             <div>
