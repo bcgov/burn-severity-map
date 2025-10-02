@@ -144,13 +144,7 @@ export const getFireDocuments = async (fireNumber: string) => {
 
   return data.files;
 
-//dummy data for test
-  // const response = [{'key': 'burn-severity/V30558_interim_burn_severity.pdf', 'filename': 'V30558_interim_burn_severity.pdf', 'url': 'https://nrs.objectstore.gov.bc.ca:443/rczimv/burn-severity/V30558_interim_burn_severity.pdf?AWSAccessKeyId=nr-geobc-data-test&Signature=SLbQpFsOBJzJVztFwEomNfEnWIE%3D&Expires=1752868250'}, {'key': 'burn-severity/V30558_interim_burn_severity_2025.kml', 'filename': 'V30558_interim_burn_severity_2025.kml', 'url': 'https://nrs.objectstore.gov.bc.ca:443/rczimv/burn-severity/V30558_interim_burn_severity_2025.kml?AWSAccessKeyId=nr-geobc-data-test&Signature=MLg36X9FoqoUgOqynaI9BDUmfZI%3D&Expires=1752868252'}]
-  // return response;
-
 }
-
-
 
 /**
  * Fetches the list of all available fire numbers.
@@ -166,15 +160,12 @@ export const getFireNumbers = async () => {
   return response.json();
 }
 
-/**
- * Fetches the list of all available fire numbers.
- * Unprotected endpoint
- */
-// export const getFireNumbers = async () => {
-//     const response = await fetch(`${API_BASE_URL}/burn-severity`);
-//     if (!response.ok) {
-//         throw new Error('Failed to fetch fire numbers');
-//     }
-//     return response.json();
-// }
-
+export const syncFireResults = async (year: string,fire_number: string) => {
+    const response = await authedFetch(`/sync-burn-severity/${year}/${fire_number}`);
+    // handle non-2xx responses here.
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  };

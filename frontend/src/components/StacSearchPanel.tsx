@@ -6,7 +6,7 @@ import { getBottomLeft, getTopRight } from 'ol/extent';
 import { Accordion, AccordionGroup, Button, Switch } from '@bcgov/design-system-react-components';
 import Fire from './FireSelector';
 import { PuffLoader } from 'react-spinners';
-
+import { syncFireResults } from '../utils/apiService';
 
 interface StacSearchCriteria {
   collection: string | null;
@@ -127,6 +127,7 @@ const StacSearchPanel: React.FC = () => {
 
       const result = await response.json();
       console.log("Analysis result:", result);
+      syncFireResults(String(thisYear),analysisConfig.fire_number)
       
     } catch (error) {
       setAnalysisRunning(false);
