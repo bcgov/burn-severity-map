@@ -91,7 +91,7 @@ const FireSelector: React.FC = () => {
     const fire = fires.find(f => f.id === keyAsString);
     if (fire) {
       const newFire = transform(fire.lonLat, 'EPSG:3005', 'EPSG:4326');
-      updateMapView([newFire[0], newFire[1]], 14);
+      //updateMapView([newFire[0], newFire[1]], 14);
       setSelectedFire(fire); 
       addFireBoundary(fire.fireNumber);
     }
@@ -102,28 +102,30 @@ const FireSelector: React.FC = () => {
   return (
     <div>
       <h3>Select Fire</h3>
-      {loading && <p>Loading fires...</p>}
-      {error && <p className="text-sm text-red-500">Error: {error}</p>}
       <div style={{width: '100%'}}>
       <Select 
         style={{width: '100%'}}
-        label="Fire selection from map extent"
+        label={
+          fires.length === 0 && !loading && !error
+          ? 'No fires found in current view'
+          : 'Fire selection from map extent'
+}
         placeholder='Select a fire'
-        isDisabled={fires.length == 0}
+        isDisabled={fires.length == 0 || loading}
         items={fires.map(fire => ({
           id: fire.id, // The value returned to onSelectionChange
           label: `${fire.fireNumber} - ${fire.geographicDesc}` // The display text
-          // You can omit the other properties (fireNumber, geographicDesc) if they aren't used by the Select component itself.
         }))}
-        onSelectionChange={handleFireSelect} // Correct function signature (key: string | null) => void
+        onSelectionChange={handleFireSelect} 
       ></Select>
       </div>
-      {selectedFire !== null && (
-      <p>Ignition Date: {new Date(selectedFire.ignitionDate).toLocaleDateString()}</p>
-      )}
-      {fires.length === 0 && !loading && !error && (
-        <p className="text-sm text-gray-500">No fires found in current view.</p>
-      )}
+      {/* This container will reserve space for all status messages */}
+      <div className="fire-selector-status">
+        {error && <p className="text-sm text-red-500">Error: {error}</p>}
+        {selectedFire !== null && (
+          <p>Ignition Date: {new Date(selectedFire.ignitionDate).toLocaleDateString()}</p>
+        )}
+      </div>
     </div>
   );
 };

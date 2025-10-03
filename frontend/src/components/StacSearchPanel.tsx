@@ -28,7 +28,7 @@ interface AnalysisConfig {
 }
 
 const StacSearchPanel: React.FC = () => {
-  const { bounds, addPreviewLayer, selectedFire } = useContext(MapContext);
+  const { bounds, addPreviewLayer, selectedFire, setAnalysisFire } = useContext(MapContext);
 
   const [searchCriteria, setSearchCriteria] = useState<StacSearchCriteria>({
     collection: 'sentinel-2-l2a',
@@ -127,8 +127,10 @@ const StacSearchPanel: React.FC = () => {
 
       const result = await response.json();
       console.log("Analysis result:", result);
-      syncFireResults(String(thisYear),analysisConfig.fire_number)
-      
+      if (analysisConfig.fire_number){
+        await syncFireResults(String(thisYear),analysisConfig.fire_number)
+        setAnalysisFire(analysisConfig.fire_number);
+      }
     } catch (error) {
       setAnalysisRunning(false);
       console.error("Error running analysis:", error);
