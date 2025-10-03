@@ -1,5 +1,5 @@
 //src/App.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import './severity-configuration.scss';
 import { MapContext } from '../components/MapContext';
 import StacSearchPanel from '../components/StacSearchPanel'
@@ -11,6 +11,7 @@ import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import { toLonLat, fromLonLat } from 'ol/proj';
+import { Style, Fill, Stroke } from 'ol/style';
 import Layer from 'ol/layer/Layer';
 import GeoTIFF from 'ol/source/GeoTIFF';
 import WebGLTileLayer from 'ol/layer/WebGLTile';
@@ -20,6 +21,7 @@ import Vector from 'ol/source/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
 import {all} from 'ol/loadingstrategy'
 import VectorSource from 'ol/source/Vector';
+import { getFireData } from '../utils/apiService';
 
 
 const ConfigurationApp: React.FC = () => {
@@ -33,12 +35,21 @@ const ConfigurationApp: React.FC = () => {
   const [center, setCenter] = useState<[number, number]>([-123.3656, 48.4284]);
   const [zoom, setZoom] = useState<number>(10);
   const [selectedFire, setSelectedFire] = useState<Fire | null>(null);
-  
+  const [analysisFire, setAnalysisFire] = useState<string | null>(null);
+  const resultsLayerRef = useRef<VectorLayer | null>(null);
+  const [resultsFeatureCollection, setResultsFeatureCollection] = useState<any | null>(null);
+
   const handleUpdateMapView = (newCenter: [number,number], newZoom: number) => {
     setCenter(newCenter)
     setZoom(newZoom);
   };
-
+  const fitMapToExtent = useCallback((extent: number[], options?: { maxZoom?: number, duration?: number }) => {
+    if (!mapInstance || !extent || extent[0] === Infinity) return;
+    mapInstance.getView().fit(extent, { 
+      maxZoom: options?.maxZoom || 14, 
+      duration: options?.duration || 1000 
+    });
+  }, []);
   const addPreviewLayer = (url: string) => {
     setPreviewLayerUrl(url);
   };
@@ -49,6 +60,48 @@ const ConfigurationApp: React.FC = () => {
     console.log('addFireBoundary:',fireNumber);
     
   };
+  const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
+    if (!mapInstance) return;
+    try {
+      const featureCollection = await getFireData(fireNumber);
+      
+      setResultsFeatureCollection(featureCollection);
+
+      if (resultsLayerRef.current) {
+        mapInstance.removeLayer(resultsLayerRef.current);
+      }
+
+      const vectorSource = new VectorSource({
+        features: new GeoJSON().readFeatures(featureCollection, {
+          featureProjection: 'EPSG:3857',
+          dataProjection: 'EPSG:4326'
+        })
+      });
+
+      const newLayer = new VectorLayer({
+        source: vectorSource,
+        style: (feature) => {
+          const burnSeverity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
+          let fillColor = 'rgba(0,0,0,0.1)';
+          if (burnSeverity === 'High') fillColor = 'rgba(204,0,0,0.6)';
+          else if (burnSeverity === 'Medium' || burnSeverity === 'Moderate') fillColor = 'rgba(255,153,51,0.6)';
+          else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.6)';
+          return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
+        }
+      });
+      
+      mapInstance.addLayer(newLayer);
+      // *** FIX: Store the new layer in the ref instead of state ***
+      resultsLayerRef.current = newLayer;
+
+      if (vectorSource.getFeatures().length > 0) {
+        const extent = vectorSource.getExtent();
+        fitMapToExtent(extent);
+      }
+    } catch (error) {
+      console.error('Failed to fetch or display burn geometry:', error);
+    }
+  }, [fitMapToExtent]);
   //useEffect for init of map
   useEffect(() => {
   if (!mapContainer.current) return; // Wait until ref is set
@@ -109,7 +162,6 @@ const ConfigurationApp: React.FC = () => {
   // useEffect to manage the perimeter vectorLayer
   useEffect(() => {
     if (!mapInstance) return;
-    
 
     if (perimeterLayerRef.current){
       mapInstance.removeLayer(perimeterLayerRef.current);
@@ -132,6 +184,7 @@ const ConfigurationApp: React.FC = () => {
       perimeterLayer.setZIndex(1000);
       mapInstance.addLayer(perimeterLayer);
       perimeterLayerRef.current = perimeterLayer;
+      fitMapToExtent(perimeterLayer.getExtent())
     }
   }, [perimeterLayerUrl, mapInstance])
   // useEffect to update map when center or zoom change
@@ -142,9 +195,23 @@ const ConfigurationApp: React.FC = () => {
       view.setZoom(zoom);
     }
   }, [center, zoom, mapInstance]);
+  // useEffect to update map with analysis results
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    if (resultsLayerRef) {
+      fetchAndDisplayBurnGeometry(analysisFire);
+    } else {
+      // If no fire is selected, clear the layer using the ref
+      if (resultsLayerRef.current) {
+        mapInstance.removeLayer(resultsLayerRef.current);
+        resultsLayerRef.current = null;
+      }
+    }
+  }, [analysisFire, fetchAndDisplayBurnGeometry]);
   return (
     <MapContext.Provider value={{ map: mapInstance, bounds, 
-        addFireBoundary,addPreviewLayer,
+        addFireBoundary,addPreviewLayer, analysisFire,
         updateMapView: handleUpdateMapView, 
         selectedFire, setSelectedFire }}>
       <div className="app-container">

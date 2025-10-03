@@ -12,6 +12,7 @@ type MapContextType = {
   updateMapView: (centre: [number,number], zoom: number) => void; //centre: [lon, lat]
   selectedFire: Fire | null;
   setSelectedFire: (fire: Fire | null) => void;
+  analysisFire: string | null;
 };
 
 export const MapContext = React.createContext<MapContextType>({
@@ -22,4 +23,5 @@ export const MapContext = React.createContext<MapContextType>({
   updateMapView: () => {},
   selectedFire: null,
   setSelectedFire: () => {},
+  analysisFire: null
 });
