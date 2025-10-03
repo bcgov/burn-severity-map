@@ -13,6 +13,7 @@ type MapContextType = {
   selectedFire: Fire | null;
   setSelectedFire: (fire: Fire | null) => void;
   analysisFire: string | null;
+  setAnalysisFire: (fireNumber: string | null) => void;
 };
 
 export const MapContext = React.createContext<MapContextType>({
@@ -23,5 +24,6 @@ export const MapContext = React.createContext<MapContextType>({
   updateMapView: () => {},
   selectedFire: null,
   setSelectedFire: () => {},
-  analysisFire: null
+  analysisFire: null,
+  setAnalysisFire: () => {}
 });
