@@ -10,11 +10,11 @@
         
         # Reverse proxy for additional API endpoints
         handle_path /healthcheck {
-            reverse_proxy analysis-api:5000
+            reverse_proxy analysis-backend:5000
         }
 
         handle_path /run-analysis {
-            reverse_proxy analysis-api:5000
+            reverse_proxy analysis-backend:5000
         }
 
         # Serve static frontend files

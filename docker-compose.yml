@@ -28,6 +28,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: frontend-bs
+    depends_on:
+      - fastapi-backend
     ports:
       - "8080:8080"
 
@@ -47,12 +49,6 @@ services:
       - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "8080:8080"
-
   analysis-backend:
     image: analysis-backend:latest
     build:
@@ -67,7 +63,7 @@ services:
       - .env
     volumes:
       - analysis-data:/app/data
-    command: ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+    command: ["gunicorn", "--timeout", "1800" , "--bind", "0.0.0.0:5000", "app:app"]
        
 
 volumes:

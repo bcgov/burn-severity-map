@@ -13,6 +13,9 @@ FROM caddy:alpine
 # Install curl for debugging purposes
 RUN apk add --no-cache ca-certificates curl
 
+# remove Caddy capabilities to bind to lower ports
+RUN setcap -r /usr/bin/caddy
+
 # Copy the built frontend files
 COPY --from=builder /app/dist /usr/share/caddy
 

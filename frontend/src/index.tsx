@@ -14,6 +14,7 @@ import { PageHeader, PageFooter } from "./components/bcgov-components";
 // Import pages of the app
 import LandingPage from "./pages/LandingPage"; // main page visable to all users
 import BurnSeverity from "./pages/burn-severity";
+import ConfigurationApp from "./pages/severity-configuration";
 import Callback from './pages/Callback'; // Your OIDC callback page
 
 
@@ -36,6 +37,7 @@ const App: React.FC = () => {
           {/* Protected Routes */}
           {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
           <Route path="/burn-severity" element={<BurnSeverity />} />
+          <Route path="/severity-configuration" element={<ConfigurationApp />}/>
           {/* Fallback for unknown routes */}
           <Route path="*" element={<p>404 Not Found</p>} />
         </Routes>

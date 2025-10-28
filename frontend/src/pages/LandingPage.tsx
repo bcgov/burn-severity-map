@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom'; // React Router component for client-side navigation
 import "./LandingPage.scss"; // SCSS styles specific to the landing page
 import { useAuth } from '../auth/AuthContext';
+import HealthStatus from '../components/HealthStatus';
 
 // Functional component for the landing (home) page
 const LandingPage = () => {
@@ -10,13 +11,17 @@ const LandingPage = () => {
     // Container div styled with the "home-container" class
     <div className="home-container">
       <h1> Welcome to the bs application!</h1>
+      
 
       {isLoadingAuth ? ( // Show a loading message while authentication status is being determined
         <p>Loading authentication status...</p>
       ) : (
         <>
           {isAuthenticated ? ( // Render the link only if the user is authenticated
-            <Link to="/burn-severity">Burn Severity Analysis</Link>
+            <div className='link-container'>
+            <Link to="/burn-severity">View BS Analysis</Link>
+            <Link to="/severity-configuration">Configure BS Analysis</Link>
+            </div>
           ) : (
             // Optionally, you can show a login button or a message for unauthenticated users
             <div>
@@ -26,8 +31,14 @@ const LandingPage = () => {
         </>
       )}
       
+
+      {/* Health status display */}
+      <div style={{ marginTop: '2rem' }}>
+        <HealthStatus />
+      </div>
     </div>
   );
 };
 
-export default LandingPage;
+export default LandingPage
+

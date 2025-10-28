@@ -25,6 +25,23 @@ con.execute(f"SET s3_secret_access_key='{S3_SECRET_KEY}';")
 con.execute(f"SET s3_endpoint='{S3_ENDPOINT}';")
 con.execute("SET s3_url_style='path';")
 
+def check_connection():
+    """
+    Checks if the object storage connection to the parquet file is working.
+    Returns True if the connection is successful, False otherwise.
+    """
+    try:
+        # Perform a quick query to test the connection without fetching all data
+        query = f"SELECT count(*) FROM '{PARQUET_PATH}' LIMIT 1"
+        con.execute(query).fetchone()
+        return True
+    except duckdb.duckdb.InvalidInputException as e:
+        print(f"Connection failed: {e}")
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return False
+
 def get_unique_fire_numbers():
     query = f"""
         SELECT DISTINCT FIRE_NUMBER
