@@ -35,11 +35,11 @@ frontend:
   
   resources:
     limits:
-      cpu: 50m
-      memory: 50Mi
+      cpu: 250m
+      memory: 750Mi
     requests:
-      cpu: 50m
-      memory: 25Mi
+      cpu: 250m
+      memory: 500Mi
 
   # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
   service:
@@ -47,15 +47,11 @@ frontend:
     # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
     type: ClusterIP
     # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-    port: 80 # this is the service port, where it will be exposed internally to the namespace
-    targetPort: 3000 # this is the container port where the app listens on
-    protocol: TCP
+    port: 8080 # this is the service port, where it will be exposed internally to the namespace
+    targetPort: 8080 # this is the container port where the app listens on
   route:
     timeout: 300s
-    targetPort: 3000 # match the service
-  ingress:
-    annotations:
-      route.openshift.io/termination: edge
+    targetPort: 8080 # match the service
   domain: "apps.silver.devops.gov.bc.ca" # silver cluster
   # add pdb??? 
   configMap:
@@ -76,6 +72,10 @@ frontend:
     # readOnlyRootFilesystem: true
     runAsNonRoot: true
     allowPrivilegeEscalation: false
+    # make sure the pod/container runs as UID 1000 (the default for Caddy) and has write permissions
+    # runAsUser: 1000 
+    # runAsGroup: 1000
+    # fsGroup: 1000
 
   # Additional volumeMounts on the output Deployment definition.
   volumeMounts:
@@ -121,6 +121,14 @@ frontend:
 
 # podSecurityContext: {}
 #   # fsGroup: 2000
+
+# resources:
+#   limits:
+#     cpu: 250m
+#     memory: 500Mi
+#   requests:
+#     cpu: 250m
+#     memory: 750Mi
 
 # nodeSelector: {}
 
