@@ -1,6 +1,6 @@
 apiVersion: v2
-name: charts
-description: A Helm chart for Kubernetes
+name: frontend
+description: Frontend helm chart for the frontend application (Caddy + webpack app)
 icon: https://www.nicepng.com/png/detail/521-5211827_bc-icon-british-columbia-government-logo.png
 
 # A chart can be either an 'application' or a 'library' chart.
@@ -25,9 +25,3 @@ version: 0.1.0
 appVersion: "1.16.0"
 
 # dependencies:
-
-maintainers:
-  - name: Om Mishra
-    email: omprakash.2.mishra@gov.bc.ca
-  - name: Derek Roberts
-    email: derek.roberts@gov.bc.ca

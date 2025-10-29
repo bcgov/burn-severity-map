@@ -1,5 +1,0 @@
-1. Get the application URL by running these commands:
-1. Get the application URL by running:
-  oc get route -n {{ .Release.Namespace }}
-
-2. The URL will be in the "HOST/PORT" column of the output.

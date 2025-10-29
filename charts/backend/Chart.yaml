@@ -1,5 +1,5 @@
 apiVersion: v2
-name: burn-severity-backend-api
+name: backend
 description: Helm chart for deploying burn-severity-backend-api, supports publication of bs results.
 icon: https://www.nicepng.com/png/detail/521-5211827_bc-icon-british-columbia-government-logo.png
 
@@ -25,9 +25,3 @@ version: 0.1.0
 appVersion: "1.0"
 
 # dependencies:
-
-maintainers:
-  - name: Will Burt
-    email: william.burt@gov.bc.ca
-  - name: Isaac Cave
-    email: Isaac.Cave@gov.bc.ca
