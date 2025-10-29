@@ -15,7 +15,7 @@ os.makedirs(DUCKDB_EXTENSION_PATH, exist_ok=True)
 
 # Initialize DuckDB connection
 con = duckdb.connect(database=':memory:')
-con.execute(f"SET extension_directory = '{DUCKDB_EXTENSION_PATH}';")
+# con.execute(f"SET extension_directory = '{DUCKDB_EXTENSION_PATH}';")
 con.execute("INSTALL httpfs; LOAD httpfs;")
 con.execute("INSTALL spatial; LOAD spatial;")
 
