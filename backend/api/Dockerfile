@@ -10,7 +10,10 @@ ADD https://astral.sh/uv/0.7.9/install.sh /uv-installer.sh
 RUN sh /uv-installer.sh && rm /uv-installer.sh
 
 # Ensure the installed binary is on the `PATH`
-ENV PATH="/root/.local/bin/:$PATH"
+# ENV PATH="/root/.local/bin/:$PATH"
+
+# Move uv binary to a global path
+RUN mv /root/.local/bin/uv /usr/local/bin/uv
 
 # add api
 ADD . /api
