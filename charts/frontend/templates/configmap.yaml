@@ -1,4 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "charts.fullname" . }}-configmap
+  name: {{ include "charts.fullname" . }}-caddyfile
+data:
+  Caddyfile: |-
+    {{- include (print $.Template.BasePath "/Caddyfile") . | nindent 4 }}

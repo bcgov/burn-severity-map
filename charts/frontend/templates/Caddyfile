@@ -1,0 +1,22 @@
+:{{ .Values.frontend.service.port }} {
+    root * /usr/share/caddy
+
+    route {
+        handle_path /pg-bs/* {
+            reverse_proxy {{ include "charts.backendServiceName" . }}:{{ .Values.backend.port }}
+        }
+
+        handle_path /healthcheck {
+            reverse_proxy {{ include "charts.analysisServiceName" . }}:{{ .Values.analysis.port }}
+        }
+
+        handle_path /run-analysis {
+            reverse_proxy {{ include "charts.analysisServiceName" . }}:{{ .Values.analysis.port }}
+        }
+
+        handle {
+            try_files {path} /index.html
+            file_server
+        }
+    }
+}

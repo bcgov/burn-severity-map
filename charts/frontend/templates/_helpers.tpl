@@ -49,3 +49,14 @@ Selector labels
 app.kubernetes.io/name: {{ include "charts.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Service Name
+*/}}
+{{- define "charts.backendServiceName" -}}
+{{ printf "%s-backend" (include "charts.fullname" .) }}
+{{- end }}
+
+{{- define "charts.analysisServiceName" -}}
+{{ printf "%s-analysis" (include "charts.fullname" .) }}
+{{- end }}
