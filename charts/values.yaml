@@ -26,7 +26,7 @@ global:
 
 backend:
   #-- enable or disable backend
-  enabled: false
+  enabled: true
   #-- the deployment strategy, can be "Recreate" or "RollingUpdate"
   deploymentStrategy: Recreate
   #-- autoscaling for the component. it is optional and is an object.
@@ -150,25 +150,6 @@ frontend:
     # runAsGroup: 1000
     # fsGroup: 1000
 
-  # Additional volumeMounts on the output Deployment definition.
-  volumeMounts:
-  - name: data
-    mountPath: /data
-  - name: config
-    mountPath: /config
-  - name: caddyfile
-    mountPath: /etc/caddy/Caddyfile
-    subPath: Caddyfile
-  
-  # Additional volumes on the output Deployment definition.
-  volumes: 
-  - name: data
-    emptyDir: {}
-  - name: config
-    emptyDir: {}
-  - name: caddyFile
-    configMap:
-      name: frontend-caddyfile
 
 #-- the components of the application, backend.
 analysis:
