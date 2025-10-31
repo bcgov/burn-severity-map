@@ -6,7 +6,10 @@
             reverse_proxy {{ include "charts.backendServiceName" . }}:{{ .Values.backend.service.port }}
         }
 
-        handle_path /healthcheck {
+        handle_path /api/* {
+            reverse_proxy {{ include "charts.backendServiceName" . }}:{{ .Values.backend.service.port }}
+        }
+        handle_path /analysis/* {
             reverse_proxy {{ include "charts.analysisServiceName" . }}:{{ .Values.analysis.service.port }}
         }
 

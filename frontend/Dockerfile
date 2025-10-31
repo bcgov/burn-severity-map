@@ -27,7 +27,7 @@ RUN caddy fmt --overwrite /etc/caddy/Caddyfile
 
 # Ports, healthcheck, non-root user
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost/:8080/health
+#HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost/:8080/health
 
 # Non-root user
 USER 1001

@@ -1,4 +1,3 @@
-# Cadyfile -- does not reverse proxy correctly curl -i  http://localhost:8080/pg-bs/docs
 :8080 {
     root * /usr/share/caddy
 
@@ -9,13 +8,18 @@
         }
         
         # Reverse proxy for additional API endpoints
-        handle_path /healthcheck {
-            reverse_proxy analysis-backend:5000
+        handle_path /api/* {
+            reverse_proxy fastapi-backend:8000
         }
 
         handle_path /run-analysis {
             reverse_proxy analysis-backend:5000
         }
+
+        handle_path /analysis/* {
+            reverse_proxy analysis-backend:5000
+        }
+        
 
         # Serve static frontend files
         handle {
