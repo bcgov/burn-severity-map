@@ -42,6 +42,8 @@ spec:
                 name: {{ include "backend.fullname" . }}
             {{- end }}
           env:
+              - name: FRONTEND_URL
+                value: {{ printf "https://%s" .Values.frontend.domain | quote }}
             {{- range .Values.backend.env }}
               - name: {{ .name }}
               {{- if .value }}
@@ -51,6 +53,8 @@ spec:
 {{ toYaml .valueFrom | indent 18 }}
               {{- end }}
             {{- end }}
+            
+
 
 
           ports:
