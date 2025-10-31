@@ -4,4 +4,4 @@ metadata:
   name: {{ include "charts.fullname" . }}-caddyfile
 data:
   Caddyfile: |-
-    {{- include (print $.Template.BasePath "/frontend/templates/Caddyfile") . | nindent 4 }}
+{{ tpl (.Files.Get "files/Caddyfile") . | nindent 4 }}
