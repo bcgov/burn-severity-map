@@ -16,14 +16,6 @@ type: application
 version: 0.1.0
 appVersion: "1.0"
 
-dependencies:
-  - name: frontend
-    version: 0.1.0
-    repository: "file://frontend"
-  - name: backend
-    version: 0.1.0
-    repository: "file://backend"
-
 maintainers:
   - name: Will Burt
     email: william.burt@gov.bc.ca
