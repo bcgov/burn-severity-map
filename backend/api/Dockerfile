@@ -22,6 +22,8 @@ WORKDIR /api
 # uv add uvicorn tool
 RUN uv tool install uvicorn
 RUN uv sync --locked
-
+# change ownership for cache
+RUN chgrp -R 0 /tmp/uv && \
+    chmod -R g+rw /tmp/uv
 # run app
 CMD ["uv", "run", "python", "-m", "uvicorn","main:app","--host","0.0.0.0","--port","8000"]
