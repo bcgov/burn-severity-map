@@ -43,9 +43,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Service Name
 */}}
 {{- define "frontend.backendServiceName" -}}
-{{ printf "%s-backend" (include "frontend.fullname" .) }}
+{{ printf "%s" (include "backend.fullname" .) }}
 {{- end }}
 
 {{- define "frontend.analysisServiceName" -}}
-{{ printf "%s-analysis" (include "frontend.fullname" .) }}
+{{ printf "%s" (include "analysis.fullname" .) }}
 {{- end }}
