@@ -25,9 +25,16 @@ const config = {
         pathRewrite: { '^/pg-bs': '' },
       },
       {
-        context: ['/healthcheck', '/run-analysis'],
+        context: ['/analysis'],
         target: 'http://localhost:5000',
-        changeOrigin: true
+        changeOrigin: true,
+        pathRewrite: { '^/analysis': '' },
+      },
+      {
+        context: ['/api'],
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        pathRewrite: { '^/api': '' },
       }
 
     ],
