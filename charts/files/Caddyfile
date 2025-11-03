@@ -3,14 +3,14 @@
 
     route {
         handle_path /pg-bs/* {
-            reverse_proxy {{ include "charts.backendServiceName" . }}:{{ .Values.backend.service.port }}
+            reverse_proxy {{ include "frontend.backendServiceName" . }}:{{ .Values.backend.service.port }}
         }
 
         handle_path /api/* {
-            reverse_proxy {{ include "charts.backendServiceName" . }}:{{ .Values.backend.service.port }}
+            reverse_proxy {{ include "frontend.backendServiceName" . }}:{{ .Values.backend.service.port }}
         }
         handle_path /analysis/* {
-            reverse_proxy {{ include "charts.analysisServiceName" . }}:{{ .Values.analysis.service.port }}
+            reverse_proxy {{ include "frontend.analysisServiceName" . }}:{{ .Values.analysis.service.port }}
         }
 
         handle {

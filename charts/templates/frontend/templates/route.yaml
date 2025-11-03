@@ -2,17 +2,17 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   labels:
-    {{- include "charts.labels" . | nindent 4 }}
-  name: {{ include "charts.fullname" . }}
+    {{- include "frontend.labels" . | nindent 4 }}
+  name: {{ include "frontend.fullname" . }}
   annotations:
     haproxy.router.openshift.io/timeout: {{ .Values.frontend.route.timeout }}
 spec:
-  host: {{ include "charts.fullname" . }}.{{ .Values.frontend.domain }}
+  host: {{ include "frontend.fullname" . }}.{{ .Values.frontend.domain }}
   port:
     targetPort: {{ .Values.frontend.route.targetPort }}
   to:
     kind: Service
-    name: {{ include "charts.fullname" . }}
+    name: {{ include "frontend.fullname" . }}
     weight: 100
   tls:
     termination: edge
