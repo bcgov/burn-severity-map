@@ -12,10 +12,7 @@
             reverse_proxy fastapi-backend:8000
         }
 
-        handle_path /run-analysis {
-            reverse_proxy analysis-backend:5000
-        }
-
+        # Reverse proxy analysis backend
         handle_path /analysis/* {
             reverse_proxy analysis-backend:5000
         }

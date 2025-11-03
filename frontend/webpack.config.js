@@ -35,11 +35,6 @@ const config = {
         target: 'http://localhost:8000',
         changeOrigin: true,
         pathRewrite: { '^/api': '' },
-      },
-      {
-        context: ['/run-analysis'],
-        target: 'http://localhost:5000',
-        changeOrigin: true
       }
 
     ],

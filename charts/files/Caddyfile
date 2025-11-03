@@ -13,10 +13,6 @@
             reverse_proxy {{ include "charts.analysisServiceName" . }}:{{ .Values.analysis.service.port }}
         }
 
-        handle_path /run-analysis {
-            reverse_proxy {{ include "charts.analysisServiceName" . }}:{{ .Values.analysis.service.port }}
-        }
-
         handle {
             try_files {path} /index.html
             file_server
