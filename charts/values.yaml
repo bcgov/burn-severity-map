@@ -106,6 +106,10 @@ frontend:
     # Overrides the image tag whose default is the chart appVersion.
     tag: latest
   
+  env:
+    - name: BASE_LOGIN_URL
+      value: "https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca"
+
   resources:
     limits:
       cpu: 50m
