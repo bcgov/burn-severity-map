@@ -1,6 +1,14 @@
 # Stage 1: Build the frontend
 FROM docker.io/node:18 AS builder
 
+# Define build arguments
+ARG REACT_APP_BASE_URL=https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca
+ARG REACT_APP_AUTH_CALLBACK_URL=${REACT_APP_BASE_URL}/callback
+
+# Set environment variables from build args
+ENV REACT_APP_BASE_URL=${REACT_APP_BASE_URL}
+ENV REACT_APP_AUTH_CALLBACK_URL=${REACT_APP_AUTH_CALLBACK_URL}
+
 WORKDIR /app
 COPY . .
 
