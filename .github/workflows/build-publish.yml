@@ -17,3 +17,6 @@ jobs:
           package: ${{ matrix.package }}
           tag: latest
           tag_fallback: latest
+          build_args: |
+            REACT_APP_BASE_URL=https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca
+            REACT_APP_AUTH_CALLBACK_URL=https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca/callback

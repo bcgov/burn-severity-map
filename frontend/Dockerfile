@@ -2,23 +2,17 @@
 FROM docker.io/node:18 AS builder
 
 # Define build arguments
-# ARG REACT_APP_BASE_URL=https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca
-# ARG REACT_APP_AUTH_CALLBACK_URL=${REACT_APP_BASE_URL}/callback
+ARG REACT_APP_BASE_URL
+ARG REACT_APP_AUTH_CALLBACK_URL
 
-# # Set environment variables from build args
-# ENV REACT_APP_BASE_URL=${REACT_APP_BASE_URL}
-# ENV REACT_APP_AUTH_CALLBACK_URL=${REACT_APP_AUTH_CALLBACK_URL}
+# Set environment variables from build args
+ENV REACT_APP_BASE_URL=$REACT_APP_BASE_URL
+ENV REACT_APP_AUTH_CALLBACK_URL=$REACT_APP_AUTH_CALLBACK_URL
 
 WORKDIR /app
-# COPY . .
-COPY package*.json ./
+COPY . .
 
 RUN npm install
-
-COPY . .
-# copy env file for build
-COPY .env .env
-
 RUN npm run build
 
 # Stage 2: Serve with Caddy
