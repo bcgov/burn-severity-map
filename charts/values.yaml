@@ -157,10 +157,9 @@ frontend:
     # fsGroup: 1000
 
 
-#-- the components of the application, backend.
 analysis:
   #-- enable or disable backend
-  enabled: false
+  enabled: true
   #-- the deployment strategy, can be "Recreate" or "RollingUpdate"
   deploymentStrategy: Recreate
   #-- autoscaling for the component. it is optional and is an object.
