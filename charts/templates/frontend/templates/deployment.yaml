@@ -40,9 +40,11 @@ spec:
             - name: http
               containerPort: {{ .Values.frontend.service.targetPort }}
               protocol: TCP
-          # env:
-          #   - name: REACT_APP_BASE_URL
-          #     value: {{ printf "https://%s.%s" .Values.frontend.appName .Values.frontend.domain | quote }}
+          env:
+            - name: REACT_APP_BASE_URL
+              value: {{ .Values.frontend.baseUrl | quote }}
+            - name: REACT_APP_AUTH_CALLBACK_URL
+              value: {{ printf "%s/callback" .Values.frontend.baseUrl | quote }}
   {{- with .Values.livenessProbe }}
           livenessProbe:
 {{- toYaml . | nindent 12 }}
