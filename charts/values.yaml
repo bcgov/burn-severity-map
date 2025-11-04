@@ -106,9 +106,9 @@ frontend:
     # Overrides the image tag whose default is the chart appVersion.
     tag: latest
   
-  env:
-    - name: BASE_LOGIN_URL
-      value: "https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca"
+  # env:
+  #   - name: BASE_LOGIN_URL
+  #     value: "https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca"
 
   resources:
     limits:
@@ -130,6 +130,7 @@ frontend:
     timeout: 300s
     targetPort: 8080 # match the service
   domain: "apps.silver.devops.gov.bc.ca" # silver cluster
+  appName: "bs-app-burn-severity-map"
   # add pdb??? 
   configMap:
     enabled: true
