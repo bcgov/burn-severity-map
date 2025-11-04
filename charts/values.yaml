@@ -131,7 +131,7 @@ frontend:
     targetPort: 8080 # match the service
   domain: "apps.silver.devops.gov.bc.ca" # silver cluster
   # appName: "bs-app-burn-severity-map"
-  baseUrl: https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca
+  baseUrl: https://bs-app-frontend.apps.silver.devops.gov.bc.ca
   # add pdb??? 
   configMap:
     enabled: true
