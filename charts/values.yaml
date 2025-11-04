@@ -107,7 +107,7 @@ frontend:
     tag: latest
   
   # env:
-  #   - name: BASE_LOGIN_URL
+  #   - name: REACT_APP_BASE_URL
   #     value: "https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca"
 
   resources:

@@ -44,8 +44,6 @@ spec:
           env:
               - name: FRONTEND_URL
                 value: {{ printf "https://%s" .Values.frontend.domain | quote }}
-              - name: BASE_LOGIN_URL
-                value: {{ printf "https://%s.%s" .Values.frontend.appName .Values.frontend.domain | quote }}
             {{- range .Values.backend.env }}
               - name: {{ .name }}
               {{- if .value }}

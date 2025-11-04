@@ -1,7 +1,7 @@
 // src/authConfig.ts
 import { WebStorageStateStore, UserManagerSettings } from 'oidc-client-ts';
 
-// const baseUrl = process.env.BASE_LOGIN_URL || 'http://localhost:8080';
+// const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:8080';
 
 const baseUrl = 'https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca/';
 

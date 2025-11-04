@@ -40,7 +40,13 @@ spec:
             - name: http
               containerPort: {{ .Values.frontend.service.targetPort }}
               protocol: TCP
-{{- with .Values.livenessProbe }}
+  {{- if .Values.frontend.appName }}
+            env:
+              - name: REACT_APP_BASE_URL
+                value: {{ printf "https://%s.%s" .Values.frontend.appName .Values.frontend.domain | quote }}
+  {{- toYaml .Values.frontend.env | nindent 12 }}
+  {{- end }}
+  {{- with .Values.livenessProbe }}
           livenessProbe:
 {{- toYaml . | nindent 12 }}
 {{- end }}
