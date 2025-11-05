@@ -40,16 +40,7 @@ const DocumentPanel: React.FC<DocumentPanelProps> = ({ selectedDbFire, documents
     );
   };
 
-  return <div className="document-panel">{renderContent()}
-        <ul className="document-list">
-          <li>
-            <a href="/" target="_blank" rel="noopener noreferrer" title="Testfilename.pdf">
-                <span className="file-type">pdf</span>
-                <span className="file-name">Testfilename.pdf</span>
-            </a>
-          </li>
-      </ul>
-    </div>;
+  return <div className="document-panel">{renderContent()}</div>;
 };
 
 export default DocumentPanel;
