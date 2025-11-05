@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document } from '../utils/apiService';
+import { getFileType } from '../utils/getFileType';
 import './DocumentPanel.scss'
 
 interface DocumentPanelProps {
@@ -9,36 +10,46 @@ interface DocumentPanelProps {
 }
 
 const DocumentPanel: React.FC<DocumentPanelProps> = ({ selectedDbFire, documents, isLoading }) => {
-  
+
   const renderContent = () => {
-    if (isLoading) {
-      return <p>Loading documents...</p>;
-    }
-    if (!selectedDbFire) {
-        return <p>Please select a fire from the left panel.</p>
-    }
-    if (documents.length === 0) {
-      return <p>No documents found for this fire.</p>;
-    }
+    if (isLoading) return <p>Loading documents...</p>;
+    if (!selectedDbFire) return <p>Please select a fire from the left panel.</p>;
+    if (documents.length === 0) return <p>No documents found for this fire.</p>;
+
     return (
       <ul className="document-list">
-        {documents.map((doc) => ( // Removed index as key, doc.key is better
-          <li key={doc.key} >
-            <a href={doc.url} target="_blank" rel="noopener noreferrer">
-              {doc.filename}
-            </a>
-          </li>
-        ))}
+        {documents.map((doc) => {
+          const filetype = getFileType(doc.filename);
+
+          return (
+            <li key={doc.key}>
+              <a
+                href={doc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={doc.filename} // shows full filename on hover
+                className="document-link"
+              >
+                <span className="file-type">{filetype}</span>
+                <span className="file-name">{doc.filename}</span>
+              </a>
+            </li>
+          );
+        })}
       </ul>
     );
   };
 
-  return (
-    <div>
-      <h2>Available Documents</h2>
-      {renderContent()}
-    </div>
-  );
+  return <div className="document-panel">{renderContent()}
+        <ul className="document-list">
+          <li>
+            <a href="/" target="_blank" rel="noopener noreferrer" title="Testfilename.pdf">
+                <span className="file-type">pdf</span>
+                <span className="file-name">Testfilename.pdf</span>
+            </a>
+          </li>
+      </ul>
+    </div>;
 };
 
 export default DocumentPanel;

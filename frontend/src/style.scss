@@ -103,6 +103,24 @@ body {
   overflow: hidden;
 }
 
+.layout {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Landing page scrolls */
+.landing-layout {
+  overflow-y: auto;
+}
+
+/* Other pages are fixed to viewport */
+.fixed-layout {
+  overflow: hidden;
+  height: 100vh;
+}
+
 // Links
 a {
   color: var(--bcgov-link);

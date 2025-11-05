@@ -4,6 +4,7 @@ import './style.scss';
 
 import React from 'react';
 import ReactDOM from "react-dom/client"; // React 18+ root API for rendering the app
+import { useLocation } from "react-router-dom"; // React Router hook to access the current location
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"; // React Router for client-side routing
 import { AuthProvider } from './auth/AuthContext'; // Make sure this path is correct
 
@@ -21,33 +22,41 @@ import Callback from './pages/Callback'; // Your OIDC callback page
 import ProtectedRoute from './auth/ProtectedRoute'; // Your protected route component
 
 // Your main App component, which correctly sets up AuthProvider and Routes
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isLanding = location.pathname === "/";
+
   return (
-    <Router>
-      <AuthProvider> {/* AuthProvider wraps the entire application */}
-        {/* Render PageHeader here, so it has access to AuthContext */}
-        <PageHeader />
+    <div className={isLanding ? "layout landing-layout" : "layout fixed-layout"}>
+      <PageHeader />
 
-        <Routes>
-          {/* Public routes */}
-          {/* LandingPage should likely be your "/" route */}
-          <Route path="/" element={<LandingPage />} /> 
-          <Route path="/callback" element={<Callback />} />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/callback" element={<Callback />} />
 
-          {/* Protected Routes */}
-          {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
-          <Route path="/burn-severity" element={<BurnSeverity />} />
-          <Route path="/severity-configuration" element={<ConfigurationApp />}/>
-          {/* Fallback for unknown routes */}
-          <Route path="*" element={<p>404 Not Found</p>} />
-        </Routes>
-        
-        {/* Render PageFooter here, so it also has access to AuthContext if needed */}
-        <PageFooter />
-      </AuthProvider>
-    </Router>
+        {/* Protected routes */}
+        {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
+        <Route path="/burn-severity" element={<BurnSeverity />} />
+        <Route path="/severity-configuration" element={<ConfigurationApp />} />
+
+        {/* 404 fallback */}
+        <Route path="*" element={<p>404 Not Found</p>} />
+      </Routes>
+
+      <PageFooter />
+    </div>
   );
 };
+
+const App: React.FC = () => (
+  <Router>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  </Router>
+);
+
 
 // Get the root HTML element where the React app will be mounted
 const appElement = document.getElementById("app"); 

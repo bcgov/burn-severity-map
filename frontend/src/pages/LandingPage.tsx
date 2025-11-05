@@ -10,26 +10,30 @@ const LandingPage = () => {
   return (
     // Container div styled with the "home-container" class
     <div className="home-container">
-      <h1> Welcome to the bs application!</h1>
-      
-
-      {isLoadingAuth ? ( // Show a loading message while authentication status is being determined
-        <p>Loading authentication status...</p>
-      ) : (
-        <>
-          {isAuthenticated ? ( // Render the link only if the user is authenticated
-            <div className='link-container'>
-            <Link to="/burn-severity">View BS Analysis</Link>
-            <Link to="/severity-configuration">Configure BS Analysis</Link>
-            </div>
+      <div className="banner-container">
+        <h1> Welcome to the bs application!</h1>
+        
+        <div className="button-container">
+          {isLoadingAuth ? ( // Show a loading message while authentication status is being determined
+            <p>Loading authentication status...</p>
           ) : (
-            // Optionally, you can show a login button or a message for unauthenticated users
-            <div>
-              <p>Please log in to see our premium features</p>
-            </div>
+            <>
+              {isAuthenticated ? ( // Render the link only if the user is authenticated
+                <div className='link-container'>
+                <Link to="/burn-severity">View BS Analysis</Link>
+                <Link to="/severity-configuration">Configure BS Analysis</Link>
+                </div>
+              ) : (
+                // Optionally, you can show a login button or a message for unauthenticated users
+                <div>
+                  <p>Please log in to see our premium features</p>
+                </div>
+      
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+      </div>
       
 
       {/* Health status display */}

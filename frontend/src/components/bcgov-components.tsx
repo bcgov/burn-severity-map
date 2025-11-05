@@ -4,6 +4,19 @@ import { Header, Footer, Button } from "@bcgov/design-system-react-components";
 import { useMatch } from "react-router-dom";
 import geobcLogo from '../assets/geobc_logo.png';
 
+interface HeaderLinkProps {
+  url: string;
+  title: string;
+  displayText: string;
+}
+
+const HeaderLink: React.FC<HeaderLinkProps> = ({url, title, displayText}) => {
+  return (
+    <a href={url} title={title}
+    >{displayText}</a>
+  );
+};
+
 const LoginLogoutButton: React.FC = () => {
   const { user, login, logout, isAuthenticated, isLoadingAuth } = useAuth(); // Added isAuthenticated and isLoadingAuth for clarity
 
@@ -15,12 +28,24 @@ const LoginLogoutButton: React.FC = () => {
   return (
     <>
       {isAuthenticated ? ( // Or simply 'user' if you prefer checking for user object directly
+        <>
+        <HeaderLink
+          url="/burn-severity"
+          title="View Burn Severity Analysis"
+          displayText="View Analysis"
+        />
+        <HeaderLink
+          url="/severity-configuration"
+          title="Configure Burn Severity Analysis"
+          displayText="Configure Analysis"
+        />
         <Button
           onPress={logout}
           variant="secondary"
         >
           Logout ({user?.profile?.name || user?.profile?.email || 'User'}) {/* Display user info if available */}
         </Button>
+        </>
       ) : (
         <Button
           onPress={login}
@@ -41,12 +66,13 @@ const NothingButton: React.FC = () => {
     >Login</Button>
   );
 };
+
 const PageHeader: React.FC = () => {
   return (
     <div className="bcgov-header">
       <Header 
         title="Burn Severity Analysis"
-        logoLinkElement={<a href="https://www2.gov.bc.ca/gov/content/data/about-data-management/geobc"></a>}
+        logoLinkElement={<a href="/" title="Return home"></a>}
         logoImage={<img src={geobcLogo}
         alt="GeoBC Logo" 
         style={{ height: "30px" }} />}
@@ -58,7 +84,11 @@ const PageHeader: React.FC = () => {
 
 const PageFooter: React.FC = () => {
   // Only hide footer on the original MapPage, not on NBRMap
-  const isMapPage = useMatch("/map");
+
+  const burnSeverityMatch = useMatch("/burn-severity");
+  const severityConfigMatch = useMatch("/severity-configuration");
+  
+  const isMapPage = burnSeverityMatch || severityConfigMatch;
   
   // Always return the footer, even on map page - just with different styling
   return (
@@ -69,4 +99,4 @@ const PageFooter: React.FC = () => {
 };
 
 
-export { PageHeader, PageFooter,NothingButton, LoginLogoutButton }
+export { PageHeader, PageFooter, NothingButton, LoginLogoutButton }
