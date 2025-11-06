@@ -2,7 +2,7 @@
 # uses /run-analysis endpoint with default values for outputs
 # optional inputs for s_date, e_date
 
-
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import re
@@ -12,7 +12,15 @@ from datetime import datetime
 
 # Initialize the Flask application
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:8080"])
+# Allow your frontend origin
+origins = [
+    "http://localhost:8080",    # frontend dev server
+    "http://127.0.0.1:8080",    # optional
+]
+if os.getenv('FRONTEND_URL'):
+    origins.append(os.getenv('FRONTEND_URL'))
+    
+CORS(app, origins=origins)
 
 def run_script(command):
     """

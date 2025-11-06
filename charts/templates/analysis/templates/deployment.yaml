@@ -1,0 +1,114 @@
+{{- if .Values.analysis.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "analysis.fullname" . }}
+  labels:
+    {{- include "analysis.labels" . | nindent 4 }}
+spec:
+  strategy:
+    type: {{ .Values.analysis.deploymentStrategy }}
+  {{- if not .Values.analysis.autoscaling.enabled }}
+  replicas: {{ .Values.analysis.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "analysis.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '3000'
+        prometheus.io/path: '/api/metrics'
+      labels:
+        {{- include "analysis.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.analysis.podSecurityContext }}
+      securityContext:
+        {{- toYaml .Values.analysis.podSecurityContext | nindent 12 }}
+      {{- end }}
+      containers:
+        - name: {{ include "analysis.fullname" . }}
+          {{- if .Values.analysis.securityContext }}
+          securityContext:
+            {{- toYaml .Values.analysis.securityContext | nindent 12 }}
+          {{- end }}
+          image: "{{.Values.analysis.image.registry}}/{{.Values.analysis.image.repository}}:{{.Values.analysis.image.tag}}"
+          imagePullPolicy: {{ .Values.analysis.image.pullPolicy }}
+          envFrom:
+            {{- if .Values.analysis.configMap.enabled }}
+            - configMapRef:
+                name: {{ include "analysis.fullname" . }}
+            {{- end }}
+          env:
+            {{- range .Values.analysis.env }}
+              - name: {{ .name }}
+              {{- if .value }}
+                value: {{ quote .value }}
+              {{- else if .valueFrom }}
+                valueFrom:
+{{ toYaml .valueFrom | indent 18 }}
+              {{- end }}
+            {{- end }}
+
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.analysis.service.targetPort }}
+              protocol: TCP
+          # readinessProbe:
+          #   httpGet:
+          #     path: /api/health
+          #     port: http
+          #     scheme: HTTP
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 2
+          #   timeoutSeconds: 2
+          #   successThreshold: 1
+          #   failureThreshold: 30
+          # livenessProbe:
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          #   httpGet:
+          #     path: /api/health
+          #     port: 3000
+          #     scheme: HTTP
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 30
+          #   timeoutSeconds: 5
+
+          resources:
+            {{- if .Values.analysis.resources.requests }}
+            requests:
+          {{ toYaml .Values.analysis.resources.requests | indent 12 }}
+            {{- end }}
+            {{- if .Values.analysis.resources.limits }}
+            limits:
+          {{ toYaml .Values.analysis.resources.limits | indent 12 }}
+            {{- end }}
+
+      {{- with .Values.analysis.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.analysis.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - {{ include "analysis.fullname" . }}
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - {{ .Release.Name }}
+              topologyKey: "kubernetes.io/hostname"
+
+{{- end }}

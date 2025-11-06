@@ -1,0 +1,18 @@
+{{- if .Values.analysis.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "analysis.fullname" . }}
+  labels:
+    {{- include "analysis.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.analysis.service.port }}
+      targetPort: {{ .Values.analysis.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "analysis.selectorLabels" . | nindent 4 }}
+{{- end }}

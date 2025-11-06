@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        package: [frontend, backend/api, backend/bs-worker, analysis]
+        package: [backend/api]
     timeout-minutes: 10
     steps:
       - uses: bcgov-nr/action-builder-ghcr@v2.3.0
@@ -17,6 +17,3 @@ jobs:
           package: ${{ matrix.package }}
           tag: latest
           tag_fallback: latest
-          build_args: |
-            REACT_APP_BASE_URL=https://bs-app-frontend.apps.silver.devops.gov.bc.ca
-            REACT_APP_AUTH_CALLBACK_URL=https://bs-app-frontend.apps.silver.devops.gov.bc.ca/callback

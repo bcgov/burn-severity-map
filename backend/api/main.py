@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from contextlib import asynccontextmanager
-
+import os
 import json
 import re
 import logging
@@ -65,6 +65,8 @@ origins = [
     "http://localhost:8080",    # frontend dev server
     "http://127.0.0.1:8080",    # optional
 ]
+if os.getenv('FRONTEND_URL'):
+    origins.append(os.getenv('FRONTEND_URL'))
 
 app.add_middleware(
     CORSMiddleware,
