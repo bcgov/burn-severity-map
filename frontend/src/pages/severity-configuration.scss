@@ -1,24 +1,66 @@
-body {
+html, body {
+  height: 100%;
   margin: 0;
-  font-family: sans-serif;
 }
 
-#root {
-  height: 100vh;
-}
 .app-container {
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .sidebar {
-  align-items: center;
   width: 350px;
-  padding: 10px;
-  background-color: #f4f4f4;
-  border-right: 1px solid #ccc;
+  flex: 0 0 350px;
+  background: white;
+  padding: 20px;
   overflow-y: auto;
+  border-right: 1px solid #ddd;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+
+  h2 {
+    margin-top: 0;
+  }
+
+  h3 {
+    font-weight: 600;
+    color: var(--bcgov-primary);
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+  }
+
+  h4 {
+    margin: 0 0 5px 0;
+    color: var(--bcgov-primary);
+  }
+
+  h5{
+    font-size: 14px;
+    margin: 5px 0;
+  }
+}
+
+.bcds-react-aria-Select {
+  margin-bottom: 20px;
+}
+
+.bcds-react-aria-Select > span:first-of-type:first-child {
+  font-size: 16px;
+}
+
+.bcds-react-aria-Select button{
+  width: 100%;
+}
+
+.fire-selector-status span{
+  font-weight: 600;
+}
+
+.StacSearchPanel span{
+  font-weight: 600;
 }
 
 .map-container {
@@ -27,14 +69,14 @@ body {
 }
 
 .analysis-spinner {
-  position: 'fixed';
+  position: fixed;
   top: '0';
   left: '0';
   right: '0';
   bottom: '0';
-  display: 'flex';
-  justify-content: 'center';
-  align-items: 'center';
+  display: flex;
+  justify-content: center;
+  align-items: center;
   z-index: 1000; // Make sure it's above other content
   background-color: 'rgba(255, 255, 255, 0.7)';
 }

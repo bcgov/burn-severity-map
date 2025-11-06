@@ -82,6 +82,7 @@ const BurnSeverityPage: React.FC = () => {
       <div className="app-layout">
         {/* Left Panel - Fire Selection */}
         <div className="left-panel">
+          <h2>View Burn Severity Analysis</h2>
           <h3>Processed Burn Severity Fires</h3>
           <FireSelector_db
             fires={fireNumbers}

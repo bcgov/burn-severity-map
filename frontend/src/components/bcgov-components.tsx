@@ -12,7 +12,7 @@ interface HeaderLinkProps {
 
 const HeaderLink: React.FC<HeaderLinkProps> = ({url, title, displayText}) => {
   return (
-    <a href={url} title={title}
+    <a className="header-link" href={url} title={title}
     >{displayText}</a>
   );
 };
@@ -32,12 +32,12 @@ const LoginLogoutButton: React.FC = () => {
         <HeaderLink
           url="/burn-severity"
           title="View Burn Severity Analysis"
-          displayText="View Analysis"
+          displayText="View"
         />
         <HeaderLink
           url="/severity-configuration"
           title="Configure Burn Severity Analysis"
-          displayText="Configure Analysis"
+          displayText="Configure"
         />
         <Button
           onPress={logout}
@@ -97,6 +97,5 @@ const PageFooter: React.FC = () => {
     </div>
   );
 };
-
 
 export { PageHeader, PageFooter, NothingButton, LoginLogoutButton }

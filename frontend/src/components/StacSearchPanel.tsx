@@ -237,14 +237,15 @@ const StacSearchPanel: React.FC = () => {
     <div className="StacSearchPanel">
       <h3>Configuration Settings</h3>
       {analysisConfig.fire_number && (
-        <div>
-          <p>fire: {analysisConfig.fire_number}</p>
-          <p>year: {String(new Date().getFullYear())}</p>
-          <p>sensor: {analysisConfig.sensor}</p>
-          <p>s_date: {analysisConfig.preImageDate}</p>
-          <p>e_date: {analysisConfig.postImageDate}</p>
+        <div className="panel-box">
+          <h4>Attributes</h4>
+          <p><span>Fire:</span> {analysisConfig.fire_number}</p>
+          <p><span>Year:</span> {String(new Date().getFullYear())}</p>
+          <p><span>Sensor:</span> {analysisConfig.sensor}</p>
+          <p><span>S_date:</span> {analysisConfig.preImageDate}</p>
+          <p><span>E_date:</span> {analysisConfig.postImageDate}</p>
           <p>
-            cloud:{' '}
+            <span>Cloud:</span>{' '}
             {Math.max(
               analysisConfig.preImageCloud ?? 0,
               analysisConfig.postImageCloud ?? 0
@@ -253,59 +254,63 @@ const StacSearchPanel: React.FC = () => {
         </div>
       )}
 
-      <h3>Bounding Box (from map)</h3>
-      {searchCriteria.bbox ? (
-        <div>
-          <p>NE: {toLonLat(getTopRight(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getTopRight(searchCriteria.bbox))[1].toFixed(4)}</p>
-          <p>SW: {toLonLat(getBottomLeft(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getBottomLeft(searchCriteria.bbox))[1].toFixed(4)}</p>
+      <div className="panel-box">
+        <h4>Bounding Box (from map)</h4>
+        {searchCriteria.bbox ? (
+          <div>
+            <p><span>NE:</span> {toLonLat(getTopRight(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getTopRight(searchCriteria.bbox))[1].toFixed(4)}</p>
+            <p><span>SW:</span> {toLonLat(getBottomLeft(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getBottomLeft(searchCriteria.bbox))[1].toFixed(4)}</p>
+          </div>
+        ) : (
+          <p>Loading bounds...</p>
+        )}
+      </div>
+
+      <div className="panel-box">
+        <h4>Image Search</h4>      
+
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5em', 
+          marginBottom: '2em', marginRight: '2em', marginLeft: '2em' }}>
+          {/* Pre-fire slider */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h5>Pre-fire Offset</h5>
+            <input
+              type="range"
+              min="1"
+              max="12"
+              value={13 - searchCriteria.preOffset}
+              onChange={(e) =>
+                setSearchCriteria(prev => ({
+                  ...prev,
+                  preOffset: 13 - Number(e.target.value)
+                }))
+              }
+            />
+            <div style={{ marginTop: '0.5em' }}>{searchCriteria.preOffset} month(s)</div>
+          </div>
+
+          {/* Fire emoji */}
+          <div style={{ fontSize: '2em' }}>🔥</div>
+
+          {/* Post-fire slider */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h5>Post-fire Offset</h5>
+            <input
+              type="range"
+              min="1"
+              max="12"
+              value={searchCriteria.postOffset}
+              onChange={(e) =>
+                setSearchCriteria(prev => ({
+                  ...prev,
+                  postOffset: Number(e.target.value)
+                }))
+              }
+            />
+            <div style={{ marginTop: '0.5em' }}>{searchCriteria.postOffset} month(s)</div>
+          </div>
         </div>
-      ) : (
-        <p>Loading bounds...</p>
-      )}
-
-      <h3>Image Search</h3>      
-
-<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5em', 
-  marginBottom: '2em', marginRight: '2em', marginLeft: '2em' }}>
-  {/* Pre-fire slider */}
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-    <h4>Pre-fire Offset</h4>
-    <input
-      type="range"
-      min="1"
-      max="12"
-      value={13 - searchCriteria.preOffset}
-      onChange={(e) =>
-        setSearchCriteria(prev => ({
-          ...prev,
-          preOffset: 13 - Number(e.target.value)
-        }))
-      }
-    />
-    <div style={{ marginTop: '0.5em' }}>{searchCriteria.preOffset} month(s)</div>
-  </div>
-
-  {/* Fire emoji */}
-  <div style={{ fontSize: '2em' }}>🔥</div>
-
-  {/* Post-fire slider */}
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-    <h4>Post-fire Offset</h4>
-    <input
-      type="range"
-      min="1"
-      max="12"
-      value={searchCriteria.postOffset}
-      onChange={(e) =>
-        setSearchCriteria(prev => ({
-          ...prev,
-          postOffset: Number(e.target.value)
-        }))
-      }
-    />
-    <div style={{ marginTop: '0.5em' }}>{searchCriteria.postOffset} month(s)</div>
-  </div>
-</div>
+      </div>
 
       <label> Max allowed cloud (%) :
       <input
