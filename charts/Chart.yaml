@@ -13,8 +13,8 @@ icon: https://www.nicepng.com/png/detail/521-5211827_bc-icon-british-columbia-go
 # pipeline. Library charts do not define any templates and therefore cannot be deployed.
 type: application
 
-version: 0.1.0
-appVersion: "1.0"
+version: 0.2.0
+appVersion: "1.1"
 
 maintainers:
   - name: Will Burt
