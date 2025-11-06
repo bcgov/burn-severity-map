@@ -233,8 +233,8 @@ const ConfigurationApp: React.FC = () => {
       selectedFire, setSelectedFire }}>
       <div className="app-container">
         <div className="sidebar">
+          <h2>Configure Burn Severity Analysis</h2>
           <FireSelector />
-          <hr />
           <StacSearchPanel />
         </div>
         <div className="map-container" ref={mapContainer}></div>

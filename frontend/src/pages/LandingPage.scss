@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: center;
   gap: 20px;
-  padding: 40px;
-  min-height: 60vh;
+  margin-bottom: 20px;
+  
 
   a {
     padding: 15px 30px;
@@ -25,4 +25,49 @@
 .link-container {
   display: flex;
   gap: 1em;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 300px;
+  background-image: url("../assets/header-image.jpg");
+  background-size: cover;
+  background-position: 100% 20%;
+  background-repeat: no-repeat;
+}
+
+.banner-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 40px 0;
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.5);
+}
+
+.banner-container h1{
+  font-size: 42px;
+  color: #fff;
+}
+
+.button-container {
+  display: flex;
+  gap: 1em;
+}
+
+.button-container p {
+  color: #fff;
+  font-weight: 400;
+}
+
+.info-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin: 20px 15%;
 }

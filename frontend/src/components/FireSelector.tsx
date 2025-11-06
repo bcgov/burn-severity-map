@@ -108,7 +108,7 @@ const FireSelector: React.FC = () => {
         label={
           fires.length === 0 && !loading && !error
           ? 'No fires found in current view'
-          : 'Fire selection from map extent'
+          : 'Fire selection from map extent:'
 }
         placeholder='Select a fire'
         isDisabled={fires.length == 0 || loading}
@@ -123,7 +123,7 @@ const FireSelector: React.FC = () => {
       <div className="fire-selector-status">
         {error && <p className="text-sm text-red-500">Error: {error}</p>}
         {selectedFire !== null && (
-          <p>Ignition Date: {new Date(selectedFire.ignitionDate).toLocaleDateString()}</p>
+          <p><span>Ignition Date:</span> {new Date(selectedFire.ignitionDate).toLocaleDateString()}</p>
         )}
       </div>
     </div>

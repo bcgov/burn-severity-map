@@ -3,6 +3,7 @@ import 'ol/ol.css';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
+import XYZ from 'ol/source/XYZ';
 import { Vector as VectorLayer } from 'ol/layer';
 import { Vector as VectorSource, OSM } from 'ol/source';
 import { GeoJSON } from 'ol/format';
@@ -117,6 +118,27 @@ const OLMap: React.FC<OLMapProps> = ({
       }
     };
   }, []);
+
+  // Effect to swap the basemaps
+  useEffect(() => {
+  if (!mapInstanceRef.current) return;
+
+  // Get the current base layer (assumes it's the first layer in the map)
+  const baseLayer = mapInstanceRef.current.getLayers().item(0) as TileLayer<any>;
+  if (!baseLayer) return;
+
+  // Swap the basemap source based on the prop
+  if (basemap === 'osm') {
+    baseLayer.setSource(new OSM());
+  } else if (basemap === 'satellite') {
+    baseLayer.setSource(
+      new XYZ({
+        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attributions: 'Tiles © Esri'
+      })
+    );
+  }
+  }, [basemap]);
 
   // This is the key effect for displaying data. It is now stable.
   useEffect(() => {

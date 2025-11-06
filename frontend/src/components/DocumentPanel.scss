@@ -1,6 +1,52 @@
 .document-list {
-    list-style-type: none;
-    margin: 0;
-    padding-left: 1;
-    word-wrap: break-word;
+list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    margin-bottom: 0.75rem;
+  }
+
+  a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 0.3rem 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #222;
+
+    transition: background 0.2s ease;
+
+    &:hover, &:focus {
+      background: #eef6ff;
+      border-color: #99c2ff;
+      outline: none;
+    }
+  }
+}
+
+.file-type {
+        font-weight: 700;
+        border: 1px solid #707070;
+        padding: 0.25rem 0.5rem;
+        border-radius: 5px;
+    }
+
+.file-name {
+    flex: 1 1 auto;
+    min-width: 0; // enables truncation
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @media (max-width: 600px) {
+    white-space: normal; // allow wrapping on small screens
+    word-break: break-word;
+    }
 }
