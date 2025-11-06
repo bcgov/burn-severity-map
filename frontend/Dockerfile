@@ -25,7 +25,7 @@ RUN apk add --no-cache ca-certificates curl
 RUN setcap -r /usr/bin/caddy
 
 # Copy the built frontend files
-COPY --from=builder /app/dist /usr/share/caddy
+COPY --from=builder /app/build /usr/share/caddy
 
 # Copy the Caddyfile
 COPY Caddyfile /etc/caddy/Caddyfile
