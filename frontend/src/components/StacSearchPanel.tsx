@@ -91,7 +91,7 @@ const StacSearchPanel: React.FC = () => {
   };
 
   const handleStartAnalysis = async () => {
-    const url = "http://localhost:5000/run-analysis";
+    const url = "/analysis/run-analysis";
     const defaultCloud = "10";
     const currentYear = new Date().getFullYear();
     const thisYear = analysisConfig.year ?? new Date().getFullYear().toString();

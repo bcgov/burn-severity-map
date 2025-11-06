@@ -9,8 +9,8 @@ export interface Document {
 }
 
 // Define your API's base URL. It's good practice to have this in an environment variable.
-const API_BASE_URL = 'http://localhost:8080/pg-bs'; // Your FastAPI backend URL
-const ANALYSIS_API_BASE_URL = 'http://localhost:5000'
+const API_BASE_URL = '/api'; // Your FastAPI backend URL
+const ANALYSIS_API_BASE_URL = '/analysis'
 /**
  * A wrapper around the native fetch function that automatically adds the
  * OIDC Authorization header to API requests.
@@ -75,38 +75,47 @@ export interface HealthResponse {
  * Unprotected endpoint
  */
 export const fetchHealth = async (): Promise<HealthResponse> => {
+  // Default values (if a service is unreachable)
+  let backendStatus: HealthResponse['status'] = 'unreachable';
+  let objectStorage: HealthResponse['object_storage'] = 'unreachable';
+  let analysisStatus: HealthResponse['analysis_backend'] = 'unreachable';
+
+  // FastAPI backend health (independent)
   try {
-    // Fetch FastAPI backend health
-    const backendResponse = await fetch(`${API_BASE_URL}/health`);
-    if (!backendResponse.ok) {
-      throw new Error(`Backend health check failed with status ${backendResponse.status}`);
+    const backendResponse = await fetch(`${API_BASE_URL}/health`, { cache: 'no-store' });
+    if (backendResponse.ok) {
+      const backendHealth = await backendResponse.json();
+      backendStatus = backendHealth?.status ?? 'unreachable';
+      objectStorage = backendHealth?.object_storage ?? 'unreachable';
+    } else {
+      console.warn(`Backend health check failed with status ${backendResponse.status}`);
     }
-    const backendHealth = await backendResponse.json();
-
-    // Fetch Analysis backend health
-    const analysisResponse = await fetch(`${ANALYSIS_API_BASE_URL}/health`);
-    if (!analysisResponse.ok) {
-      throw new Error(`Analysis health check failed with status ${analysisResponse.status}`);
-    }
-    const analysisHealth = await analysisResponse.json();
-
-    // Combine both responses
-    const combinedHealth: HealthResponse = {
-      status: backendHealth.status,
-      object_storage: backendHealth.object_storage,
-      analysis_backend: analysisHealth.status,
-    };
-
-    return combinedHealth;
-  } catch (error) {
-    console.error('Health check error:', error);
-    return {
-      status: 'unreachable',
-      object_storage: 'unreachable',
-      analysis_backend: 'unreachable',
-    };
+  } catch (e) {
+    console.warn('Backend health check error:', e);
   }
+
+  // Analysis backend health (independent)
+  try {
+    const analysisResponse = await fetch(`${ANALYSIS_API_BASE_URL}/health`, { cache: 'no-store' });
+    if (analysisResponse.ok) {
+      const analysisHealth = await analysisResponse.json();
+      analysisStatus = analysisHealth?.status ?? 'unreachable';
+    } else {
+      console.warn(`Analysis health check failed with status ${analysisResponse.status}`);
+    }
+  } catch (e) {
+    console.warn('Analysis health check error:', e);
+  }
+
+  // Combine: if backend is good but analysis is down, don't fail the API status.
+  // Keep your original `status` semantics coming from the backend.
+  return {
+    status: backendStatus,                 // keep backend's own status (ok/degraded/unreachable)
+    object_storage: objectStorage,         // from backend (or 'unreachable')
+    analysis_backend: analysisStatus,      // independent result for analysis
+  };
 };
+
 
 
 /**
