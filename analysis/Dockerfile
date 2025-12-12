@@ -2,11 +2,38 @@
 # Use the official QGIS image as the base
 FROM qgis/qgis:3.40.9-bookworm
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Set environment - root ops
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    QT_QPA_PLATFORM=offscreen \
+    QGIS_PREFIX_PATH=/usr \
+    PYTHONPATH=/usr/share/qgis/python
 
-# Create working directory
+# Home and writable directories
+ENV HOME=/opt/app-root \
+    XDG_CACHE_HOME=/opt/app-root/.cache \
+    XDG_CONFIG_HOME=/opt/app-root/.config \
+    XDG_DATA_HOME=/opt/app-root/.local/share \
+    XDG_RUNTIME_DIR=/opt/app-root/.cache/runtime
+
+
+# Create QGIS profile + caches and make them group-writable (GID 0)
+RUN mkdir -p \
+      /opt/app-root/.cache/fontconfig \
+      /opt/app-root/.cache/runtime \
+      /opt/app-root/.local/share/QGIS/QGIS3/profiles/default \
+      /app \
+ && chgrp -R 0 /opt/app-root /app \
+ && chmod -R g+rwX /opt/app-root /app \
+ && chmod 700 /opt/app-root/.cache/runtime
+
+
+# QGIS auth DB parent directory (profile-aware)
+ENV QGIS_AUTH_DB_DIR_PATH=/opt/app-root/.local/share/QGIS/QGIS3/profiles/default
+# Seed font cache
+RUN fc-cache -rv || true
+
+# App layer
 WORKDIR /app
 
 # install pip
@@ -26,21 +53,8 @@ RUN pip3 install --break-system-packages debugpy && \
     pip3 install --break-system-packages gunicorn==23.0.0
 
 # ENV
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV QT_QPA_PLATFORM=offscreen
-ENV PYTHONPATH=/usr/share/qgis/python
 ENV TMPDIR=/tmp
 
-# Create a non-root user and group
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-
-# Create app and temp directories with proper permissions
-WORKDIR /app
-#RUN mkdir -p /app/tmp && chown -R appuser:appgroup /app
-
-# Switch to non-root user
-USER appuser
 
 # Set the entrypoint to run the script
 CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
