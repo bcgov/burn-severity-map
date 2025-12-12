@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "boto3>=1.39.3",
+    "boto3>=1.42.8",
     "geopandas>=1.1.1",
     "pyarrow>=20.0.0",
 ]

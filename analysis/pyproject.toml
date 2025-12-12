@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "boto3>=1.40.4",
+    "boto3>=1.42.8",
     "flask>=3.1.1",
     "flask-cors>=6.0.1",
     "geopandas>=1.1.1",
