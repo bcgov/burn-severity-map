@@ -43,7 +43,7 @@ class STAC:
             selected_items = []
             searched_item_ids = set()
 
-            self.logger.info('    - Starting iterative search for full coverage')
+            self.logger.info(f'    - Starting iterative search for full coverage: sensor:{sensor} collection:{collection_id} date range: {daterange} max cloud: {cloud_cover_threshold} ')
 
             # Limit iterations to prevent infinite loops
             max_iterations = 50
