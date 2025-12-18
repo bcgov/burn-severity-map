@@ -6,6 +6,7 @@ import userManager from './authService';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  roles: string[];
   login: () => void;
   logout: () => void;
   getAccessToken: () => Promise<string | null>;
@@ -20,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Start as true
   const [authError, setAuthError] = useState<Error | null>(null); // For OIDC errors
+  const [roles, setRoles] = useState<string[]>([]);
 
   const handleUserLoaded = useCallback((loadedUser: User) => {
     setUser(loadedUser);
@@ -63,6 +65,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthError(error);
     setIsLoadingAuth(false); // Stop loading on error
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      // Keycloak standard: user.profile.client_roles or user.profile.roles
+      const userRoles = (user.profile?.roles as string[]) || 
+                        (user.profile?.client_roles as string[]) || [];
+      setRoles(userRoles);
+    } else {
+      setRoles([]);
+    }
+  }, [user]);
 
   useEffect(() => {
     // Initial check for existing user session
@@ -133,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!user && !user.expired; // Derive isAuthenticated
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, getAccessToken, isLoadingAuth, authError }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, roles, getAccessToken, isLoadingAuth, authError }}>
       {children}
     </AuthContext.Provider>
   );

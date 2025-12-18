@@ -38,8 +38,13 @@ const AppContent: React.FC = () => {
         {/* Protected routes */}
         {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
         <Route path="/burn-severity" element={<BurnSeverity />} />
-        <Route path="/severity-configuration" element={<ConfigurationApp />} />
-
+        {/* Role-Protected routes */}
+        <Route path="/severity-configuration" element={
+          <ProtectedRoute requiredRole="editor">
+            <ConfigurationApp />
+          </ProtectedRoute>
+        }
+        />
         {/* 404 fallback */}
         <Route path="*" element={<p>404 Not Found</p>} />
       </Routes>
