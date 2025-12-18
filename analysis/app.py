@@ -9,6 +9,9 @@ import re
 import subprocess
 import traceback
 from datetime import datetime
+import jwt
+import requests
+from functools import wraps
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -20,7 +23,54 @@ origins = [
 if os.getenv('FRONTEND_URL'):
     origins.append(os.getenv('FRONTEND_URL'))
     
-CORS(app, origins=origins)
+CORS(app, origins=origins,allow_headers=["Content-Type", "Authorization"])
+
+CLIENT_ID = "burn-severity-6058" 
+OIDC_ISSUER = "https://dev.loginproxy.gov.bc.ca/auth/realms/standard"
+JWKS_URL = f"{OIDC_ISSUER}/protocol/openid-connect/certs"
+
+def get_public_key(token):
+    """Fetch public keys to verify"""
+    header = jwt.get_unverified_header(token)
+    jwks = requests.get()
+    for key in jwks['keys']:
+        if key['kid'] == header['kid']:
+            return jwt.algorithms.RSAAlgorithm.from_jwk(key)
+    raise Exception("Public key not found.")
+
+def roles_allowed(required_role):
+    """Decorator to check for specific OIDC roles."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return jsonify({"error": "Missing or invalid token"}), 401
+            
+            token = auth_header.split(" ")[1]
+            try:
+                # Verify token signature and expiration
+                public_key = get_public_key(token)
+                payload = jwt.decode(
+                    token, 
+                    public_key, 
+                    algorithms=["RS256"], 
+                    audience=CLIENT_ID # From your client_id
+                )           
+                # Extract roles (matching the logic in your updated AuthContext)
+                roles = payload.get('roles', []) or \
+                        payload.get('client_roles', []) or \
+                        payload.get('resource_access', {}).get(CLIENT_ID, {}).get('roles', [])
+
+                if required_role not in roles:
+                    return jsonify({"error": f"Requires {required_role} role"}), 403
+                
+                return f(*args, **kwargs)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 401
+        return decorated_function
+    return decorator
+
 
 def run_script(command):
     """
@@ -44,6 +94,7 @@ def run_script(command):
         print(f"An unexpected error occurred: {e}")
 
 @app.route('/run-analysis', methods=['POST'])
+@roles_allowed('editor')
 def run_analysis_endpoint():
     """
     Flask endpoint to trigger the BARC analysis.
