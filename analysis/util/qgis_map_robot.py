@@ -3,6 +3,7 @@
 
 import os
 import sys
+import math
 
 # QGIS standalone setup for running on Docker Image
 # from qgis.analysis import QgsNativeAlgorithms
@@ -81,6 +82,9 @@ def bs_map_exporter(qgis_project:str,burn_severity_geojson:str,output:str,layer_
     # update map extent
     ref_map = layout.referenceMap()
     ref_map.zoomToExtent(new_extent)
+    scale = ref_map.scale()
+    new_scale = math.ceil(scale/10000)*10000 #up scale value to nearest 10,000
+    ref_map.setScale(new_scale)
     layout.refresh()
 
     # export'o-rama
