@@ -7,6 +7,7 @@ import { Accordion, AccordionGroup, Button, Switch } from '@bcgov/design-system-
 import Fire from './FireSelector';
 import { PuffLoader } from 'react-spinners';
 import { syncFireResults } from '../utils/apiService';
+import './StacSearchPanel.scss'
 
 interface StacSearchCriteria {
   collection: string | null;
@@ -269,10 +270,9 @@ const StacSearchPanel: React.FC = () => {
       <div className="panel-box">
         <h4>Image Search</h4>      
 
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5em', 
-          marginBottom: '2em', marginRight: '2em', marginLeft: '2em' }}>
+        <div className="image-search-options">
           {/* Pre-fire slider */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="slider-box">
             <h5>Pre-fire Offset</h5>
             <input
               type="range"
@@ -286,14 +286,14 @@ const StacSearchPanel: React.FC = () => {
                 }))
               }
             />
-            <div style={{ marginTop: '0.5em' }}>{searchCriteria.preOffset} month(s)</div>
+            <div className="slider-month-text">{searchCriteria.preOffset} month(s)</div>
           </div>
 
           {/* Fire emoji */}
-          <div style={{ fontSize: '2em' }}>🔥</div>
+          <div className="fire-emoji">🔥</div>
 
           {/* Post-fire slider */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="slider-box">
             <h5>Post-fire Offset</h5>
             <input
               type="range"
@@ -307,7 +307,7 @@ const StacSearchPanel: React.FC = () => {
                 }))
               }
             />
-            <div style={{ marginTop: '0.5em' }}>{searchCriteria.postOffset} month(s)</div>
+            <div className="slider-month-text">{searchCriteria.postOffset} month(s)</div>
           </div>
         </div>
       </div>
@@ -323,20 +323,22 @@ const StacSearchPanel: React.FC = () => {
       />
       </label>
 
-      <div style={{marginTop:'2em'}}>
-        <Button onPress={handleSearch} isDisabled={loading}>
-          {loading ? 'Searching...' : 'Load images'}
-        </Button>
-        <Button style= {{marginLeft:'0.5em'}} onPress={handleStartAnalysis} isDisabled={!analysisReady || analysisRunning}>
-          Start Analysis
-        </Button>
+      <div className="stac-interaction-box">
+        <div className="button-box">
+          <Button onPress={handleSearch} isDisabled={loading}>
+            {loading ? 'Searching...' : 'Load images'}
+          </Button>
+          <Button onPress={handleStartAnalysis} isDisabled={!analysisReady || analysisRunning}>
+            Start Analysis
+          </Button>
+        </div>
         {/* Conditionally render the PuffLoader */}
         {analysisRunning && (
         <div className='analysis-spinner'>
           <PuffLoader color="#003366" size={150} />
         </div>
         )}
-        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+        {error && <p className="error-text">Error: {error}</p>}
         {searchResults.length > 0 && (
           <div>
             <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
@@ -345,16 +347,28 @@ const StacSearchPanel: React.FC = () => {
                   <div>
                     <strong>ID: </strong> {item.id} <br />
                     <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
-                    <div style={{marginTop: '0.5em'}}>
-                    <Switch style= {{marginTop: '0.5em',marginBottom: '0.5em'}} 
-                      children="Select as pre fire image"
-                      isSelected={selectedPreImageId === item.id}
-                      onChange={() => handlePreImageSelection(item.properties["eo:cloud_cover"].toFixed(0),
-                        new Date(item.properties.datetime).toLocaleDateString(), 
-                        item.id
-                      )}
-                    ></Switch>
-                    <Button size='small' onPress={() => handlePreviewClick(item.assets.visual.href)}>Preview</Button>
+                    <div className="image-interaction-box">
+                      <Switch
+                        children="Select as pre fire image"
+                        isSelected={selectedPreImageId === item.id}
+                        onChange={(isSelected) => {
+                          if (isSelected) {
+                            handlePreImageSelection(
+                              Number(item.properties["eo:cloud_cover"].toFixed(0)),
+                              new Date(item.properties.datetime).toLocaleDateString(),
+                              item.id
+                            );
+                          } else {
+                            setSelectedPreImageId(null);
+                            setAnalysisConfig(prev => ({
+                              ...prev,
+                              preImageDate: null,
+                              preImageCloud: null,
+                            }));
+                          }
+                        }}
+                      />
+                      <Button size='small' onPress={() => handlePreviewClick(item.assets.visual.href)}>Preview</Button>
                     </div>
                   </div>
                 </Accordion>
@@ -366,16 +380,28 @@ const StacSearchPanel: React.FC = () => {
                   <div>
                     <strong>ID: </strong> {item.id} <br />
                     <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
-                    <div style={{marginTop: '0.5em'}}>
-                    <Switch style= {{marginTop: '0.5em',marginBottom: '0.5em'}} 
-                      children="Select as post fire image"
-                      isSelected={selectedPostImageId === item.id}
-                      onChange={() => handlePostImageSelection(item.properties["eo:cloud_cover"].toFixed(0),
-                        new Date(item.properties.datetime).toLocaleDateString(),
-                        item.id
-                      )}
-                    ></Switch>
-                    <Button size='small' onPress={() => handlePreviewClick(item.assets.visual.href)}>Preview</Button>
+                    <div className="image-interaction-box">
+                      <Switch
+                        children="Select as post fire image"
+                        isSelected={selectedPostImageId === item.id}
+                        onChange={(isSelected) => {
+                          if (isSelected) {
+                            handlePostImageSelection(
+                              Number(item.properties["eo:cloud_cover"].toFixed(0)),
+                              new Date(item.properties.datetime).toLocaleDateString(),
+                              item.id
+                            );
+                          } else {
+                            setSelectedPostImageId(null);
+                            setAnalysisConfig(prev => ({
+                              ...prev,
+                              postImageDate: null,
+                              postImageCloud: null,
+                            }));
+                          }
+                        }}
+                      />
+                      <Button size='small' onPress={() => handlePreviewClick(item.assets.visual.href)}>Preview</Button>
                   </div>
                   </div>
                 </Accordion>
