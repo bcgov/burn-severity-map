@@ -55,6 +55,10 @@ const ConfigurationApp: React.FC = () => {
     setPreviewLayerUrl(url);
   };
 
+  const removePreviewLayer = () => {
+    setPreviewLayerUrl(null);
+  };
+
   const addFireBoundary = (fireNumber: string) => {
     const perimeterUrl = `https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP&outputFormat=application/json&srsName=EPSG:3857&CQL_FILTER=FIRE_NUMBER='${fireNumber}'`;
     setPerimeterLayerUrl(perimeterUrl);
@@ -226,7 +230,8 @@ const ConfigurationApp: React.FC = () => {
       map: mapInstance, 
       bounds, 
       addFireBoundary,
-      addPreviewLayer, 
+      addPreviewLayer,
+      removePreviewLayer,
       analysisFire,
       setAnalysisFire,
       updateMapView: handleUpdateMapView, 

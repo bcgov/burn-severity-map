@@ -29,7 +29,8 @@ interface AnalysisConfig {
 }
 
 const StacSearchPanel: React.FC = () => {
-  const { bounds, addPreviewLayer, selectedFire, setAnalysisFire } = useContext(MapContext);
+  const { bounds, addPreviewLayer, removePreviewLayer, selectedFire, setAnalysisFire } = useContext(MapContext);
+  const [previewLayerId, setPreviewLayerId] = useState<string | null>(null);
 
   const [searchCriteria, setSearchCriteria] = useState<StacSearchCriteria>({
     collection: 'sentinel-2-l2a',
@@ -368,7 +369,20 @@ const StacSearchPanel: React.FC = () => {
                           }
                         }}
                       />
-                      <Button size='small' onPress={() => handlePreviewClick(item.assets.visual.href)}>Preview</Button>
+                      <Button
+                        size="small"
+                        onPress={() => {
+                          if (previewLayerId === item.id) {
+                            removePreviewLayer();
+                            setPreviewLayerId(null);
+                          } else {
+                            addPreviewLayer(item.assets.visual.href);
+                            setPreviewLayerId(item.id);
+                          }
+                        }}
+                      >
+                        {previewLayerId === item.id ? 'Remove preview' : 'Preview'}
+                      </Button>
                     </div>
                   </div>
                 </Accordion>
@@ -401,7 +415,20 @@ const StacSearchPanel: React.FC = () => {
                           }
                         }}
                       />
-                      <Button size='small' onPress={() => handlePreviewClick(item.assets.visual.href)}>Preview</Button>
+                    <Button
+                      size="small"
+                      onPress={() => {
+                        if (previewLayerId === item.id) {
+                          removePreviewLayer();
+                          setPreviewLayerId(null);
+                        } else {
+                          addPreviewLayer(item.assets.visual.href);
+                          setPreviewLayerId(item.id);
+                        }
+                      }}
+                    >
+                      {previewLayerId === item.id ? 'Remove preview' : 'Preview'}
+                    </Button>
                   </div>
                   </div>
                 </Accordion>
