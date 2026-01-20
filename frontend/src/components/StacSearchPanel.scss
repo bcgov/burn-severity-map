@@ -1,0 +1,66 @@
+.image-search-options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 2em;
+    margin-right: 2em;
+    margin-left: 2em;
+}
+
+.slider-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.slider-month-text {
+    margin-top: 0.5em;
+}
+
+.fire-emoji {
+    font-size: 2em;
+}
+
+.stac-interaction-box {
+    margin-top: 2em;
+    display: flex;
+    flex-direction: column;
+}
+
+.button-box {
+    display: flex;
+    gap: 0.5em;
+}
+
+.error-text {
+    color: red;
+}
+
+.image-interaction-box  {
+    margin-top: 0.5em;
+}
+
+.image-interaction-box button{
+    margin-top: 0.5em;
+}
+
+.bcds-react-aria-Switch > span {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+
+}
+
+.analysis-spinner {
+  position: fixed;
+  top: '0';
+  left: '0';
+  right: '0';
+  bottom: '0';
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; // Make sure it's above other content
+  background-color: 'rgba(255, 255, 255, 0.7)';
+}
