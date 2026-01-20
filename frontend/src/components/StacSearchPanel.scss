@@ -52,15 +52,28 @@
 
 }
 
-.analysis-spinner {
-  position: fixed;
-  top: '0';
-  left: '0';
-  right: '0';
-  bottom: '0';
+.button-group-container {
   display: flex;
+  position: center;
+  flex-direction: column;
+  align-items: center; /* Centers items horizontally */
+  gap: 20px;           /* Space between buttons and the loader */
+  margin-bottom: 20px;
+}
+
+.button-box {
+  display: flex;
+  gap: 10px;           /* Space between the two buttons */
   justify-content: center;
   align-items: center;
-  z-index: 1000; // Make sure it's above other content
-  background-color: 'rgba(255, 255, 255, 0.7)';
+  width: 100%;
 }
+
+
+.analysis-spinner {
+  position: static;        /* override any absolute positioning applied elsewhere */
+  display: inline-flex;    /* keeps the 50x50 spinner sized nicely inline */
+  margin: 0;               /* rely on gap instead of margins */
+  z-index: auto;           /* ensure no forced stacking over buttons */
+}
+
