@@ -325,21 +325,29 @@ const StacSearchPanel: React.FC = () => {
       </label>
 
       <div className="stac-interaction-box">
-        <div className="button-box">
-          <Button onPress={handleSearch} isDisabled={loading}>
-            {loading ? 'Searching...' : 'Load images'}
-          </Button>
-          <Button onPress={handleStartAnalysis} isDisabled={!analysisReady || analysisRunning}>
-            Start Analysis
-          </Button>
+
+        <div className="button-group-container">
+          {/* Conditionally render the PuffLoader 
+          
+          */}
+
+          {loading || analysisRunning && (
+          <div className='analysis-spinner'>
+            <PuffLoader color="#003366" size={50}/>
+          </div>
+          )}
+          <div className="button-box">
+            <Button onPress={handleSearch} isDisabled={loading}>
+              {loading ? 'Searching...' : 'Load images'}
+            </Button>
+            <Button onPress={handleStartAnalysis} isDisabled={!analysisReady || analysisRunning}>
+              Start Analysis
+            </Button>
+          </div>
+        
+
+          {error && <p className="error-text">Error: {error}</p>}
         </div>
-        {/* Conditionally render the PuffLoader */}
-        {analysisRunning && (
-        <div className='analysis-spinner'>
-          <PuffLoader color="#003366" size={150} />
-        </div>
-        )}
-        {error && <p className="error-text">Error: {error}</p>}
         {searchResults.length > 0 && (
           <div>
             <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
