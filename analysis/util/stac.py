@@ -9,6 +9,7 @@ import numpy as np
 import rasterio
 from rasterio import merge
 from shapely.geometry import shape, box
+from datetime import timedelta
 import logging
 
 class STAC:
@@ -19,14 +20,16 @@ class STAC:
     s2_collection_id = 'sentinel-2-l2a'
     ls_collection_id = 'landsat-c2-l2'
 
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, date_offset: int, logger: logging.Logger):
         self.logger = logger
+        self.date_offset = date_offset
 
 
     def search_stac(self, sensor: str, 
                     perimeter_gdf: gpd.GeoDataFrame, 
                     daterange: str, 
-                    cloud_cover_threshold: float) -> list:
+                    cloud_cover_threshold: float,
+                    image_ids: list) -> list:
 
         if sensor == 'S2':
             stac_api_url = STAC.s2_stac_url
@@ -43,62 +46,85 @@ class STAC:
             selected_items = []
             searched_item_ids = set()
 
-            self.logger.info(f'    - Starting iterative search for full coverage: sensor:{sensor} collection:{collection_id} date range: {daterange} max cloud: {cloud_cover_threshold} ')
-
-            # Limit iterations to prevent infinite loops
-            max_iterations = 50
-            for i in range(max_iterations):
-                if uncovered_geom.is_empty:
-                    self.logger.info('    - Perimeter is fully covered')
-                    break
-
-                self.logger.info(f'    - Iteration {i+1}: Area left to cover: {uncovered_geom.area:.4f} degrees^2')
-
-                # Search for the best tile covering the remaining area
+            if image_ids:
+                self.logger.info(f'    - Fetching specified images: {image_ids}')
                 search = client.search(
                     collections=[collection_id],
-                    intersects=uncovered_geom,
-                    datetime=daterange,
-                    query={'eo:cloud_cover': {'lt': cloud_cover_threshold}},
-                    sortby=[
-                        {'field': 'properties.eo:cloud_cover', 'direction': 'asc'}, # Least cloudy first
-                        {'field': 'properties.datetime', 'direction': 'desc'}      # Most recent within criteria
-                    ],
-                    max_items=100  # Fetch a batch of candidates
+                    ids=image_ids
                 )
 
-                best_item_found = None
                 for item in search.items():
-                    if item.id in searched_item_ids:
-                        continue  # Skip if we've already selected or processed this tile
-
-                    # Check for intersection again, as 'intersects' with bbox can be broad
+                    self.logger.info(f'    - Found specified tile: {item.id}')
+                    selected_items.append(item)
+                    searched_item_ids.add(item.id)
                     item_geom = shape(item.geometry)
-                    if item_geom.intersects(uncovered_geom):
-                        best_item_found = item
-                        break # Found the best available candidate for this iteration
-                
-                if best_item_found:
-                    item_id = best_item_found.id
-                    item_date = best_item_found.datetime.date()
-                    cloud_cover = best_item_found.properties.get('eo:cloud_cover', 'N/A')
-                    self.logger.info(f'    -> Selected tile {item_id} (Date: {item_date}, Cloud: {cloud_cover}%)')
-
-                    selected_items.append(best_item_found)
-                    searched_item_ids.add(item_id)
-
-                    # Update the uncovered area
-                    item_geom = shape(best_item_found.geometry)
                     uncovered_geom = uncovered_geom.difference(item_geom)
-                else:
-                    self.logger.info('    - No more suitable intersecting tiles found in STAC')
-                    if not selected_items:
-                        self.logger.warning('    - Warning: could not find any tiles for the given criteria')
-                    else:
-                        self.logger.warning(f'    - Warning: Could not cover the entire perimeter. Proceeding with {len(selected_items)} tiles')
+
+                if not uncovered_geom.is_empty and selected_items:
+                    dates = [item.datetime for item in selected_items]
+                    min_date = min(dates) - timedelta(days=self.date_offset/2)
+                    max_date = max(dates) + timedelta(days=self.date_offset/2)
+
+                    daterange = f"{min_date.strftime('%Y-%m-%dT00:00:00Z')}/{max_date.strftime('%Y-%m-%dT23:59:59Z')}"
+                    self.logger.warning(f'    - Coverage incomplete. Calculated new search window from items: {daterange}')
+
+            if not uncovered_geom.is_empty:
+                self.logger.info(f'    - Starting iterative search for full coverage: sensor:{sensor} collection:{collection_id} date range: {daterange} max cloud: {cloud_cover_threshold} ')
+
+                # Limit iterations to prevent infinite loops
+                max_iterations = 20
+                for i in range(max_iterations):
+                    if uncovered_geom.is_empty:
+                        self.logger.info('    - Perimeter is fully covered')
                         break
-            else:
-                self.logger.warning(f'    - Warning: Reached max iterations ({max_iterations}). Proceeding with partial coverage if any')
+
+                    self.logger.info(f'    - Iteration {i+1}: Area left to cover: {uncovered_geom.area:.4f} degrees^2')
+
+                    # Search for the best tile covering the remaining area
+                    search = client.search(
+                        collections=[collection_id],
+                        intersects=uncovered_geom,
+                        datetime=daterange,
+                        query={'eo:cloud_cover': {'lt': cloud_cover_threshold}},
+                        sortby=[
+                            {'field': 'properties.eo:cloud_cover', 'direction': 'asc'}, # Least cloudy first
+                            {'field': 'properties.datetime', 'direction': 'desc'}      # Most recent within criteria
+                        ],
+                        max_items=100  # Fetch a batch of candidates
+                    )
+
+                    best_item_found = None
+                    for item in search.items():
+                        if item.id in searched_item_ids:
+                            continue  # Skip if we've already selected or processed this tile
+
+                        # Check for intersection again, as 'intersects' with bbox can be broad
+                        item_geom = shape(item.geometry)
+                        if item_geom.intersects(uncovered_geom):
+                            best_item_found = item
+                            break # Found the best available candidate for this iteration
+                        
+                    if best_item_found:
+                        item_id = best_item_found.id
+                        item_date = best_item_found.datetime.date()
+                        cloud_cover = best_item_found.properties.get('eo:cloud_cover', 'N/A')
+                        self.logger.info(f'    -> Selected tile {item_id} (Date: {item_date}, Cloud: {cloud_cover}%)')
+
+                        selected_items.append(best_item_found)
+                        searched_item_ids.add(item_id)
+
+                        # Update the uncovered area
+                        item_geom = shape(best_item_found.geometry)
+                        uncovered_geom = uncovered_geom.difference(item_geom)
+                    else:
+                        self.logger.info('    - No more suitable intersecting tiles found in STAC')
+                        if not selected_items:
+                            self.logger.warning('    - Warning: could not find any tiles for the given criteria')
+                        else:
+                            self.logger.warning(f'    - Warning: Could not cover the entire perimeter. Proceeding with {len(selected_items)} tiles')
+                            break
+                else:
+                    self.logger.warning(f'    - Warning: Reached max iterations ({max_iterations}). Proceeding with partial coverage if any')
             
             if selected_items:
                 dates_used = {item.datetime.date() for item in selected_items}
