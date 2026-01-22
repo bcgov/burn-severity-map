@@ -32,9 +32,9 @@ warnings.filterwarnings('ignore')
 
 def run_app():
     
-        fire, year, sensor, output_folder, object_storage, s_date, e_date, cloud, logger = get_input_parameters()
+        fire, year, sensor, output_folder, object_storage, s_date, e_date, cloud, image_ids, logger = get_input_parameters()
         burn_sev = InterimBurnSeverity(fire=fire, year=year, output_folder=output_folder, object_storage=object_storage, sensor=sensor, 
-                                       start_date=s_date, end_date=e_date, cloud_cover=cloud, logger=logger)
+                                       start_date=s_date, end_date=e_date, cloud_cover=cloud, image_ids=image_ids, logger=logger)
         try:
             result = burn_sev.gather_spatial()
             if not result:
@@ -63,6 +63,7 @@ def get_input_parameters():
         parser.add_argument('-s', '--s_date', type=str, nargs='?', help='Optional start date for fire')
         parser.add_argument('-e', '--e_date', type=str, nargs='?', help='Optional end date for fire')
         parser.add_argument('-c', '--cloud', type=str, default='10', help='Cloud cover')
+        parser.add_argument('-i', '--image_ids', type=str, nargs='?', help='Optional image ids to use for processing. Image ids should be comma separated values with pre and post values separated by a semi-colon (ie. pre_id1,pre_id2:post_id1,post_id2)')
         parser.add_argument('--log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                             help='Log level')
         parser.add_argument('--log_dir', help='Path to log directory')
@@ -76,7 +77,7 @@ def get_input_parameters():
 
         logger = Environment.setup_logger(args)
 
-        return args.fire, args.year, args.sensor, args.output_folder, args.object_storage, args.s_date, args.e_date, args.cloud, logger
+        return args.fire, args.year, args.sensor, args.output_folder, args.object_storage, args.s_date, args.e_date, args.cloud, args.image_ids, logger
 
     except ValueError as v:
         logging.error(f'Value Error: Missing arguments - {v}')
@@ -92,7 +93,7 @@ def get_input_parameters():
 
 class InterimBurnSeverity:
     def __init__(self, fire: str, year: str, sensor: str='S2', output_folder: str=None, object_storage: bool=False, start_date:str=None, end_date: str=None, 
-                 cloud_cover: str='10', logger:logging.Logger=None) -> None:
+                 cloud_cover: str='10', image_ids:str=None, logger:logging.Logger=None) -> None:
         self.fire_number = fire
         self.fire_year = int(year)
         self.use_storage = object_storage
@@ -101,6 +102,20 @@ class InterimBurnSeverity:
 
         self.start_date = None if not start_date else datetime.strptime(str(start_date).split(' ')[0], '%Y-%m-%d')
         self.end_date = None if not end_date else datetime.strptime(str(end_date).split(' ')[0], '%Y-%m-%d')
+        self.str_image_ids = None if not image_ids else image_ids.replace(' ','')
+        self.pre_image_ids = []
+        self.post_image_ids = []
+        if self.str_image_ids:
+            if self.str_image_ids.endswith(':'):
+                self.pre_image_ids = self.str_image_ids[:-1].split(',')
+            elif self.str_image_ids.startswith(':'):
+                self.post_image_ids = self.str_image_ids[1:].split(',')
+            elif ':' in self.str_image_ids:
+                self.pre_image_ids = self.str_image_ids.split(':')[0].split(',')
+                self.post_image_ids = self.str_image_ids.split(':')[1].split(',')
+            else:
+                self.pre_image_ids = self.str_image_ids.split(',')
+
         self.cloud_cover = float(cloud_cover)
         self.logger = logger
         self.fire_status = ''
@@ -273,7 +288,7 @@ class InterimBurnSeverity:
 
     def calculate_severity(self):
 
-        stac = STAC(logger=self.logger)
+        stac = STAC(date_offset=self.int_date_offset, logger=self.logger)
         lst_fires = self.gdf_fires[self.fld_fire_num].tolist()
         for fire_number in lst_fires:
             try:
@@ -288,7 +303,7 @@ class InterimBurnSeverity:
                 temp_post_fire_date = None
 
                 self.logger.info('Searching for pre-fire imagery')
-                pre_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_pre_date_range(),cloud_cover_threshold=self.cloud_cover)
+                pre_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_pre_date_range(), cloud_cover_threshold=self.cloud_cover, image_ids=self.pre_image_ids)
                 if not pre_fire_items:
                     self.logger.error('Could not find suitable pre-fire imagery. Try adjusting date range or cloud cover threshold.')
                     return None
@@ -302,7 +317,7 @@ class InterimBurnSeverity:
                 pre_fire_date = temp_pre_fire_date.strftime('%Y%m%d')
 
                 self.logger.info('Searching for post-fire imagery')
-                post_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_post_date_range(),cloud_cover_threshold=self.cloud_cover)
+                post_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_post_date_range(), cloud_cover_threshold=self.cloud_cover, image_ids=self.post_image_ids)
                 if not post_fire_items:
                     self.logger.error('Could not find suitable post-fire imagery. Try adjusting date range or cloud cover threshold.')
                     raise Exception
