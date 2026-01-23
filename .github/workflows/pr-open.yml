@@ -27,6 +27,7 @@ jobs:
           package: ${{ matrix.package }}
           tag: ${{ github.event.number }}
           tag_fallback: latest
+          build_context: ${{ matrix.package == 'backend' && 'backend/api' || matrix.package }}
           build_file: ${{ matrix.package == 'backend' && 'backend/api/Dockerfile' || format('{0}/Dockerfile', matrix.package) }}
           triggers: ('${{ matrix.package }}/')
 
