@@ -161,39 +161,39 @@ def run_analysis_endpoint():
     if cloud:
         command.extend(['-c', str(cloud)])
 
-    # try:
-    #     # Run the script synchronously and wait for it to complete.
-    #     process = subprocess.run(command, check=True, capture_output=True, text=True)
+    try:
+        # Run the script synchronously and wait for it to complete.
+        process = subprocess.run(command, check=True, capture_output=True, text=True)
         
-    #     # Return a success response with the script's output
-    #     return jsonify({
-    #         "message": "Analysis completed successfully.",
-    #         "details": {
-    #             "fire": fire,
-    #             "year": year,
-    #             "sensor": sensor
-    #         },
-    #         "stdout": process.stdout,
-    #         "stderr": process.stderr
-    #     }), 200 # 200 OK status code
+        # Return a success response with the script's output
+        return jsonify({
+            "message": "Analysis completed successfully.",
+            "details": {
+                "fire": fire,
+                "year": year,
+                "sensor": sensor
+            },
+            "stdout": process.stdout,
+            "stderr": process.stderr
+        }), 200 # 200 OK status code
 
-    # except subprocess.CalledProcessError as e:
-    #     # If the script fails, return an error response with the details
-    #     return jsonify({
-    #         "error": "Run analysis failed.",
-    #         "details": {
-    #             "fire": fire,
-    #             "year": year,
-    #             "sensor": sensor,
-    #             "return_code": e.returncode,
-    #             "stdout": e.stdout,
-    #             "stderr": e.stderr
-    #         }
-    #     }), 500 # 500 Internal Server Error
-    # except Exception as e:
-    #     # Handle other potential errors, such as failing to start the subprocess
-    #     print(traceback.format_exc())  # Log the traceback to stdout (or use logging)
-    #     return jsonify({"error": "An unexpected error occurred."}), 500
+    except subprocess.CalledProcessError as e:
+        # If the script fails, return an error response with the details
+        return jsonify({
+            "error": "Run analysis failed.",
+            "details": {
+                "fire": fire,
+                "year": year,
+                "sensor": sensor,
+                "return_code": e.returncode,
+                "stdout": e.stdout,
+                "stderr": e.stderr
+            }
+        }), 500 # 500 Internal Server Error
+    except Exception as e:
+        # Handle other potential errors, such as failing to start the subprocess
+        print(traceback.format_exc())  # Log the traceback to stdout (or use logging)
+        return jsonify({"error": "An unexpected error occurred."}), 500
 @app.route('/health', methods=['GET'])
 def health_check():
     """
