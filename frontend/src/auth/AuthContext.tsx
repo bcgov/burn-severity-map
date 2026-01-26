@@ -6,6 +6,7 @@ import userManager from './authService';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  roles: string[];
   login: () => void;
   logout: () => void;
   getAccessToken: () => Promise<string | null>;
@@ -20,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Start as true
   const [authError, setAuthError] = useState<Error | null>(null); // For OIDC errors
+  const [roles, setRoles] = useState<string[]>([]);
 
   const handleUserLoaded = useCallback((loadedUser: User) => {
     setUser(loadedUser);
@@ -58,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
+
   const handleAuthError = useCallback((error: Error) => {
     console.error("Authentication Error:", error);
     setAuthError(error);
@@ -65,10 +68,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    if (user) {
+      // Keycloak standard: user.profile.client_roles or user.profile.roles
+      const userRoles = (user.profile?.roles as string[]) || 
+                        (user.profile?.client_roles as string[]) || [];
+      setRoles(userRoles);
+    } else {
+      setRoles([]);
+    }
+
+  }, [user]);
+
+  useEffect(() => {
     // Initial check for existing user session
     userManager.getUser()
       .then(user => {
         if (user && !user.expired) {
+          //console.log("Token Claims:", user.profile); // Inspect this in the browser console
           setUser(user);
         } else {
           setUser(null); // No valid user or expired
@@ -133,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!user && !user.expired; // Derive isAuthenticated
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, getAccessToken, isLoadingAuth, authError }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, roles, getAccessToken, isLoadingAuth, authError }}>
       {children}
     </AuthContext.Provider>
   );

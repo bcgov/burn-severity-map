@@ -7,7 +7,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Functional component for the landing (home) page
 const LandingPage = () => {
-  const { isAuthenticated, isLoadingAuth, login } = useAuth();
+  const { isAuthenticated, roles, isLoadingAuth, login } = useAuth();
   return (
     // Container div styled with the "home-container" class
     <div className="home-container">
@@ -22,8 +22,11 @@ const LandingPage = () => {
               <>
                 {isAuthenticated ? ( // Render the link only if the user is authenticated
                   <div className='link-container'>
-                  <Link to="/burn-severity">View BS Analysis</Link>
-                  <Link to="/severity-configuration">Configure BS Analysis</Link>
+                    <Link to="/burn-severity">View BS Analysis</Link>
+                  {/* Only show config link to editors */}
+                  {roles.includes('editor') && (
+                    <Link to="/severity-configuration">Configure BS Analysis</Link>
+                  )}
                   </div>
                 ) : (
                   // Optionally, you can show a login button or a message for unauthenticated users

@@ -12,10 +12,11 @@ const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading..."
 
 interface ProtectedRouteProps {
   children: JSX.Element;
+  requiredRole?: string;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoadingAuth } = useAuth(); // Destructure new states
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+  const { isAuthenticated, isLoadingAuth, roles } = useAuth(); // Destructure new states
 
   // 1. Show loading state if auth status is still being determined
   if (isLoadingAuth) {
@@ -31,8 +32,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     // if the login page changes... change this to="/login"
     return <Navigate to="/" replace />;
   }
+  // 3. Check for role if one is required
+  if (requiredRole && !roles.includes(requiredRole)) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>Access Denied</h2>
+        <p>You do not have the '{requiredRole}' permissions required to view this page.</p>
+        <Navigate to="/" replace /> 
+      </div>
+    );
+  }
 
-  // 3. If authenticated, render the protected content
+  // 4. If authenticated, render the protected content
   return children;
 };
 
