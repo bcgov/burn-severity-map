@@ -1,6 +1,7 @@
 // apiService.ts
 import userManager from '../auth/authService';
 
+
 // documents returned by getFireDocuments
 export interface Document {
   key: string;
@@ -42,7 +43,10 @@ async function authedFetch(endpoint: string, options: RequestInit = {}): Promise
   headers.append('Authorization', `Bearer ${user.access_token}`);
   
   // Assemble the full request URL.
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = endpoint.startsWith('/') && !endpoint.startsWith(ANALYSIS_API_BASE_URL) 
+    ? `${API_BASE_URL}${endpoint}` 
+    : endpoint;
+
 
   // Perform the fetch call with the updated options.
   const response = await fetch(url, {
@@ -62,7 +66,15 @@ async function authedFetch(endpoint: string, options: RequestInit = {}): Promise
 }
 
 // --- Define your specific API functions here ---
-
+export interface AnalysisRequest {
+  fire: string;
+  year: number;
+  sensor: 'S2';
+  s_date?: string;
+  e_date?: string;
+  cloud?: number;
+  object_storage: true;
+}
 
 export interface HealthResponse {
   status: 'ok' | 'degraded' | 'unreachable';
@@ -116,7 +128,34 @@ export const fetchHealth = async (): Promise<HealthResponse> => {
   };
 };
 
+/**
+ * Triggers the BARC analysis on the Flask backend.
+ * Protected endpoint - Requires 'editor' role on the backend.
+ */
+export const runBurnSeverityAnalysis = async (params: AnalysisRequest) => {
+  // We use authedFetch to automatically include the Bearer token
+  // We override the URL assembly since this goes to the ANALYSIS_API_BASE_URL
+  const response = await authedFetch(`${ANALYSIS_API_BASE_URL}/run-analysis`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
 
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Analysis initiation failed' }));
+    
+    // Handle the 403 Forbidden specifically for role issues
+    if (response.status === 403) {
+      throw new Error("Access Denied: You do not have the required 'editor' permissions.");
+    }
+    
+    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
 
 /**
  * Fetches the features for a specific fire number.

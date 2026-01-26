@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect, CSSProperties } from 'react';
+import { useAuth } from '../auth/AuthContext';
 import { MapContext } from './MapContext';
 import { Extent } from 'ol/extent';
 import { toLonLat } from 'ol/proj';
@@ -8,6 +9,7 @@ import Fire from './FireSelector';
 import { PuffLoader } from 'react-spinners';
 import { syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
+import { runBurnSeverityAnalysis, AnalysisRequest } from '../utils/apiService';
 
 interface StacSearchCriteria {
   collection: string | null;
@@ -29,6 +31,7 @@ interface AnalysisConfig {
 }
 
 const StacSearchPanel: React.FC = () => {
+  const { getAccessToken } = useAuth();
   const { bounds, addPreviewLayer, removePreviewLayer, selectedFire, setAnalysisFire } = useContext(MapContext);
   const [previewLayerId, setPreviewLayerId] = useState<string | null>(null);
 
@@ -96,47 +99,34 @@ const StacSearchPanel: React.FC = () => {
     const url = "/analysis/run-analysis";
     const defaultCloud = "10";
     const currentYear = new Date().getFullYear();
-    const thisYear = analysisConfig.year ?? new Date().getFullYear().toString();
+    const thisYear = analysisConfig.year ?? new Date().getFullYear();
     const sCloud = analysisConfig.preImageCloud ?? defaultCloud;
     const eCloud = analysisConfig.postImageCloud ?? defaultCloud;
-    const cloud =  Math.max(Number(sCloud)+1, Number(eCloud)+1).toString();
+    const cloud =  Math.max(Number(sCloud)+1, Number(eCloud)+1);
     setAnalysisRunning(true);
 
-    const payload: Record<string, any> = {
+    const payload: AnalysisRequest = {
       fire: analysisConfig.fire_number,
       year: thisYear,
-      cloud: cloud,
       sensor: "S2",
+      cloud: cloud,
       object_storage: true,
+      s_date: analysisConfig.preImageDate || undefined,
+      e_date: analysisConfig.postImageDate || undefined,
     };
 
-    if (analysisConfig.preImageDate) payload.s_date = analysisConfig.preImageDate;
-    if (analysisConfig.postImageDate) payload.e_date = analysisConfig.postImageDate;
-
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
+      const result = await runBurnSeverityAnalysis(payload);
 
-      if (!response.ok) {
-        setAnalysisRunning(false);
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const result = await response.json();
       console.log("Analysis result:", result);
       if (analysisConfig.fire_number){
         await syncFireResults(String(thisYear),analysisConfig.fire_number)
         setAnalysisFire(analysisConfig.fire_number);
       }
     } catch (error) {
-      setAnalysisRunning(false);
-      console.error("Error running analysis:", error);
-      alert("Failed to start analysis.");
+        setAnalysisRunning(false);
+        console.error("Error running analysis:", error);
+        alert(error.message || "Failed to start analysis.");
     } finally {
       setAnalysisRunning(false);
     }

@@ -60,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
+
   const handleAuthError = useCallback((error: Error) => {
     console.error("Authentication Error:", error);
     setAuthError(error);
@@ -75,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setRoles([]);
     }
+
   }, [user]);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userManager.getUser()
       .then(user => {
         if (user && !user.expired) {
+          //console.log("Token Claims:", user.profile); // Inspect this in the browser console
           setUser(user);
         } else {
           setUser(null); // No valid user or expired
