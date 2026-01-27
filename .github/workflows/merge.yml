@@ -48,6 +48,9 @@ jobs:
     with:
       environment: test
       tag: ${{ needs.vars.outputs.tag }}
+      params: >-
+        --set global.secrets.persist=false
+        --set-string frontend.baseUrl=https://burn-severity-map-test-frontend.apps.silver.devops.gov.bc.ca
 
   deploy-prod:
     name: Deploy (prod, tag=${{ needs.vars.outputs.tag }})
@@ -57,6 +60,9 @@ jobs:
       oc_token: ${{ secrets.OC_TOKEN }}
     with:
       environment: prod
+      params: >-
+        --set global.secrets.persist=false
+        --set-string frontend.baseUrl=https://burn-severity-map-prod-frontend.apps.silver.devops.gov.bc.ca
       # params:
       #   --set backend.deploymentStrategy=RollingUpdate
       #   --set frontend.deploymentStrategy=RollingUpdate

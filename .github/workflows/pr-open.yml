@@ -44,7 +44,9 @@ jobs:
     with:
       environment: dev
       triggers: ('analysis/' 'frontend/' 'backend/' 'charts/' '.github/')
-      params: --set global.secrets.persist=false
+      params: >-
+        --set global.secrets.persist=false
+        --set-string frontend.baseUrl=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca
 
   results:
     name: PR Results
