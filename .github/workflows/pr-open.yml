@@ -27,9 +27,9 @@ jobs:
           package: ${{ matrix.package }}
           tag: ${{ github.event.number }}
           tag_fallback: latest
-          build_args: |
-            REACT_APP_BASE_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca
-            REACT_APP_AUTH_CALLBACK_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca/callback
+          # build_args: |
+          #   REACT_APP_BASE_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca
+          #   REACT_APP_AUTH_CALLBACK_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca/callback
           build_context: ${{ matrix.package == 'backend' && 'backend/api' || matrix.package }}
           build_file: ${{ matrix.package == 'backend' && 'backend/api/Dockerfile' || format('{0}/Dockerfile', matrix.package) }}
           triggers: ('${{ matrix.package }}/')
