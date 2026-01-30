@@ -34,7 +34,7 @@ spec:
           securityContext:
             {{- toYaml .Values.analysis.securityContext | nindent 12 }}
           {{- end }}
-          image: "{{.Values.analysis.image.registry}}/{{.Values.analysis.image.repository}}:{{.Values.analysis.image.tag}}"
+          image: "{{ include "burn-severity-map.image" (dict "Values" .Values "image" .Values.analysis.image) }}"
           imagePullPolicy: {{ .Values.analysis.image.pullPolicy }}
           envFrom:
             {{- if .Values.analysis.configMap.enabled }}
