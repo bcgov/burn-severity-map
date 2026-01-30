@@ -31,9 +31,10 @@ backend:
   deploymentStrategy: Recreate
   #-- autoscaling for the component. it is optional and is an object.
   image:
-    registry: {{ .Values.global.registry }}
-    repository: {{ .Values.global.repository }}/backend/api
-    tag: {{ .Values.global.tag }} # Or a specific tag
+    registry: ""
+    repository: ""
+    name: backend/api
+    tag: "" # Or a specific tag
     pullPolicy: Always
   autoscaling:
     #-- enable or disable autoscaling.
@@ -99,12 +100,13 @@ frontend:
 
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
-    registry: {{ .Values.global.registry }}
-    repository: {{ .Values.global.repository }}/fronten
+    registry: ""
+    repository: ""
+    name: frontend
     # This sets the pull policy for images.
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: {{ .Values.global.tag }}
+    tag: ""
   # env:
   #   - name: REACT_APP_BASE_URL
   #     value: "https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca"
@@ -163,9 +165,10 @@ analysis:
   deploymentStrategy: Recreate
   #-- autoscaling for the component. it is optional and is an object.
   image:
-    registry: {{ .Values.global.registry }}
-    repository: {{ .Values.global.repository }}/analysis
-    tag: {{ .Values.global.tag }} # Or a specific tag
+    registry: ""
+    repository: ""
+    name: analysis
+    tag: "" # Or a specific tag
     pullPolicy: Always
   autoscaling:
     #-- enable or disable autoscaling.

@@ -34,7 +34,7 @@ spec:
           securityContext:
             capabilities:
               add: ["NET_BIND_SERVICE"]
-          image: "{{ .Values.frontend.image.registry }}/{{ .Values.frontend.image.repository }}:{{ default .Chart.AppVersion .Values.frontend.image.tag }}"
+          image: "{{ include "burn-severity-map.image" (dict "Values" .Values "image" .Values.frontend.image) }}"
           imagePullPolicy: {{ default "Always" .Values.frontend.image.pullPolicy }}
           ports:
             - name: http
