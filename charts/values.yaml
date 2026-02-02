@@ -33,7 +33,7 @@ backend:
   image:
     registry: ""
     repository: ""
-    name: backend/api
+    name: backend
     tag: "" # Or a specific tag
     pullPolicy: Always
   autoscaling:
