@@ -44,3 +44,24 @@ Selector labels
 app.kubernetes.io/name: {{ include "fullname" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Compose an OCI image reference as:
+  <registry>/<repository>/<name>:<tag>
+
+Precedence for each segment:
+  component.image.* if provided, otherwise fall back to global.* (for registry/repository/tag).
+  The component MUST provide image.name (e.g., "frontend" or "backend/api").
+
+Usage:
+  {{ include "burn-severity-map.image" (dict "Values" .Values "image" .Values.frontend.image) }}
+*/}}
+{{- define "burn-severity-map.image" -}}
+{{- $global := .Values.global -}}
+{{- $img    := .image -}}
+{{- $registry := (default $global.registry   $img.registry) -}}
+{{- $repo    := (default $global.repository $img.repository) -}}
+{{- $name    := (required "image.name is required" $img.name) -}}
+{{- $tag     := (default $global.tag        $img.tag) -}}
+{{- printf "%s/%s/%s:%s" $registry $repo $name $tag -}}
+{{- end -}}

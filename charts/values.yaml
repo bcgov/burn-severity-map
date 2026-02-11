@@ -3,11 +3,11 @@
 #-- global variables, can be accessed by sub-charts.
 global:
   #-- the registry where the images are stored. override during runtime for other registry at global level or individual level.
-  repository: ~ # provide the repo name from where images will be sourced for example bcgo
+  repository: bcgov/burn-severity-map  # overridden by the deployer to ${{ github.repository }} # provide the repo name from where images will be sourced for example bcgo
   #-- the registry where the images are stored. override during runtime for other registry at global level or individual level. default is ghcr.io
   registry: ghcr.io # ghcr.io for directly streaming from github container registry or "artifacts.developer.gov.bc.ca/github-docker-remote" for artifactory, or any other registry.
   #-- the tag of the image, it can be latest, 1.0.0 etc..., or the sha256 hash
-  tag: ~
+  tag: latest  # default; deployer overrides to PR number or supplied tag
   #-- turn off autoscaling for the entire suite by setting this to false. default is true.
   autoscaling: false
   #-- global secrets, can be accessed by sub-charts.
@@ -31,9 +31,10 @@ backend:
   deploymentStrategy: Recreate
   #-- autoscaling for the component. it is optional and is an object.
   image:
-    registry: ghcr.io
-    repository: bcgov/burn-severity-map/backend/api
-    tag: latest # Or a specific tag
+    registry: ""
+    repository: ""
+    name: backend
+    tag: "" # Or a specific tag
     pullPolicy: Always
   autoscaling:
     #-- enable or disable autoscaling.
@@ -99,13 +100,13 @@ frontend:
 
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
-    registry: ghcr.io 
-    repository: bcgov/burn-severity-map/frontend
+    registry: ""
+    repository: ""
+    name: frontend
     # This sets the pull policy for images.
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: latest
-  
+    tag: ""
   # env:
   #   - name: REACT_APP_BASE_URL
   #     value: "https://bs-app-burn-severity-map.apps.silver.devops.gov.bc.ca"
@@ -131,7 +132,7 @@ frontend:
     targetPort: 8080 # match the service
   domain: "apps.silver.devops.gov.bc.ca" # silver cluster
   # appName: "bs-app-burn-severity-map"
-  baseUrl: https://bs-app-frontend.apps.silver.devops.gov.bc.ca
+  baseUrl: "" # set per environment
   # add pdb??? 
   configMap:
     enabled: true
@@ -164,9 +165,10 @@ analysis:
   deploymentStrategy: Recreate
   #-- autoscaling for the component. it is optional and is an object.
   image:
-    registry: ghcr.io
-    repository: bcgov/burn-severity-map/analysis
-    tag: latest # Or a specific tag
+    registry: ""
+    repository: ""
+    name: analysis
+    tag: "" # Or a specific tag
     pullPolicy: Always
   autoscaling:
     #-- enable or disable autoscaling.
