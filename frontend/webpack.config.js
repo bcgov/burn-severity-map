@@ -13,6 +13,7 @@ const config = {
     path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js', // Ensure output filename is specified
     clean: true, // Optional: clears dist folder before builds
+    publicPath:'/',
   },
   devServer: {
     open: true,
@@ -45,9 +46,18 @@ const config = {
     new HtmlWebpackPlugin({
       template: './public/index.html',
     }),
+
+    // Replace build-time env so `process.env.X` never reaches the browser bundle
     new webpack.DefinePlugin({
-      'process.env.REACT_APP_BASE_URL': JSON.stringify(process.env.REACT_APP_BASE_URL),
-      'process.env.REACT_APP_AUTH_CALLBACK_URL': JSON.stringify(process.env.REACT_APP_AUTH_CALLBACK_URL),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || (isProduction ? 'production' : 'development')),
+      'process.env.REACT_APP_BASE_URL': JSON.stringify(process.env.REACT_APP_BASE_URL || ''),
+      // Prefer "path" for callback; your code builds the full URL from window.location.origin
+      'process.env.REACT_APP_AUTH_CALLBACK_PATH': JSON.stringify(process.env.REACT_APP_AUTH_CALLBACK_PATH || '/callback'),
+    }),
+
+    // Provide a tiny `process` polyfill for dependencies that still reference it at runtime
+    new webpack.ProvidePlugin({
+      process: 'process/browser',
     }),
   ],
   module: {
@@ -73,7 +83,13 @@ const config = {
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.jsx', '.js'],
+    // Explicit fallback for `process` (Webpack 5 removed auto-polyfills)
+    fallback: {
+      process: require.resolve('process/browser'),
+    },
+
   },
+  devtool: isProduction ? 'source-map' : 'eval-source-map',
 };
 
 module.exports = () => {

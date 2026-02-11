@@ -4,7 +4,7 @@ import { WebStorageStateStore, UserManagerSettings } from 'oidc-client-ts';
 
 function getBaseUrl(): string {
   // Browser runtime: trust the Route/Ingress host
-  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+  if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
   // Non-browser (tests/SSR) or local dev fallback
