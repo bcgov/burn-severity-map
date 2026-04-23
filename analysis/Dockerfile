@@ -1,6 +1,6 @@
 
 # Use the official QGIS image as the base
-FROM qgis/qgis:3.40.9-bookworm
+FROM qgis/qgis:3.44.9-trixie
 
 # Set environment - root ops
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -38,15 +38,20 @@ WORKDIR /app
 
 # install pip
 RUN apt-get update && \
-    apt-get install -y python3-pip && \
-    pip3 install --break-system-packages --upgrade pip && \
+    apt-get install -y python3 python3-pip && \
     ln -s /usr/bin/python3 /usr/bin/python
+
 
 # Copy source code requirements
 COPY . .
 
 # Install Python dependencies
-RUN pip3 install --break-system-packages -r requirements.txt
+
+RUN pip3 install \
+    --break-system-packages \
+    --ignore-installed \
+    -r requirements.txt
+
 
 # Install debugpy for remote debugging
 RUN pip3 install --break-system-packages debugpy && \

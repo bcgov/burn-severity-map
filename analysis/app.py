@@ -12,6 +12,7 @@ from datetime import datetime
 import jwt
 import requests
 from functools import wraps
+import json
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -35,7 +36,9 @@ def get_public_key(token):
     jwks = requests.get(JWKS_URL).json()
     for key in jwks['keys']:
         if key['kid'] == header['kid']:
-            return jwt.algorithms.RSAAlgorithm.from_jwk(key)
+            return jwt.algorithms.RSAAlgorithm.from_jwk(
+                json.dumps(key)
+                )
     raise Exception("Public key not found.")
 
 def roles_allowed(required_role):
