@@ -42,18 +42,34 @@ def check_connection():
         print(f"An unexpected error occurred: {e}")
         return False
 
-def get_unique_fire_numbers():
-    query = f"""
-        SELECT DISTINCT FIRE_NUMBER
-        FROM '{PARQUET_PATH}'
-        ORDER BY FIRE_NUMBER
-    """
-    return [row[0] for row in con.execute(query).fetchall()]
+def get_unique_fire_numbers(year:str=None):
+    if year:
+        query = f"""
+            SELECT DISTINCT FIRE_NUMBER
+            FROM '{PARQUET_PATH}' WHERE FIRE_YEAR=?
+            ORDER BY FIRE_NUMBER
+        """
+        return [row[0] for row in con.execute(query,[year]).fetchall()]
+    else:
+        query = f"""
+            SELECT DISTINCT FIRE_NUMBER
+            FROM '{PARQUET_PATH}'
+            ORDER BY FIRE_NUMBER
+        """
+        return [row[0] for row in con.execute(query).fetchall()]
 
-def get_fire_features(fire_number: str):
+def get_fire_features(year: str, fire_number: str):
     query = f"""
         SELECT ST_AsGeoJSON(geometry) AS geometry, *
         FROM '{PARQUET_PATH}'
-        WHERE FIRE_NUMBER = ?
+        WHERE FIRE_YEAR=? and FIRE_NUMBER = ?
     """
-    return con.execute(query, [fire_number]).fetchdf()
+    return con.execute(query, [year, fire_number]).fetchdf()
+
+def get_years_with_features():
+    query = f"""
+        SELECT DISTINCT FIRE_YEAR
+        FROM '{PARQUET_PATH}'
+        ORDER BY FIRE_YEAR
+    """
+    return [row[0] for row in con.execute(query).fetchall()]
