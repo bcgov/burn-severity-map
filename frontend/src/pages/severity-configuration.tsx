@@ -38,6 +38,7 @@ const ConfigurationApp: React.FC = () => {
   const [analysisFire, setAnalysisFire] = useState<string | null>(null);
   const resultsLayerRef = useRef<VectorLayer | null>(null);
   const [resultsFeatureCollection, setResultsFeatureCollection] = useState<any | null>(null);
+  const currentYear = String(new Date().getFullYear());
 
   const handleUpdateMapView = (newCenter: [number,number], newZoom: number) => {
     setCenter(newCenter)
@@ -68,7 +69,7 @@ const ConfigurationApp: React.FC = () => {
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstance) return;
     try {
-      const featureCollection = await getFireData(fireNumber);
+      const featureCollection = await getFireData(currentYear,fireNumber);
       
       setResultsFeatureCollection(featureCollection);
 
