@@ -1,3 +1,4 @@
+//src/pages/burn-severity.tsx
 import React, { useState, useEffect } from 'react';
 import '../style.scss';
 import './burn-severity.scss';
@@ -21,6 +22,9 @@ const BurnSeverityPage: React.FC = () => {
   const [fireNumbers, setFireNumbers] = useState<string[]>([]);
   // State for the currently selected fire number
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
+  // State for the currently selected fire year
+  const currentYear = String(new Date().getFullYear());
+  const [selectedDbYear, setSelectedDbYear] = useState<string | null>(currentYear);
   // State for the currently selected documents
   const [ documents, setDocuments ] = useState<Document[]>([]);
   const [ isLoading, setIsLoading ] = useState<boolean>(false);
@@ -32,12 +36,16 @@ const BurnSeverityPage: React.FC = () => {
     setBasemap(newBasemap);
   };
   
-  // Fetch the list of fire numbers when the component mounts
+  // Fetch the list of fire numbers when a selected year changes
   useEffect(() => {
+    if (!selectedDbYear) {
+      setFireNumbers([]);
+      return;
+    }
+
     const fetchFireNumbers = async () => {
       try {
-        const data = await getFireNumbers();
-        // The API returns { "fire_numbers": [...] }, so we extract the array
+        const data = await getFireNumbers(selectedDbYear);
         if (data && Array.isArray(data.fire_numbers)) {
           setFireNumbers(data.fire_numbers);
         }
@@ -47,7 +55,8 @@ const BurnSeverityPage: React.FC = () => {
     };
 
     fetchFireNumbers();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, [selectedDbYear]);
+
 
   useEffect(() => {
     if (!selectedDbFire) {
@@ -57,7 +66,7 @@ const BurnSeverityPage: React.FC = () => {
   const getDocuments = async () => {
     setIsLoading(true);
     try {
-      const fetchedDocs = await getFireDocuments(selectedDbFire);
+      const fetchedDocs = await getFireDocuments(selectedDbYear,selectedDbFire);
       setDocuments(fetchedDocs);
     }catch (error) {
         console.error("Failed to fetch documents:", error);
@@ -69,8 +78,15 @@ const BurnSeverityPage: React.FC = () => {
   getDocuments();
   }, [selectedDbFire]); // only should run if selected fire changes
 
+  // Handler for when a year is selected from the dropdown
+  const handleDbYearSelect = (year: string | null) => {
+    setSelectedDbYear(year);
+    setSelectedDbFire(null);   // clear fire when year changes
+    setFireNumbers([]);        // avoid stale options
+  };
+
+
   // Handler for when a fire is selected from the dropdown.
-  // This function is now much simpler.
   const handleDbFireSelect = (fireNumber: string | null) => {
     setSelectedDbFire(fireNumber);
   };
@@ -87,7 +103,9 @@ const BurnSeverityPage: React.FC = () => {
           <FireSelector_db
             fires={fireNumbers}
             onFireSelect={handleDbFireSelect}
+            onYearSelect={handleDbYearSelect}
             selectedFire={selectedDbFire}
+            selectedYear={selectedDbYear}
           />
           <h3>Documents</h3>
           <DocumentPanel
@@ -95,18 +113,6 @@ const BurnSeverityPage: React.FC = () => {
             documents= { documents }
             isLoading= { isLoading }
            />
-          {/* <AccordionGroup>
-            <Accordion label='Documents'>
-              <DocumentPanel
-                selectedDbFire={ selectedDbFire }
-                documents= { documents }
-                isLoading= { isLoading }
-              />
-            </Accordion>
-            <Accordion>
-              <BurnSeveritySummary/>
-            </Accordion>
-          </AccordionGroup> */}
         </div>
 
         {/* Center Panel - Map */}
@@ -118,6 +124,7 @@ const BurnSeverityPage: React.FC = () => {
               zoom={zoom} 
               basemap={basemap}
               selectedDbFire={selectedDbFire}
+              selectedDbYear={selectedDbYear}
             />
           </div>
           

@@ -24,6 +24,7 @@ interface OLMapProps {
   zoom?: number;
   basemap?: string;
   selectedDbFire?: string | null;
+  selectedDbYear?: string | null;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -31,6 +32,7 @@ const OLMap: React.FC<OLMapProps> = ({
   zoom = 6,
   basemap = 'osm',
   selectedDbFire,
+  selectedDbYear
 }) => {
   const { isAuthenticated } = useAuth();
   
@@ -54,13 +56,13 @@ const OLMap: React.FC<OLMapProps> = ({
   }, []);
 
   // This function now uses the ref, and no longer depends on the layer state
-  const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
+  const fetchAndDisplayBurnGeometry = useCallback(async (selectedYear: string, fireNumber: string) => {
     if (!mapInstanceRef.current) return;
     try {
       setShowLegend(true);
       setShowSummary(true);
-
-      const featureCollection = await getFireData(fireNumber);
+      console.log ("FetchAndDisplayBurnGeometry",selectedYear,fireNumber)
+      const featureCollection = await getFireData(selectedYear,fireNumber);
       
       setSelectedFireFeatureCollection(featureCollection);
 
@@ -145,7 +147,7 @@ const OLMap: React.FC<OLMapProps> = ({
     if (!mapInstanceRef.current) return;
 
     if (selectedDbFire) {
-      fetchAndDisplayBurnGeometry(selectedDbFire);
+      fetchAndDisplayBurnGeometry(selectedDbYear, selectedDbFire);
     } else {
       // If no fire is selected, clear the layer using the ref
       if (burnSeverityLayerRef.current) {

@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
                     await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_key)
             elif geoparquet_on_s3() and len(fire_jsons)>0:
                 # update geoparque
-                fire_list = get_unique_fire_numbers()
+                fire_list = get_unique_fire_numbers(year=None)
                 for fire_json in fire_jsons:
                     year = fire_json.split('/')[-1].split('-')[0]
                     fire = fire_json.split('/')[-1].split('-')[1][:6]
@@ -76,22 +76,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
         
-@app.get("/burn-severity", response_model=FireNumberList)
+@app.get("/burn-severity/{year}", response_model=FireNumberList)
 # def list_fire_numbers(token_payload: dict = Depends(verify_token)): #use this if you want to protect the route
-def list_fire_numbers(token_payload: dict = Depends(verify_token)):
+def list_fire_numbers(year: str, token_payload: dict = Depends(verify_token)):
     # protected route
     try:
-        fire_numbers = get_unique_fire_numbers()
+        fire_numbers = get_unique_fire_numbers(year=year)
         return {"fire_numbers": fire_numbers}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/burn-severity/{fire_number}", response_model=FeatureCollection)
-def get_fire_by_number(fire_number: str, token_payload: dict = Depends(verify_token)):
+@app.get("/burn-severity/{year}/{fire_number}", response_model=FeatureCollection)
+def get_fire_by_number(year: str, fire_number: str, token_payload: dict = Depends(verify_token)):
     # Protected route
-    # eg. N71148
+    # eg. 2025, N71148
     try:
-        df = get_fire_features(fire_number)
+        df = get_fire_features(year,fire_number)
         features = []
 
         for _, row in df.iterrows():
@@ -108,7 +108,7 @@ def get_fire_by_number(fire_number: str, token_payload: dict = Depends(verify_to
 async def sync_burn_severity(year:str, fire_number: str):
     try:
         logger.info(f'Syc BS for {year}-{fire_number}')
-        obj_list = s3_list_objects(file_prefix=f'2025-{fire_number}')
+        obj_list = s3_list_objects(file_prefix=f'{year}-{fire_number}')
         pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
         fire_jsons = [doc for doc in obj_list if pattern.match(doc)]
         logger.info(str(fire_jsons))
@@ -129,18 +129,18 @@ async def sync_burn_severity(year:str, fire_number: str):
     return True
 
 
-@app.get(
-    "/docs/list/{fire_number}",
-    summary="get list of documents related to fire_number"
-)
-async def get_docs(fire_number:str, token_payload: dict = Depends(verify_token)):
-    # Protected route
-    pass
+# @app.get(
+#     "/docs/list/{year}/{fire_number}",
+#     summary="get list of documents related to fire_number"
+# )
+# async def get_docs(year:str,fire_number:str, token_payload: dict = Depends(verify_token)):
+#     # Protected route
+#     return HTTPException(status_code=404, detail="This route is not built")
 
 @app.get(
-    "/docs/download/{fire_number}"
+    "/docs/download/{year}/{fire_number}"
 )
-async def download_file(fire_number:str, token_payload: dict = Depends(verify_token)):
+async def download_file(year:str, fire_number:str, token_payload: dict = Depends(verify_token)):
     # Protected route
     """
     Returns a presigned URL for a file in S3-compliant storage.
@@ -148,8 +148,7 @@ async def download_file(fire_number:str, token_payload: dict = Depends(verify_to
     """
 
     # get list of s3 objects with the given prefix
-    # TODO: deal with year
-    obj_list = s3_list_objects(file_prefix=f'2025-{fire_number}')
+    obj_list = s3_list_objects(file_prefix=f'{year}-{fire_number}')
     if not obj_list:
         return HTTPException(status_code=404, detail="No files found for the given prefix.")
 

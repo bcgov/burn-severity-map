@@ -163,8 +163,9 @@ export const runBurnSeverityAnalysis = async (params: AnalysisRequest) => {
  * @returns A Promise that resolves to the feature collection data.
  */
 
-export const getFireData = async (fireNumber: string) => {
-  const response = await authedFetch(`/burn-severity/${fireNumber}`);
+export const getFireData = async (year:string, fireNumber: string) => {
+  console.log('getFireData',year,fireNumber)
+  const response = await authedFetch(`/burn-severity/${year}/${fireNumber}`);
   if (!response.ok) {
     // handle non-2xx responses here.
     const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
@@ -176,8 +177,8 @@ export const getFireData = async (fireNumber: string) => {
  * Fetch the list of documents availiable for fire number
  * response = [{"key":str,"filename":str,"url":str}]
  */
-export const getFireDocuments = async (fireNumber: string) => {
-  const response = await authedFetch(`/docs/download/${fireNumber}`);
+export const getFireDocuments = async (year:string,fireNumber: string) => {
+  const response = await authedFetch(`/docs/download/${year}/${fireNumber}`);
   if (!response.ok) {
     // handle non-2xx responses here.
     const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
@@ -198,8 +199,8 @@ export const getFireDocuments = async (fireNumber: string) => {
  * Fetches the list of all available fire numbers.
  * Protected endpoint
  */
-export const getFireNumbers = async () => {
-  const response = await authedFetch(`/burn-severity`);
+export const getFireNumbers = async (year:string) => {
+  const response = await authedFetch(`/burn-severity/${year}`);
   if (!response.ok) {
     // handle non-2xx responses here.
     const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
