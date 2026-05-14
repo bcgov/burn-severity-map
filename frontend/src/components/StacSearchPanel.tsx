@@ -237,19 +237,17 @@ const StacSearchPanel: React.FC = () => {
       {analysisConfig.fire_number && (
         <div className="panel-box">
           <h4>Attributes</h4>
-          <p><span>Fire:</span> {analysisConfig.fire_number}</p>
-          <p><span>Year:</span> {String(new Date().getFullYear())}</p>
-          <p><span>Sensor:</span> {analysisConfig.sensor}</p>
-          <p><span>S_date:</span> {analysisConfig.preImageDate}</p>
-          <p><span>S_IDs:</span> {analysisConfig.preImageID}</p>
-          <p><span>E_date:</span> {analysisConfig.postImageDate}</p>
-          <p><span>E_IDs:</span> {analysisConfig.postImageID}</p>
+          <p><span>Fire:</span> {String(new Date().getFullYear())}-{analysisConfig.fire_number}</p>
+          <p><span>Start Date:</span> {analysisConfig.preImageDate}</p>
+          <p><span>Start ID:</span> {analysisConfig.preImageID}</p>
+          <p><span>End Date:</span> {analysisConfig.postImageDate}</p>
+          <p><span>End ID:</span> {analysisConfig.postImageID}</p>
           <p>
-            <span>Cloud:</span>{' '}
+            <span>Cloud Cover:</span>{' '}
             {Math.max(
               analysisConfig.preImageCloud ?? 0,
               analysisConfig.postImageCloud ?? 0
-            )}
+            )}%
           </p>
         </div>
       )}
@@ -350,7 +348,7 @@ const StacSearchPanel: React.FC = () => {
           <div>
             <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
               {preIgnitionResults.map(item => (
-                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString()}>
+                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
                   <div>
                     <strong>ID: </strong> {item.id} <br />
                     <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -362,7 +360,7 @@ const StacSearchPanel: React.FC = () => {
                           if (isSelected) {
                             handlePreImageSelection(
                               Number(item.properties["eo:cloud_cover"].toFixed(0)),
-                              new Date(item.properties.datetime).toLocaleDateString(),
+                              new Date(item.properties.datetime).toLocaleDateString('en-CA'),
                               item.id
                             );
                           } else {
@@ -397,7 +395,7 @@ const StacSearchPanel: React.FC = () => {
             </AccordionGroup>
             <AccordionGroup title='Post ignition images' allowsMultipleExpanded>
               {postIgnitionResults.map(item => (
-                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString()}>
+                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
                   <div>
                     <strong>ID: </strong> {item.id} <br />
                     <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -409,7 +407,7 @@ const StacSearchPanel: React.FC = () => {
                           if (isSelected) {
                             handlePostImageSelection(
                               Number(item.properties["eo:cloud_cover"].toFixed(0)),
-                              new Date(item.properties.datetime).toLocaleDateString(),
+                              new Date(item.properties.datetime).toLocaleDateString('en-CA'),
                               item.id
                             );
                           } else {

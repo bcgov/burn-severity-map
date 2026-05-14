@@ -123,7 +123,7 @@ const FireSelector: React.FC = () => {
       <div className="fire-selector-status">
         {error && <p className="text-sm text-red-500">Error: {error}</p>}
         {selectedFire !== null && (
-          <p><span>Ignition Date:</span> {new Date(selectedFire.ignitionDate).toLocaleDateString()}</p>
+          <p><span>Ignition Date:</span> {new Date(selectedFire.ignitionDate).toLocaleDateString('en-CA')}</p>
         )}
       </div>
     </div>
