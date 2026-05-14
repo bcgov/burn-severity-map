@@ -25,6 +25,8 @@ interface AnalysisConfig {
   sensor: string | null;
   preImageDate: string | null;
   postImageDate: string | null;
+  preImageID: string | null;
+  postImageID: string | null;
   preImageCloud: number | null;
   postImageCloud: number | null;
   cloudCover: number | null;
@@ -48,6 +50,8 @@ const StacSearchPanel: React.FC = () => {
     sensor: 'S2',
     preImageDate: null,
     postImageDate: null,
+    preImageID: null,
+    postImageID: null,
     preImageCloud: 0,
     postImageCloud: 0,
     cloudCover: 0,
@@ -153,6 +157,7 @@ const StacSearchPanel: React.FC = () => {
     setAnalysisConfig(prev => ({
       ...prev,
       preImageDate: preImageDate === '' ? null: String(preImageDate),
+      preImageID: id === '' ? null: String(id),
       preImageCloud: cloud_cover,
     }));
   }
@@ -163,6 +168,7 @@ const StacSearchPanel: React.FC = () => {
     setAnalysisConfig(prev => ({
       ...prev,
       postImageDate: postImageDate === '' ? null: String(postImageDate),
+      postImageID: id === '' ? null: String(id),
       postImageCloud: cloud_cover,
     }));
   }
@@ -235,7 +241,9 @@ const StacSearchPanel: React.FC = () => {
           <p><span>Year:</span> {String(new Date().getFullYear())}</p>
           <p><span>Sensor:</span> {analysisConfig.sensor}</p>
           <p><span>S_date:</span> {analysisConfig.preImageDate}</p>
+          <p><span>S_IDs:</span> {analysisConfig.preImageID}</p>
           <p><span>E_date:</span> {analysisConfig.postImageDate}</p>
+          <p><span>E_IDs:</span> {analysisConfig.postImageID}</p>
           <p>
             <span>Cloud:</span>{' '}
             {Math.max(
@@ -363,6 +371,7 @@ const StacSearchPanel: React.FC = () => {
                               ...prev,
                               preImageDate: null,
                               preImageCloud: null,
+                              preImageID: null,
                             }));
                           }
                         }}
@@ -409,6 +418,7 @@ const StacSearchPanel: React.FC = () => {
                               ...prev,
                               postImageDate: null,
                               postImageCloud: null,
+                              postImageID: null,
                             }));
                           }
                         }}
