@@ -27,6 +27,7 @@ interface AnalysisConfig {
   postImageDate: string | null;
   preImageID: string | null;
   postImageID: string | null;
+  imageIDs: string | null;
   preImageCloud: number | null;
   postImageCloud: number | null;
   cloudCover: number | null;
@@ -46,12 +47,13 @@ const StacSearchPanel: React.FC = () => {
   });
   const [ analysisConfig, setAnalysisConfig ]= useState<AnalysisConfig>({
     fire_number: null,
-    year: 2025,
+    year: null,
     sensor: 'S2',
     preImageDate: null,
     postImageDate: null,
     preImageID: null,
     postImageID: null,
+    imageIDs: null,
     preImageCloud: 0,
     postImageCloud: 0,
     cloudCover: 0,
@@ -72,7 +74,7 @@ const StacSearchPanel: React.FC = () => {
 
   useEffect(() => {
     if (!selectedFire) return;
-    setAnalysisConfig(prev => ({ ...prev,fire_number:selectedFire.fireNumber}));
+    setAnalysisConfig(prev => ({ ...prev,fire_number:selectedFire.fireNumber,year:selectedFire.year}));
   }, [selectedFire]);
   // is analysis config ready
   useEffect(() => {
@@ -107,6 +109,7 @@ const StacSearchPanel: React.FC = () => {
     const sCloud = analysisConfig.preImageCloud ?? defaultCloud;
     const eCloud = analysisConfig.postImageCloud ?? defaultCloud;
     const cloud =  Math.max(Number(sCloud)+1, Number(eCloud)+1);
+    const imageIDs = analysisConfig.preImageID + ':' + analysisConfig.postImageID;
     setAnalysisRunning(true);
 
     const payload: AnalysisRequest = {
@@ -117,6 +120,7 @@ const StacSearchPanel: React.FC = () => {
       object_storage: true,
       s_date: analysisConfig.preImageDate || undefined,
       e_date: analysisConfig.postImageDate || undefined,
+      image_ids: imageIDs,
     };
 
     try {
@@ -130,7 +134,7 @@ const StacSearchPanel: React.FC = () => {
     } catch (error) {
         setAnalysisRunning(false);
         console.error("Error running analysis:", error);
-        alert(error.message || "Failed to start analysis.");
+        alert(error.message|| "Failed to start analysis.");
     } finally {
       setAnalysisRunning(false);
     }

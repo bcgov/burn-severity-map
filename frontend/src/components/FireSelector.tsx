@@ -28,6 +28,7 @@ export interface Fire {
   geographicDesc: string;
   ignitionDate: string;
   lonLat: [number, number];
+  year: number;
 }
 
 
@@ -66,6 +67,7 @@ const FireSelector: React.FC = () => {
             geographicDesc: props.GEOGRAPHIC_DESCRIPTION,
             ignitionDate: props.IGNITION_DATE,
             lonLat: [coords[0], coords[1]],
+            year: props.FIRE_YEAR,
           };
         });
         setFires(fireData);
