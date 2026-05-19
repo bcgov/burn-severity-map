@@ -25,6 +25,9 @@ interface AnalysisConfig {
   sensor: string | null;
   preImageDate: string | null;
   postImageDate: string | null;
+  preImageID: string | null;
+  postImageID: string | null;
+  imageIDs: string | null;
   preImageCloud: number | null;
   postImageCloud: number | null;
   cloudCover: number | null;
@@ -44,10 +47,13 @@ const StacSearchPanel: React.FC = () => {
   });
   const [ analysisConfig, setAnalysisConfig ]= useState<AnalysisConfig>({
     fire_number: null,
-    year: 2025,
+    year: null,
     sensor: 'S2',
     preImageDate: null,
     postImageDate: null,
+    preImageID: null,
+    postImageID: null,
+    imageIDs: null,
     preImageCloud: 0,
     postImageCloud: 0,
     cloudCover: 0,
@@ -68,7 +74,7 @@ const StacSearchPanel: React.FC = () => {
 
   useEffect(() => {
     if (!selectedFire) return;
-    setAnalysisConfig(prev => ({ ...prev,fire_number:selectedFire.fireNumber}));
+    setAnalysisConfig(prev => ({ ...prev,fire_number:selectedFire.fireNumber,year:selectedFire.year}));
   }, [selectedFire]);
   // is analysis config ready
   useEffect(() => {
@@ -103,6 +109,7 @@ const StacSearchPanel: React.FC = () => {
     const sCloud = analysisConfig.preImageCloud ?? defaultCloud;
     const eCloud = analysisConfig.postImageCloud ?? defaultCloud;
     const cloud =  Math.max(Number(sCloud)+1, Number(eCloud)+1);
+    const imageIDs = analysisConfig.preImageID + ':' + analysisConfig.postImageID;
     setAnalysisRunning(true);
 
     const payload: AnalysisRequest = {
@@ -113,6 +120,7 @@ const StacSearchPanel: React.FC = () => {
       object_storage: true,
       s_date: analysisConfig.preImageDate || undefined,
       e_date: analysisConfig.postImageDate || undefined,
+      image_ids: imageIDs,
     };
 
     try {
@@ -126,7 +134,7 @@ const StacSearchPanel: React.FC = () => {
     } catch (error) {
         setAnalysisRunning(false);
         console.error("Error running analysis:", error);
-        alert(error.message || "Failed to start analysis.");
+        alert(error.message|| "Failed to start analysis.");
     } finally {
       setAnalysisRunning(false);
     }
@@ -153,6 +161,7 @@ const StacSearchPanel: React.FC = () => {
     setAnalysisConfig(prev => ({
       ...prev,
       preImageDate: preImageDate === '' ? null: String(preImageDate),
+      preImageID: id === '' ? null: String(id),
       preImageCloud: cloud_cover,
     }));
   }
@@ -163,6 +172,7 @@ const StacSearchPanel: React.FC = () => {
     setAnalysisConfig(prev => ({
       ...prev,
       postImageDate: postImageDate === '' ? null: String(postImageDate),
+      postImageID: id === '' ? null: String(id),
       postImageCloud: cloud_cover,
     }));
   }
@@ -231,17 +241,17 @@ const StacSearchPanel: React.FC = () => {
       {analysisConfig.fire_number && (
         <div className="panel-box">
           <h4>Attributes</h4>
-          <p><span>Fire:</span> {analysisConfig.fire_number}</p>
-          <p><span>Year:</span> {String(new Date().getFullYear())}</p>
-          <p><span>Sensor:</span> {analysisConfig.sensor}</p>
-          <p><span>S_date:</span> {analysisConfig.preImageDate}</p>
-          <p><span>E_date:</span> {analysisConfig.postImageDate}</p>
+          <p><span>Fire:</span> {String(new Date().getFullYear())}-{analysisConfig.fire_number}</p>
+          <p><span>Start Date:</span> {analysisConfig.preImageDate}</p>
+          <p><span>Start ID:</span> {analysisConfig.preImageID}</p>
+          <p><span>End Date:</span> {analysisConfig.postImageDate}</p>
+          <p><span>End ID:</span> {analysisConfig.postImageID}</p>
           <p>
-            <span>Cloud:</span>{' '}
+            <span>Cloud Cover:</span>{' '}
             {Math.max(
               analysisConfig.preImageCloud ?? 0,
               analysisConfig.postImageCloud ?? 0
-            )}
+            )}%
           </p>
         </div>
       )}
@@ -342,7 +352,7 @@ const StacSearchPanel: React.FC = () => {
           <div>
             <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
               {preIgnitionResults.map(item => (
-                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString()}>
+                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
                   <div>
                     <strong>ID: </strong> {item.id} <br />
                     <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -354,7 +364,7 @@ const StacSearchPanel: React.FC = () => {
                           if (isSelected) {
                             handlePreImageSelection(
                               Number(item.properties["eo:cloud_cover"].toFixed(0)),
-                              new Date(item.properties.datetime).toLocaleDateString(),
+                              new Date(item.properties.datetime).toLocaleDateString('en-CA'),
                               item.id
                             );
                           } else {
@@ -363,6 +373,7 @@ const StacSearchPanel: React.FC = () => {
                               ...prev,
                               preImageDate: null,
                               preImageCloud: null,
+                              preImageID: null,
                             }));
                           }
                         }}
@@ -388,7 +399,7 @@ const StacSearchPanel: React.FC = () => {
             </AccordionGroup>
             <AccordionGroup title='Post ignition images' allowsMultipleExpanded>
               {postIgnitionResults.map(item => (
-                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString()}>
+                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
                   <div>
                     <strong>ID: </strong> {item.id} <br />
                     <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -400,7 +411,7 @@ const StacSearchPanel: React.FC = () => {
                           if (isSelected) {
                             handlePostImageSelection(
                               Number(item.properties["eo:cloud_cover"].toFixed(0)),
-                              new Date(item.properties.datetime).toLocaleDateString(),
+                              new Date(item.properties.datetime).toLocaleDateString('en-CA'),
                               item.id
                             );
                           } else {
@@ -409,6 +420,7 @@ const StacSearchPanel: React.FC = () => {
                               ...prev,
                               postImageDate: null,
                               postImageCloud: null,
+                              postImageID: null,
                             }));
                           }
                         }}

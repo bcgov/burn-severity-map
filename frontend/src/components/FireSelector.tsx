@@ -28,6 +28,7 @@ export interface Fire {
   geographicDesc: string;
   ignitionDate: string;
   lonLat: [number, number];
+  year: number;
 }
 
 
@@ -66,6 +67,7 @@ const FireSelector: React.FC = () => {
             geographicDesc: props.GEOGRAPHIC_DESCRIPTION,
             ignitionDate: props.IGNITION_DATE,
             lonLat: [coords[0], coords[1]],
+            year: props.FIRE_YEAR,
           };
         });
         setFires(fireData);
@@ -123,7 +125,7 @@ const FireSelector: React.FC = () => {
       <div className="fire-selector-status">
         {error && <p className="text-sm text-red-500">Error: {error}</p>}
         {selectedFire !== null && (
-          <p><span>Ignition Date:</span> {new Date(selectedFire.ignitionDate).toLocaleDateString()}</p>
+          <p><span>Ignition Date:</span> {new Date(selectedFire.ignitionDate).toLocaleDateString('en-CA')}</p>
         )}
       </div>
     </div>

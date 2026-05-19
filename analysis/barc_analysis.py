@@ -192,14 +192,14 @@ class InterimBurnSeverity:
     def get_fire(self, ds_poly: str, ds_point:str, fire_sql: str, poly_fields: list, point_fields) -> tuple:
         fires = WFS.get_data(dataset=ds_poly, query=fire_sql, fields=poly_fields)
         gdf_fires = gpd.GeoDataFrame.from_features(features=fires, crs=3005)
-        gdf_fires.drop(columns=gdf_fires.columns.difference(poly_fields + ['geometry']), axis=1, inplace=True)
+        gdf_fires.drop(columns=gdf_fires.columns.difference(poly_fields + ['geometry']), inplace=True)
         
         int_fire_count = gdf_fires.shape[0]
         if int_fire_count != 0:
 
             fire_points = WFS.get_data(dataset=ds_point, query=fire_sql, fields=point_fields)
             gdf_points = gpd.GeoDataFrame.from_features(features=fire_points, crs=3005)
-            gdf_points.drop(columns=gdf_points.columns.difference(self.lst_fire_point_fields), axis=1, inplace=True)
+            gdf_points.drop(columns=gdf_points.columns.difference(self.lst_fire_point_fields), inplace=True)
             gdf_points[self.fld_fire_ign_date] = pd.to_datetime(gdf_points[self.fld_fire_ign_date], format='%Y-%m-%dZ')
             gdf_points[self.fld_fire_out_date] = pd.to_datetime(gdf_points[self.fld_fire_out_date], format='%Y-%m-%dZ')
             gdf_fires = gdf_fires.merge(gdf_points, on=self.fld_fire_num)

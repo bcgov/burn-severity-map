@@ -114,6 +114,7 @@ def run_analysis_endpoint():
     s_date = data.get('s_date') # date in format "2025-08-04"
     e_date = data.get('e_date') # date in format "2025-08-04"
     cloud = data.get('cloud', '10') # number in range 0:100
+    image_ids = data.get('image_ids') # Image ids should be comma separated values with pre and post values separated by a semi-colon (ie. pre_id1,pre_id2:post_id1,post_id2)
 
     # Validate fire format: one letter followed by 5 digits
     if not fire or not re.match(r'^[A-Za-z]\d{5}$', fire):
@@ -163,6 +164,8 @@ def run_analysis_endpoint():
         command.extend(['-e', e_date])
     if cloud:
         command.extend(['-c', str(cloud)])
+    if image_ids:
+        command.extend(['-i', image_ids])
 
     try:
         # Run the script synchronously and wait for it to complete.
@@ -214,13 +217,15 @@ if __name__ == '__main__':
     curl -X POST http://localhost:5000/run-analysis \
      -H "Content-Type: application/json" \
      -d '{
-           "fire": "K51121",
-           "year": "2025",
-           "sensor": "S2",
-           "object_storage": true,
-           "cloud": "15",
-           "e_date": "2025-08-04"
-         }'
+    "fire": "C50113",
+    "year": 2026,
+    "sensor": "S2",
+    "cloud": 10,
+    "object_storage": true,
+    "s_date": "2026-04-22",
+    "e_date": "2026-05-07",
+    "image_ids": "S2C_10UDC_20260422_1_L2A:S2B_10UDC_20260507_0_L2A"
+}'
     """
 
     app.run(host='0.0.0.0', port=5000)

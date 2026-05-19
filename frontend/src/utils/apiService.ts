@@ -74,6 +74,7 @@ export interface AnalysisRequest {
   e_date?: string;
   cloud?: number;
   object_storage: true;
+  image_ids?: string;
 }
 
 export interface HealthResponse {
