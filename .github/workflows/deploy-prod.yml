@@ -1,0 +1,59 @@
+name: Deploy to Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The verified version from Test to promote to Prod (e.g., v1.0.5)"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  vars:
+    name: Set Variables
+    outputs:
+      version: ${{ inputs.version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Echo Target Tag
+        run: echo "Deploying version ${{ inputs.version }} to production."
+
+  deploy-prod:
+    name: Deploy (prod, version=${{ needs.vars.outputs.version }})
+    needs: [vars]
+    uses: ./.github/workflows/.deployer.yml
+    secrets:
+      oc_token: ${{ secrets.OC_TOKEN }}
+    with:
+      environment: prod
+      params: >-
+        --set global.secrets.persist=false
+        --set-string frontend.baseUrl=https://burn-severity-map-prod-frontend.apps.silver.devops.gov.bc.ca
+      tag: ${{ needs.vars.outputs.version }}
+
+  promote:
+    name: Promote Images
+    needs: [deploy-prod, vars]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        package: [analysis, backend, frontend]
+    timeout-minutes: 1
+    steps:
+      - uses: shrink/actions-docker-registry-tag@v4
+        with:
+          registry: ghcr.io
+          repository: ${{ github.repository }}/${{ matrix.package }}
+          target: ${{ needs.vars.outputs.version }}
+          tags: prod

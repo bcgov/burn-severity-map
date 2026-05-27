@@ -1,0 +1,63 @@
+name: Deploy to Test
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.github/**'
+      - '.github/graphics/**'
+      - '!.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Manual override for image tag/version to deploy"
+        type: string
+        required: false
+
+concurrency:
+  # Do not interrupt previous workflows
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  vars:
+    name: Set Variables
+    outputs:
+      # Use the manual input if provided, otherwise use the auto-generated version
+      tag: ${{ inputs.tag || steps.version.outputs.new_tag }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    # We need contents: write permission to push the new git tag
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        if: ${{ ! inputs.tag }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - name: Bump version and push tag
+        if: ${{ ! inputs.tag }}
+        id: version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+
+  deploy-test:
+    name: Deploy (test, tag=${{ needs.vars.outputs.tag }})
+    needs: [vars]
+    uses: ./.github/workflows/.deployer.yml
+    secrets:
+      oc_token: ${{ secrets.OC_TOKEN }}
+    with:
+      environment: test
+      tag: ${{ needs.vars.outputs.tag }}
+      params: >-
+        --set global.secrets.persist=false
+        --set-string frontend.baseUrl=https://burn-severity-map-test-frontend.apps.silver.devops.gov.bc.ca
