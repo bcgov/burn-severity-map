@@ -45,7 +45,7 @@ spec:
             {{- range .Values.analysis.env }}
               - name: {{ .name }}
               {{- if .value }}
-                value: {{ quote .value }}
+                value: {{ tpl (.value | toString) $ | quote }}
               {{- else if .valueFrom }}
                 valueFrom:
 {{ toYaml .valueFrom | indent 18 }}
