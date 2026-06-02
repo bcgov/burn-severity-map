@@ -86,3 +86,14 @@ jobs:
       params: >-
         --set global.secrets.persist=false
         --set-string frontend.baseUrl=https://burn-severity-map-test-frontend.apps.silver.devops.gov.bc.ca
+        --set-string global.s3.accessID=${{ secrets.S3_ACCESS_ID }}
+        --set-string global.s3.secretKey=${{ secrets.S3_KEY }}
+        --set-string global.s3.bucketName=${{ secrets.S3_BUCKET }}
+        --set-string global.s3.endPoint=${{ vars.S3_ENDPOINT }}
+        --set-string global.ports.backend=${{ vars.BACKEND_PORT }}
+        --set-string global.ports.frontend=${{ vars.FRONTEND_PORT }}
+        --set-string global.ports.analysis=${{ vars.ANALYSIS_PORT }}
+        --set-string global.dirs.tmpDir=${{ vars.TEMP_DIR }}
+        --set-string global.dirs.extDir=${{ vars.EXT_DIR }}
+        --set-string global.dirs.mainDir=${{ vars.MAIN_DIR }}
+        --set-string global.files.parquet=${{ vars.PARQUET_FILE }}
