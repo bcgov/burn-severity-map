@@ -32,8 +32,8 @@ class ObjectStorage:
                                   Key=f'{self.S3_MAIN_DIR}/{file_path}',
                                   Body=raster,
                                   ContentType='image/tiff',
-                                  ChecksumAlgorithm='SHA256',
-                                  ChecksumSHA256=local_sha256
+                                #   ChecksumAlgorithm='SHA256',
+                                #   ChecksumSHA256=local_sha256
                                   )
 
         
@@ -48,8 +48,8 @@ class ObjectStorage:
                                   Key=f'{self.S3_MAIN_DIR}/{file_path}',
                                   Body=zip_buffer,
                                   ContentType='application/zip',
-                                  ChecksumAlgorithm='SHA256',
-                                  ChecksumSHA256=local_sha256
+                                #   ChecksumAlgorithm='SHA256',
+                                #   ChecksumSHA256=local_sha256
                                   )
 
     
@@ -62,8 +62,8 @@ class ObjectStorage:
                                   Key=f'{self.S3_MAIN_DIR}/{file_path}',
                                   Body=geo_json,
                                   ContentType='application/geo+json',
-                                  ChecksumAlgorithm='SHA256',
-                                  ChecksumSHA256=local_sha256
+                                #   ChecksumAlgorithm='SHA256',
+                                #   ChecksumSHA256=local_sha256
                                   )
     def write_pdf(self, file_path: str, pdf_buffer: BytesIO) -> bool:
         pdf_buffer.seek(0)
@@ -77,7 +77,7 @@ class ObjectStorage:
             Key=f'{self.S3_MAIN_DIR}/{file_path}',
             Body=pdf_buffer,
             ContentType='application/pdf',
-            ChecksumAlgorithm='SHA256',
-            ChecksumSHA256=local_sha256
+            # ChecksumAlgorithm='SHA256',
+            # ChecksumSHA256=local_sha256
         )
         return True

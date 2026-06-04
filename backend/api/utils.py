@@ -15,31 +15,38 @@ logger = logging.getLogger(__name__)
 
 
 S3_ENDPOINT = os.getenv("S3_ENDPOINT")
-S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
-S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-PARQUET_KEY = os.getenv("PARQUET_PATH","burn-severity/bs.parquet")
-
-
+S3_ACCESS_ID = os.getenv("S3_ACCESS_ID")
+S3_KEY = os.getenv("S3_KEY")
+S3_BUCKET = os.getenv("S3_BUCKET")
+MAIN_DIR = os.getenv("MAIN_DIR")
+PARQUET_FILE = os.getenv("PARQUET_FILE")
+PARQUET_PATH = f'{MAIN_DIR}/{PARQUET_FILE}'
+S3_SSL = True if os.getenv("S3_USE_SSL", 'true').lower() == 'true' else False
 
 # Assert that all required environment variables are set
 assert S3_ENDPOINT is not None, "Missing environment variable: S3_ENDPOINT"
-assert S3_ACCESS_KEY is not None, "Missing environment variable: S3_ACCESS_KEY"
-assert S3_SECRET_KEY is not None, "Missing environment variable: S3_SECRET_KEY"
-assert S3_BUCKET_NAME is not None, "Missing environment variable: S3_BUCKET_NAME"
+assert S3_ACCESS_ID is not None, "Missing environment variable: S3_ACCESS_ID"
+assert S3_KEY is not None, "Missing environment variable: S3_KEY"
+assert S3_BUCKET is not None, "Missing environment variable: S3_BUCKET"
+assert MAIN_DIR is not None, "Missing environment variable: MAIN_DIR"
+assert PARQUET_FILE is not None, "Missing environment variable: PARQUET_FILE"
 
-s3_config = Config(retries={'max_attempts': 5, 'mode': 'standard'})
+s3_config = Config(request_checksum_calculation="when_required",
+                   response_checksum_validation="when_required",
+                   retries={'max_attempts': 5, 'mode': 'standard'})
 # establish S3 connection
 
 s3_client = boto3.client(
     's3',
-    aws_access_key_id=S3_ACCESS_KEY,
-    aws_secret_access_key=S3_SECRET_KEY,
+    aws_access_key_id=S3_ACCESS_ID,
+    aws_secret_access_key=S3_KEY,
     endpoint_url=S3_ENDPOINT,
-    config=s3_config
+    config=s3_config,
+    use_ssl=S3_SSL
 )
 
 def s3_connected()->bool:
+    logger.info(s3_client.list_buckets())
     try:
         s3_client.list_buckets()
         return True
@@ -48,11 +55,11 @@ def s3_connected()->bool:
         print(f"Connection failed: {e}")
         return False
 
-def s3_list_objects(bucket_name=S3_BUCKET_NAME, file_prefix="")->list:
+def s3_list_objects(bucket_name=S3_BUCKET, file_prefix="")->list:
     """Lists files in an S3-compliant bucket with an optional prefix."""
     obj_list = []
     try:
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"burn-severity/{file_prefix}")
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"{MAIN_DIR}/{file_prefix}")
         if 'Contents' in response:
             logger.debug(f"Files in bucket '{bucket_name}' (prefix: '{file_prefix}'):")
             for obj in response['Contents']:
@@ -62,9 +69,9 @@ def s3_list_objects(bucket_name=S3_BUCKET_NAME, file_prefix="")->list:
                 if not obj['Key'].endswith('$') and not obj['Key'].endswith('/') and not obj['Key'].endswith('catalogs'):
                     obj_list.append(obj['Key'])
 
-            return obj_list
         else:
             logger.warning(f"No files found in bucket '{bucket_name}' with prefix '{file_prefix}'.")
+        return obj_list
     except Exception as e:
         logger.error(f"Error listing files: {e}")
 
@@ -81,7 +88,7 @@ def s3_get_presigned_url(obj, expiration_seconds=3600):
     try:
         response = s3_client.generate_presigned_url(
             ClientMethod='get_object',
-            Params={'Bucket': S3_BUCKET_NAME, 'Key': obj},
+            Params={'Bucket': S3_BUCKET, 'Key': obj},
             ExpiresIn=expiration_seconds
         )
         return response
@@ -95,7 +102,7 @@ def s3_get_presigned_url(obj, expiration_seconds=3600):
 
 def append_geojson_to_geoparquet_s3(
     new_geojson_s3_obj_key: str, # Can be a Feature or a FeatureCollection
-    geoparquet_key: str = PARQUET_KEY
+    geoparquet_key: str = PARQUET_PATH
 ):
     """
     Appends new GeoJSON data (Feature or FeatureCollection) to an existing
@@ -111,12 +118,12 @@ def append_geojson_to_geoparquet_s3(
 
     # Download the existing GeoParquet file
     try:
-        response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=geoparquet_key)
+        response = s3_client.get_object(Bucket=S3_BUCKET, Key=geoparquet_key)
         existing_parquet_bytes = response['Body'].read()
         existing_gdf = geopandas.read_parquet(io.BytesIO(existing_parquet_bytes))
-        logger.debug(f"Downloaded existing GeoParquet file: s3://{S3_BUCKET_NAME}/{geoparquet_key}")
+        logger.debug(f"Downloaded existing GeoParquet file: s3://{S3_BUCKET}/{geoparquet_key}")
     except s3_client.exceptions.NoSuchKey:
-        logger.warning(f"File s3://{S3_BUCKET_NAME}/{geoparquet_key} does not exist. Creating a new one.")
+        logger.warning(f"File s3://{S3_BUCKET}/{geoparquet_key} does not exist. Creating a new one.")
         existing_parquet_bytes = None
     except Exception as e:
         logger.error(f"Error downloading GeoParquet {geoparquet_key}: {e}")
@@ -124,7 +131,7 @@ def append_geojson_to_geoparquet_s3(
 
     # Download geojson to convert to object
     try:
-        response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=new_geojson_s3_obj_key)
+        response = s3_client.get_object(Bucket=S3_BUCKET, Key=new_geojson_s3_obj_key)
         geojson_bytes = response['Body'].read() # not sure if we need it in chuncks or not
         new_geojson_data = json.loads(geojson_bytes)
     except Exception as e:
@@ -176,23 +183,23 @@ def append_geojson_to_geoparquet_s3(
     # 4. Upload the combined (and overwritten) Parquet file back to S3
     try:
         response = s3_client.put_object(
-            Bucket=S3_BUCKET_NAME,
+            Bucket=S3_BUCKET,
             Key=geoparquet_key,
             Body=output_buffer,
             ContentType='application/x-parquet',
-            ChecksumAlgorithm='SHA256',
-            ChecksumSHA256=local_sha256
+            # ChecksumAlgorithm='SHA256',
+            # ChecksumSHA256=local_sha256
         )
-        logger.info(f"Successfully uploaded updated GeoParquet file to s3://{S3_BUCKET_NAME}/{geoparquet_key}")
+        logger.info(f"Successfully uploaded updated GeoParquet file to s3://{S3_BUCKET}/{geoparquet_key}")
     except Exception as e:
         logger.error(f"Error uploading file: {e}")
         return False
 
-def geoparquet_on_s3(geoparquet_key: str=PARQUET_KEY):
+def geoparquet_on_s3(geoparquet_key: str=PARQUET_PATH):
     # checks if the burn severity geoparquet exiss
     obj_list = s3_list_objects()
     parquet_files = [doc for doc in obj_list if doc.endswith('.parquet')]
-    if PARQUET_KEY in parquet_files:
+    if PARQUET_PATH in parquet_files:
         return True
     else:
         return False

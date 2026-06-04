@@ -2,11 +2,12 @@ import duckdb
 import os
 
 # Optional: Load environment variables for S3 credentials
-S3_ENDPOINT = os.getenv("S3_ENDPOINT").replace("https://","").replace(":443","")
+S3_ENDPOINT = os.getenv("S3_ENDPOINT").replace("https://","").replace(":443","").replace("http://","")
 S3_ACCESS_ID = os.getenv("S3_ACCESS_ID")
 S3_KEY = os.getenv("S3_KEY")
 S3_BUCKET = os.getenv("S3_BUCKET")
 MAIN_DIR = os.getenv("MAIN_DIR")
+S3_SSL = os.getenv("S3_USE_SSL", "true").lower()
 
 PARQUET_FILE = os.getenv("PARQUET_FILE")
 PARQUET_PATH = f's3://{S3_BUCKET}/{MAIN_DIR}/{PARQUET_FILE}'
@@ -25,6 +26,10 @@ con.execute(f"SET s3_access_key_id='{S3_ACCESS_ID}';")
 con.execute(f"SET s3_secret_access_key='{S3_KEY}';")
 con.execute(f"SET s3_endpoint='{S3_ENDPOINT}';")
 con.execute("SET s3_url_style='path';")
+if S3_SSL == 'false':
+    con.execute('SET s3_use_ssl=false;')
+else:
+    con.execute('SET s3_use_ssl=true;')
 
 def check_connection():
     """

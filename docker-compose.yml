@@ -1,27 +1,55 @@
-# Reusable vars
-x-var:
-  - &BACKEND_PORT
-    ${BACKEND_PORT}
-  - &S3_ENDPOINT
-    ${S3_ENDPOINT}
-  - &S3_ACCESS_KEY
-    ${S3_ACCESS_KEY}
-  - &S3_SECRET_KEY
-    ${S3_SECRET_KEY}
-  - &S3_BUCKET_NAME
-    ${S3_BUCKET_NAME}
-  - &PARQUET_PATH
-    ${PARQUET_PATH}
-
-x-backend-vars: &backend-vars
-  BACKEND_PORT: *BACKEND_PORT
-  S3_ENDPOINT: *S3_ENDPOINT
-  S3_ACCESS_KEY: *S3_ACCESS_KEY
-  S3_SECRET_KEY: *S3_SECRET_KEY
-  S3_BUCKET_NAME: *S3_BUCKET_NAME
-  PARQUET_PATH: *PARQUET_PATH
+x-shared-env: &shared-env
+  PARQUET_FILE: ${PARQUET_FILE}
+  MAIN_DIR: ${MAIN_DIR}
+  TEMP_DIR: ${TEMP_DIR}
+  EXT_DIR: ${EXT_DIR}
+  BACKEND_PORT: ${BACKEND_PORT:-8000}
+  FRONTEND_PORT: ${FRONTEND_PORT:-8080}
+  ANALYSIS_PORT: ${ANALYSIS_PORT:-5000}
+  S3_ENDPOINT: ${S3_ENDPOINT}
+  S3_ACCESS_ID: ${S3_ACCESS_ID}
+  S3_KEY: ${S3_KEY}
+  S3_BUCKET: ${S3_BUCKET}
+  NO_PROXY: ${NO_PROXY}
+  AWS_REQUEST_CHECKSUM_CALCULATION: "when_required"
+  AWS_RESPONSE_CHECKSUM_VALIDATION: "when_required"
 
 services:
+  # Object Storage infrastructure
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: local-s3
+    ports:
+      - "9000:9000" # S3 API Port
+      - "9001:9001" # Web Console Port
+    environment:
+      - MINIO_ROOT_USER=${S3_ACCESS_ID:-local-access-key}
+      - MINIO_ROOT_PASSWORD=${S3_KEY:-local-secret-key}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - s3-network
+    
+  minio-setup:
+    image: quay.io/minio/mc:latest
+    container_name: local-s3_setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set localS3 http://local-s3:9000 ${S3_ACCESS_ID:-local-access-key} ${S3_KEY:-local-secret-key}) do echo '...waiting...' && sleep 1; done;
+           
+      echo 'Creating bucket....';
+      /usr/bin/mc mb localS3/${S3_BUCKET:-burn-severity-local};
+      /usr/bin/mc policy set download localS3/${S3_BUCKET:-burn-severity-local};
+      
+      echo 'Setup complete';
+      exit 0;
+      "
+    networks:
+      - s3-network
+
   frontend:
     image: burn-sev-frontend:latest
     build:
@@ -31,7 +59,9 @@ services:
     depends_on:
       - fastapi-backend
     ports:
-      - "8080:8080"
+      - "8080:${FRONTEND_PORT:-8080}"
+    networks:
+      - s3-network
 
   fastapi-backend:
     image: burn-sev-backend:latest
@@ -39,15 +69,19 @@ services:
       context: ./backend/api
       dockerfile: Dockerfile
     container_name: fastapi-backend
+    depends_on:
+      - minio
     ports:
-      - "8000:8000"
+      - "8000:${BACKEND_PORT:-8000}"
     environment:
-      <<: *backend-vars
+      <<: *shared-env
     env_file:
       - .env
     volumes:
       - backend-data:/app/data
-    command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run python -m uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-8000} --reload
+    networks:
+      - s3-network
 
   analysis-backend:
     image: analysis-backend:latest
@@ -55,17 +89,25 @@ services:
       context: ./analysis
       dockerfile: Dockerfile
     container_name: analysis-backend
+    depends_on:
+      - minio
     ports:
-      - "5000:5000"
+      - "5000:${ANALYSIS_PORT:-5000}"
     environment:
-      <<: *backend-vars
+      <<: *shared-env
     env_file:
       - .env
     volumes:
       - analysis-data:/app/data
-    command: ["gunicorn", "--timeout", "1800" , "--bind", "0.0.0.0:5000", "app:app"]
+    command: ["gunicorn", "--timeout", "1800" , "--bind", "0.0.0.0:${ANALYSIS_PORT:-5000}", "app:app"]
+    networks:
+      - s3-network
        
-
 volumes:
   backend-data:
   analysis-data:
+  minio-data:
+
+networks:
+  s3-network:
+    driver: bridge
