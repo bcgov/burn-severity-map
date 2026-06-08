@@ -99,7 +99,7 @@ backend:
     # targetPort: "{{ .Values.global.ports.backend }}" # this is container port where app listens on
   route:
     timeout: 300s
-    targetPort: {{ .Values.global.ports.backend }} # match the service
+    # targetPort: {{ .Values.global.ports.backend }} # match the service
   pdb:
     enabled: false # enable it in PRODUCTION for having pod disruption budget.
     minAvailable: 1 # the minimum number of pods that must be available during the disruption budget.
@@ -140,7 +140,7 @@ frontend:
     # targetPort: "{{ .Values.global.ports.frontend }}" # this is the container port where the app listens on
   route:
     timeout: 300s
-    targetPort: {{ .Values.global.ports.frontend }} # match the service
+    # targetPort: {{ .Values.global.ports.frontend }} # match the service
   domain: "apps.silver.devops.gov.bc.ca" # silver cluster
   # appName: "bs-app-burn-severity-map"
   baseUrl: "" # set per environment
