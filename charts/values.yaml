@@ -22,9 +22,9 @@ global:
     bucketName: ""
     endPoint: ""
   ports:
-    backend: 8000
-    frontend: 8080
-    analysis: 5000
+    backend: ""
+    frontend: ""
+    analysis: ""
   dirs:
     tmpDir: ""
     extDir: ""
@@ -73,10 +73,10 @@ backend:
     - name: EXT_DIR
       value: "{{ .Values.global.dirs.extDir }}"
     # Backend API
-    - name: BACKEND_PORT
-      value: "{{ .Values.global.ports.backend }}"
-    - name: FRONTEND_PORT
-      value: "{{ .Values.global.ports.frontend }}"
+    # - name: BACKEND_PORT
+    #   value: "{{ .Values.global.ports.backend }}"
+    # - name: FRONTEND_PORT
+    #   value: "{{ .Values.global.ports.frontend }}"
     - name: S3_ENDPOINT
       value: "{{ .Values.global.s3.endPoint }}"
     - name: S3_ACCESS_ID
@@ -201,12 +201,12 @@ analysis:
       value: "{{ .Values.global.dirs.tmpDir }}"
     - name: EXT_DIR
       value: "{{ .Values.global.dirs.extDir }}"
-    - name: BACKEND_PORT
-      value: "{{ .Values.global.ports.backend }}"
-    - name: FRONTEND_PORT
-      value: "{{ .Values.global.ports.frontend }}"
-    - name: ANALYSIS_PORT
-      value: "{{ .Values.global.ports.analysis }}"
+    # - name: BACKEND_PORT
+    #   value: "{{ .Values.global.ports.backend }}"
+    # - name: FRONTEND_PORT
+    #   value: "{{ .Values.global.ports.frontend }}"
+    # - name: ANALYSIS_PORT
+    #   value: "{{ .Values.global.ports.analysis }}"
     - name: S3_ENDPOINT
       value: "{{ .Values.global.s3.endPoint }}"
     - name: S3_ACCESS_ID
