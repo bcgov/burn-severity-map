@@ -55,7 +55,7 @@ spec:
 
           ports:
             - name: http
-              containerPort: {{ .Values.analysis.service.targetPort }}
+              containerPort: {{ .Values.global.ports.analysis }}
               protocol: TCP
           # readinessProbe:
           #   httpGet:

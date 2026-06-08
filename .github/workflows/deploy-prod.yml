@@ -41,9 +41,9 @@ jobs:
         --set global.secrets.persist=false
         --set-string frontend.baseUrl=https://burn-severity-map-prod-frontend.apps.silver.devops.gov.bc.ca
         --set-string global.s3.endPoint=${{ vars.S3_ENDPOINT }}
-        --set-string global.ports.backend=${{ vars.BACKEND_PORT }}
-        --set-string global.ports.frontend=${{ vars.FRONTEND_PORT }}
-        --set-string global.ports.analysis=${{ vars.ANALYSIS_PORT }}
+        --set global.ports.backend=${{ vars.BACKEND_PORT }}
+        --set global.ports.frontend=${{ vars.FRONTEND_PORT }}
+        --set global.ports.analysis=${{ vars.ANALYSIS_PORT }}
         --set-string global.dirs.tmpDir=${{ vars.TEMP_DIR }}
         --set-string global.dirs.extDir=${{ vars.EXT_DIR }}
         --set-string global.dirs.mainDir=${{ vars.MAIN_DIR }}

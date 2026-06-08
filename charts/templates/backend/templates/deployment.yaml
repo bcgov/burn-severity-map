@@ -59,7 +59,7 @@ spec:
 
           ports:
             - name: http
-              containerPort: {{ .Values.backend.service.targetPort }}
+              containerPort: {{ .Values.global.ports.backend }}
               protocol: TCP
           # readinessProbe:
           #   httpGet:

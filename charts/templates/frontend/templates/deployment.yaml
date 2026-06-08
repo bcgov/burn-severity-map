@@ -38,7 +38,7 @@ spec:
           imagePullPolicy: {{ default "Always" .Values.frontend.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.frontend.service.targetPort }}
+              containerPort: {{ .Values.global.ports.frontend }}
               protocol: TCP
           env:
             - name: REACT_APP_BASE_URL
