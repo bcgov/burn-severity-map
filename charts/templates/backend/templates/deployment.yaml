@@ -34,7 +34,7 @@ spec:
           securityContext:
             {{- toYaml .Values.backend.securityContext | nindent 12 }}
           {{- end }}
-          image: "{{ include "burn-severity-map.image" (dict "Values" .Values "image" .Values.backend.image) }}"
+          image: {{ include "burn-severity-map.image" (dict "Values" .Values "image" .Values.backend.image) | quote }}
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           envFrom:
             {{- if .Values.backend.configMap.enabled }}
@@ -50,7 +50,7 @@ spec:
                 value: {{ tpl (.value | toString) $ | quote }}
               {{- else if .valueFrom }}
                 valueFrom:
-{{ toYaml .valueFrom | indent 18 }}
+                  {{- toYaml .valueFrom | nindent 18 }}
               {{- end }}
             {{- end }}
             
