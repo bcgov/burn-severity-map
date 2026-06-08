@@ -74,9 +74,9 @@ backend:
       value: "{{ .Values.global.dirs.extDir }}"
     # Backend API
     - name: BACKEND_PORT
-      value: {{ .Values.global.ports.backend }}
+      value: "{{ .Values.global.ports.backend }}"
     - name: FRONTEND_PORT
-      value: {{ .Values.global.ports.frontend }}
+      value: "{{ .Values.global.ports.frontend }}"
     - name: S3_ENDPOINT
       value: "{{ .Values.global.s3.endPoint }}"
     - name: S3_ACCESS_ID
@@ -202,11 +202,11 @@ analysis:
     - name: EXT_DIR
       value: "{{ .Values.global.dirs.extDir }}"
     - name: BACKEND_PORT
-      value: {{ .Values.global.ports.backend }}
+      value: "{{ .Values.global.ports.backend }}"
     - name: FRONTEND_PORT
-      value: {{ .Values.global.ports.frontend }}
+      value: "{{ .Values.global.ports.frontend }}"
     - name: ANALYSIS_PORT
-      value: {{ .Values.global.ports.analysis }}
+      value: "{{ .Values.global.ports.analysis }}"
     - name: S3_ENDPOINT
       value: "{{ .Values.global.s3.endPoint }}"
     - name: S3_ACCESS_ID
