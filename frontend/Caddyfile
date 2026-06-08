@@ -1,4 +1,8 @@
-:{{ .Values.global.ports.frontend }} {
+{
+    auto_https off
+}
+
+http://:{{ .Values.global.ports.frontend }} {
     root * /usr/share/caddy
 
     route {
