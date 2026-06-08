@@ -22,9 +22,9 @@ global:
     bucketName: ""
     endPoint: ""
   ports:
-    backend: ""
-    frontend: ""
-    analysis: ""
+    backend: 8000
+    frontend: 8080
+    analysis: 5000
   dirs:
     tmpDir: ""
     extDir: ""
