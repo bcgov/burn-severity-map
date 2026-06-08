@@ -61,6 +61,15 @@ on:
       oc_token:
         description: OpenShift token
         required: true
+      S3_ACCESS_ID:
+        description: S3 Access id
+        required: true
+      S3_KEY:
+        description: S3 Secret Key
+        required: true
+      S3_BUCKET:
+        description: S3 Bucket name
+        required: true
 
 jobs:
   deployer:
@@ -166,6 +175,9 @@ jobs:
             --set-string global.tag=${{ steps.vars.outputs.tag }} \
             --set-string global.environment=${{ inputs.environment }} \
             ${{ inputs.params }} \
+            --set-string global.s3.accessID=${{ secrets.S3_ACCESS_ID }} \
+            --set-string global.s3.secretKey=${{ secrets.S3_KEY }} \
+            --set-string global.s3.bucketName=${{ secrets.S3_BUCKET }} \
             --install --wait --atomic ${{ steps.vars.outputs.release_name_lower }} \
             --timeout ${{ inputs.timeout-minutes }}m \
             --values ${{ inputs.values }} \
@@ -181,6 +193,9 @@ jobs:
             --set-string global.tag=${{ steps.vars.outputs.tag }} \
             --set-string global.environment=${{ inputs.environment }} \
             ${{ inputs.params }} \
+            --set-string global.s3.accessID=${{ secrets.S3_ACCESS_ID }} \
+            --set-string global.s3.secretKey=${{ secrets.S3_KEY }} \
+            --set-string global.s3.bucketName=${{ secrets.S3_BUCKET }} \
             ${{ steps.vars.outputs.release_name_lower }} \
             --install --wait --values ${{ inputs.values }} \
             ./${{ steps.vars.outputs.repo_name_lower }}-${{ steps.pr.outputs.pr || steps.vars.outputs.version }}.tgz
