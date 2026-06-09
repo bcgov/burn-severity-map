@@ -1,21 +1,32 @@
-:{{ .Values.frontend.service.port }} {
+{
+    auto_https off
+}
+
+http://:{{ .Values.global.ports.frontend }} {
     root * /usr/share/caddy
 
     route {
+        # Reverse proxy API calls using dynamic service discovery names
         handle_path /pg-bs/* {
-            reverse_proxy {{ include "frontend.backendServiceName" . }}:{{ .Values.backend.service.port }}
+            reverse_proxy {{ include "backend.fullname" $ }}:{{ .Values.global.ports.backend }}
         }
-
+        
+        # Reverse proxy for additional API endpoints
         handle_path /api/* {
-            reverse_proxy {{ include "frontend.backendServiceName" . }}:{{ .Values.backend.service.port }}
-        }
-        handle_path /analysis/* {
-            reverse_proxy {{ include "frontend.analysisServiceName" . }}:{{ .Values.analysis.service.port }}
+            reverse_proxy {{ include "backend.fullname" $ }}:{{ .Values.global.ports.backend }}
         }
 
+        # Reverse proxy analysis backend using dynamic naming templates
+        handle_path /analysis/* {
+            reverse_proxy {{ include "analysis.fullname" $ }}:{{ .Values.global.ports.analysis }}
+        }
+        
+
+        # Serve static frontend files
         handle {
             try_files {path} /index.html
             file_server
         }
     }
 }
+
