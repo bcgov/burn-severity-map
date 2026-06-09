@@ -85,6 +85,10 @@ backend:
       value: "{{ .Values.global.s3.bucketName }}"
     - name: S3_KEY
       value: "{{ .Values.global.s3.secretKey }}"
+    - name: AWS_REQUEST_CHECKSUM_CALCULATION
+      value: "when_required"
+    - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+      value: "when_required"
 
   resources:
     requests:
@@ -215,6 +219,10 @@ analysis:
       value: "{{ .Values.global.s3.bucketName }}"
     - name: S3_KEY
       value: "{{ .Values.global.s3.secretKey }}"
+    - name: AWS_REQUEST_CHECKSUM_CALCULATION
+      value: "when_required"
+    - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+      value: "when_required"
 
   resources:
     requests:
