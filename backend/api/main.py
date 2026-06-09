@@ -17,7 +17,7 @@ from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geopa
 from database import get_unique_fire_numbers, get_fire_features,check_connection
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -107,7 +107,7 @@ def get_fire_by_number(year: str, fire_number: str, token_payload: dict = Depend
 @app.get("/sync-burn-severity/{year}/{fire_number}")
 async def sync_burn_severity(year:str, fire_number: str):
     try:
-        logger.info(f'Syc BS for {year}-{fire_number}')
+        logger.info(f'Sync BS for {year}-{fire_number}')
         obj_list = s3_list_objects(file_prefix=f'{year}-{fire_number}')
         pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
         fire_jsons = [doc for doc in obj_list if pattern.match(doc)]
