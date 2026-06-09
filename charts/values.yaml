@@ -200,7 +200,7 @@ analysis:
     - name: PARQUET_FILE
       value: "{{ .Values.global.files.parquet }}"
     - name: MAIN_DIR
-      value: "{{ .Values.global.dirs.mainDir }}"
+      value: "{{ .Values.global.dirs.mainDir }}/{{ .Values.global.environment }}"
     - name: TEMP_DIR
       value: "{{ .Values.global.dirs.tmpDir }}"
     - name: EXT_DIR
