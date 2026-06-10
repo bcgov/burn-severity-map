@@ -1,20 +1,24 @@
-:8080 {
+{
+    auto_https off
+}
+
+http://:{{ .Values.global.ports.frontend }} {
     root * /usr/share/caddy
 
     route {
-        # Reverse proxy API calls
+        # Reverse proxy API calls using dynamic service discovery names
         handle_path /pg-bs/* {
-            reverse_proxy fastapi-backend:8000
+            reverse_proxy {{ include "backend.fullname" $ }}:{{ .Values.global.ports.backend }}
         }
         
         # Reverse proxy for additional API endpoints
         handle_path /api/* {
-            reverse_proxy fastapi-backend:8000
+            reverse_proxy {{ include "backend.fullname" $ }}:{{ .Values.global.ports.backend }}
         }
 
-        # Reverse proxy analysis backend
+        # Reverse proxy analysis backend using dynamic naming templates
         handle_path /analysis/* {
-            reverse_proxy analysis-backend:5000
+            reverse_proxy {{ include "analysis.fullname" $ }}:{{ .Values.global.ports.analysis }}
         }
         
 

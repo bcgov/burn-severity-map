@@ -19,6 +19,8 @@ appVersion: "1.1"
 maintainers:
   - name: Will Burt
     email: william.burt@gov.bc.ca
+  - name: Graydon Shevchenko
+    email: graydon.shevchenko@gov.bc.ca
   - name: Isaac Cave
     email: Isaac.Cave@gov.bc.ca
   - name: Emma Armitage

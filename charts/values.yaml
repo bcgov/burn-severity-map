@@ -16,6 +16,22 @@ global:
     databasePassword: ~
     databaseName: ~
     persist: true
+  s3:
+    accessID: ""
+    secretKey: ""
+    bucketName: ""
+    endPoint: ""
+  ports:
+    backend: 8000
+    frontend: 8080
+    analysis: 5000
+  dirs:
+    tmpDir: ""
+    extDir: ""
+    mainDir: ""
+  files:
+    parquet: ""
+  
   config:
     databaseUser: ~
   #-- domain of the application, it is required, apps.silver.devops.gov.bc.ca for silver cluster and apps.devops.gov.bc.ca for gold cluster
@@ -48,32 +64,31 @@ backend:
   configMap:
     enabled: false
   env:
-    - name: PARQUET_PATH
-      value: "burn-severity/bs.parquet"
-    - name: TEMPDIR
-      value: "/tmp"
+    - name: PARQUET_FILE
+      value: "{{ .Values.global.files.parquet }}"
+    - name: MAIN_DIR
+      value: "{{ .Values.global.dirs.mainDir }}/{{ .Values.global.environment }}"
+    - name: TEMP_DIR
+      value: "{{ .Values.global.dirs.tmpDir }}"
+    - name: EXT_DIR
+      value: "{{ .Values.global.dirs.extDir }}"
     # Backend API
-    - name: BACKEND_PORT
-      value: 8000
-    - name: FRONTEND_PORT
-      value: 8080
+    # - name: BACKEND_PORT
+    #   value: "{{ .Values.global.ports.backend }}"
+    # - name: FRONTEND_PORT
+    #   value: "{{ .Values.global.ports.frontend }}"
     - name: S3_ENDPOINT
-      value: "https://nrs.objectstore.gov.bc.ca:443"
-    - name: S3_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: s3-secrets
-          key: ACCESS_KEY
-    - name: S3_BUCKET_NAME
-      valueFrom:
-        secretKeyRef:
-          name: s3-secrets
-          key: BUCKET_NAME
-    - name: S3_SECRET_KEY
-      valueFrom:
-        secretKeyRef:
-          name: s3-secrets
-          key: SECRET_KEY
+      value: "{{ .Values.global.s3.endPoint }}"
+    - name: S3_ACCESS_ID
+      value: "{{ .Values.global.s3.accessID }}"
+    - name: S3_BUCKET
+      value: "{{ .Values.global.s3.bucketName }}"
+    - name: S3_KEY
+      value: "{{ .Values.global.s3.secretKey }}"
+    - name: AWS_REQUEST_CHECKSUM_CALCULATION
+      value: "when_required"
+    - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+      value: "when_required"
 
   resources:
     requests:
@@ -84,11 +99,11 @@ backend:
   service:
     #-- the type of the service. it can be ClusterIP, NodePort, LoadBalancer, ExternalName. ClusterIP is the default and is recommended.
     type: ClusterIP
-    port: 8000 # this is the service port, where it will be exposed internal to the namespace.
-    targetPort: 8000 # this is container port where app listens on
+    # port: "{{ .Values.global.ports.backend }}" # this is the service port, where it will be exposed internal to the namespace.
+    # targetPort: "{{ .Values.global.ports.backend }}" # this is container port where app listens on
   route:
     timeout: 300s
-    targetPort: 8000 # match the service
+    # targetPort: {{ .Values.global.ports.backend }} # match the service
   pdb:
     enabled: false # enable it in PRODUCTION for having pod disruption budget.
     minAvailable: 1 # the minimum number of pods that must be available during the disruption budget.
@@ -125,11 +140,11 @@ frontend:
     # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
     type: ClusterIP
     # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-    port: 8080 # this is the service port, where it will be exposed internally to the namespace
-    targetPort: 8080 # this is the container port where the app listens on
+    # port: "{{ .Values.global.ports.frontend }}" # this is the service port, where it will be exposed internally to the namespace
+    # targetPort: "{{ .Values.global.ports.frontend }}" # this is the container port where the app listens on
   route:
     timeout: 300s
-    targetPort: 8080 # match the service
+    # targetPort: {{ .Values.global.ports.frontend }} # match the service
   domain: "apps.silver.devops.gov.bc.ca" # silver cluster
   # appName: "bs-app-burn-severity-map"
   baseUrl: "" # set per environment
@@ -182,34 +197,32 @@ analysis:
   configMap:
     enabled: false
   env:
-    - name: PARQUET_PATH
-      value: "burn-severity/bs.parquet"
-    - name: TEMPDIR
-      value: "/tmp"
-    # Backend API
-    - name: ANALYSIS_PORT
-      value: 5000
-    - name: BACKEND_PORT
-      value: 8000
-    - name: FRONTEND_PORT
-      value: 8080
+    - name: PARQUET_FILE
+      value: "{{ .Values.global.files.parquet }}"
+    - name: MAIN_DIR
+      value: "{{ .Values.global.dirs.mainDir }}/{{ .Values.global.environment }}"
+    - name: TEMP_DIR
+      value: "{{ .Values.global.dirs.tmpDir }}"
+    - name: EXT_DIR
+      value: "{{ .Values.global.dirs.extDir }}"
+    # - name: BACKEND_PORT
+    #   value: "{{ .Values.global.ports.backend }}"
+    # - name: FRONTEND_PORT
+    #   value: "{{ .Values.global.ports.frontend }}"
+    # - name: ANALYSIS_PORT
+    #   value: "{{ .Values.global.ports.analysis }}"
     - name: S3_ENDPOINT
-      value: "https://nrs.objectstore.gov.bc.ca:443"
-    - name: S3_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: s3-secrets
-          key: ACCESS_KEY
-    - name: S3_BUCKET_NAME
-      valueFrom:
-        secretKeyRef:
-          name: s3-secrets
-          key: BUCKET_NAME
-    - name: S3_SECRET_KEY
-      valueFrom:
-        secretKeyRef:
-          name: s3-secrets
-          key: SECRET_KEY
+      value: "{{ .Values.global.s3.endPoint }}"
+    - name: S3_ACCESS_ID
+      value: "{{ .Values.global.s3.accessID }}"
+    - name: S3_BUCKET
+      value: "{{ .Values.global.s3.bucketName }}"
+    - name: S3_KEY
+      value: "{{ .Values.global.s3.secretKey }}"
+    - name: AWS_REQUEST_CHECKSUM_CALCULATION
+      value: "when_required"
+    - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+      value: "when_required"
 
   resources:
     requests:
@@ -220,11 +233,11 @@ analysis:
   service:
     #-- the type of the service. it can be ClusterIP, NodePort, LoadBalancer, ExternalName. ClusterIP is the default and is recommended.
     type: ClusterIP
-    port: 5000 # this is the service port, where it will be exposed internal to the namespace.
-    targetPort: 5000 # this is container port where app listens on
+    # port: {{ .Values.global.ports.analysis }} # this is the service port, where it will be exposed internal to the namespace.
+    # targetPort: {{ .Values.global.ports.analysis }} # this is container port where app listens on
   route:
     timeout: 300s
-    targetPort: 5000 # match the service
+    # targetPort: {{ .Values.global.ports.analysis }} # match the service
   pdb:
     enabled: false # enable it in PRODUCTION for having pod disruption budget.
     minAvailable: 1 # the minimum number of pods that must be available during the disruption budget.

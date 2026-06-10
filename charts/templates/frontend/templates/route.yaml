@@ -9,7 +9,7 @@ metadata:
 spec:
   host: {{ include "frontend.fullname" . }}.{{ .Values.frontend.domain }}
   port:
-    targetPort: {{ .Values.frontend.route.targetPort }}
+    targetPort: {{ .Values.global.ports.frontend}}
   to:
     kind: Service
     name: {{ include "frontend.fullname" . }}

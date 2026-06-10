@@ -32,13 +32,15 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
-            capabilities:
-              add: ["NET_BIND_SERVICE"]
-          image: "{{ include "burn-severity-map.image" (dict "Values" .Values "image" .Values.frontend.image) }}"
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            # capabilities:
+            #   add: ["NET_BIND_SERVICE"]
+          image: {{ include "burn-severity-map.image" (dict "Values" .Values "image" .Values.frontend.image) | quote }}
           imagePullPolicy: {{ default "Always" .Values.frontend.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.frontend.service.targetPort }}
+              containerPort: {{ .Values.global.ports.frontend }}
               protocol: TCP
           env:
             - name: REACT_APP_BASE_URL

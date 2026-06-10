@@ -64,14 +64,29 @@ jobs:
         package: [analysis, backend, frontend]
     timeout-minutes: 5
     steps:
+      - name: Check if tag already exists in registry
+        id: check-tag
+        run: |
+          # Query GitHub packages to see if this tag already exists
+          TOKEN=$(echo "${{ secrets.GITHUB_TOKEN }}" | base64)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}") \
+            -H "Authorization: Bearer $TOKEN" \
+            https://ghcr.io/v2/${{ github.repository_owner }}/${{ matrix.package }}/manifests/${{ needs.vars.outputs.tag }})
+
+          if [ "$STATUS" = "200" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag ${{ needs.vars.outputs.tag }} already exists. Skipping retag to protect historical data."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
       - name: Retag Images
-        # Only run this step if it's an automated merge (no manual tag) AND it found a PR number
-        if: ${{ ! inputs.tag && needs.vars.outputs.pr != '' }}
+        # Only run this step if it's an automated merge or a brand new manual tag that doesn't exist yet
+        if: ${{ needs.vars.outputs.pr != '' || (inputs.tag != '' && steps.check-tag.outputs.exists != 'true') }}
         uses: shrink/actions-docker-registry-tag@v4
         with:
           registry: ghcr.io
           repository: ${{ github.repository }}/${{ matrix.package }}
-          target: ${{ needs.vars.outputs.pr }}
+          target: ${{ needs.vars.outputs.pr || 'latest' }}
           tags: ${{ needs.vars.outputs.tag }}
 
   deploy-test:
@@ -80,9 +95,20 @@ jobs:
     uses: ./.github/workflows/.deployer.yml
     secrets:
       oc_token: ${{ secrets.OC_TOKEN }}
+      S3_ACCESS_ID: ${{ secrets.S3_ACCESS_ID }}
+      S3_KEY: ${{ secrets.S3_KEY }}
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
     with:
       environment: test
       tag: ${{ needs.vars.outputs.tag }}
       params: >-
         --set global.secrets.persist=false
         --set-string frontend.baseUrl=https://burn-severity-map-test-frontend.apps.silver.devops.gov.bc.ca
+        --set-string global.s3.endPoint=${{ vars.S3_ENDPOINT }}
+        --set global.ports.backend=${{ vars.BACKEND_PORT }}
+        --set global.ports.frontend=${{ vars.FRONTEND_PORT }}
+        --set global.ports.analysis=${{ vars.ANALYSIS_PORT }}
+        --set-string global.dirs.tmpDir=${{ vars.TEMP_DIR }}
+        --set-string global.dirs.extDir=${{ vars.EXT_DIR }}
+        --set-string global.dirs.mainDir=${{ vars.MAIN_DIR }}
+        --set-string global.files.parquet=${{ vars.PARQUET_FILE }}

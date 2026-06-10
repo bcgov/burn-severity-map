@@ -9,8 +9,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.backend.service.port }}
-      targetPort: {{ .Values.backend.service.targetPort }}
+    - port: {{ .Values.global.ports.backend }}
+      targetPort: {{ .Values.global.ports.backend }}
       protocol: TCP
       name: http
   selector:

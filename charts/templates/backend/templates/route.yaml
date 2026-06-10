@@ -11,7 +11,7 @@ metadata:
 spec:
   host: {{ include "backend.fullname" . }}.{{ .Values.global.domain }}
   port:
-    targetPort: {{ .Values.backend.route.targetPort }}
+    targetPort: {{ .Values.global.ports.backend }}
   to:
     kind: Service
     name: {{ include "backend.fullname" . }}

@@ -41,12 +41,23 @@ jobs:
     uses: ./.github/workflows/.deployer.yml
     secrets:
       oc_token: ${{ secrets.OC_TOKEN }}
+      S3_ACCESS_ID: ${{ secrets.S3_ACCESS_ID }}
+      S3_KEY: ${{ secrets.S3_KEY }}
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
     with:
       environment: dev
       triggers: ('analysis/' 'frontend/' 'backend/' 'charts/' '.github/')
       params: >-
         --set global.secrets.persist=false
         --set-string frontend.baseUrl=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca
+        --set-string global.s3.endPoint=${{ vars.S3_ENDPOINT }}
+        --set global.ports.backend=${{ vars.BACKEND_PORT }}
+        --set global.ports.frontend=${{ vars.FRONTEND_PORT }}
+        --set global.ports.analysis=${{ vars.ANALYSIS_PORT }}
+        --set-string global.dirs.tmpDir=${{ vars.TEMP_DIR }}
+        --set-string global.dirs.extDir=${{ vars.EXT_DIR }}
+        --set-string global.dirs.mainDir=${{ vars.MAIN_DIR }}
+        --set-string global.files.parquet=${{ vars.PARQUET_FILE }}
 
   results:
     name: PR Results
