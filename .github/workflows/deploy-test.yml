@@ -67,17 +67,16 @@ jobs:
       - name: Check if tag already exists in registry
         id: check-tag
         run: |
-          # Query GitHub packages to see if this tag already exists
-          TOKEN=$(echo "${{ secrets.GITHUB_TOKEN }}" | base64)
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer $TOKEN" \
-            https://ghcr.io/v2/${{ github.repository_owner }}/${{ matrix.package }}/manifests/${{ needs.vars.outputs.tag }})
-
-          if [ "$STATUS" = "200" ]; then
+          # 1. Securely log into GitHub Container Registry using the built-in runner token
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # 2. Use docker to ask the registry if the manifest for this exact tag exists
+          if docker manifest inspect ghcr.io/${{ github.repository_owner }}/${{ matrix.package }}:${{ needs.vars.outputs.tag }} > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Tag ${{ needs.vars.outputs.tag }} already exists. Skipping retag to protect historical data."
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag ${{ needs.vars.outputs.tag }} does not exist yet. Proceeding with copy."
           fi
       - name: Retag Images
         # Only run this step if it's an automated merge or a brand new manual tag that doesn't exist yet
