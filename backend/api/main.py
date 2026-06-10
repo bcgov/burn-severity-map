@@ -17,7 +17,7 @@ from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geopa
 from database import get_unique_fire_numbers, get_fire_features,check_connection
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

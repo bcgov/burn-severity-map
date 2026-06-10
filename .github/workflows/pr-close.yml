@@ -19,4 +19,4 @@ jobs:
     with:
       environment: dev
       cleanup: helm
-      packages: analysis backend frontend
+      # packages: analysis backend frontend
