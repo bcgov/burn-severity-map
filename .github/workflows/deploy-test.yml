@@ -69,7 +69,7 @@ jobs:
         run: |
           # Query GitHub packages to see if this tag already exists
           TOKEN=$(echo "${{ secrets.GITHUB_TOKEN }}" | base64)
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}") \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer $TOKEN" \
             https://ghcr.io/v2/${{ github.repository_owner }}/${{ matrix.package }}/manifests/${{ needs.vars.outputs.tag }})
 
