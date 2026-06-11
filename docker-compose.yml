@@ -60,6 +60,8 @@ services:
       - fastapi-backend
     ports:
       - "8080:${FRONTEND_PORT:-8080}"
+    volumes:
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
     networks:
       - s3-network
 

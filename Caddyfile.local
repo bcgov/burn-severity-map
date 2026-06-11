@@ -1,0 +1,30 @@
+{
+    auto_https off
+}
+
+http://:8080 {
+    root * /usr/share/caddy
+
+    route {
+        # Reverse proxy to the local fastapi-backend container
+        handle_path /pg-bs/* {
+            reverse_proxy fastapi-backend:8000
+        }
+        
+        # Reverse proxy for additional API endpoints
+        handle_path /api/* {
+            reverse_proxy fastapi-backend:8000
+        }
+
+        # Reverse proxy to the local analysis-backend container
+        handle_path /analysis/* {
+            reverse_proxy analysis-backend:5000
+        }
+        
+        # Serve static frontend files
+        handle {
+            try_files {path} /index.html
+            file_server
+        }
+    }
+}
