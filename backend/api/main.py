@@ -176,3 +176,37 @@ async def health_check():
         "object_storage": "connected" if db_status else "unreachable"
     }
     return JSONResponse(content=status, status_code=200 if db_status else 503)
+
+
+@app.get("/health/api")
+def api_health():
+    return {'status': 'ok'}
+
+@app.get("/health/storage")
+def storage_health():
+    if s3_connected:
+        return {'status': 'connected'}
+    else:
+        return {'status': 'unreachable'}
+    
+@app.get("/health/data")
+def data_health():
+    lst_fires = get_unique_fire_numbers()
+    if lst_fires == None:
+        return {
+            'status': 'unreachable',
+            'fire_count': None,
+            'error': 'Unable to read parquet file'
+        }
+    elif lst_fires == []:
+        return {
+            'status': 'not created',
+            'fire_count': 0,
+            'message': 'Parquet file does not exist yet'
+        }
+    else:
+        return {
+            'status': 'ok',
+            'fire_count': len(lst_fires),
+            'message': 'Data loaded successfully'
+        }

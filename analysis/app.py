@@ -200,7 +200,7 @@ def run_analysis_endpoint():
         # Handle other potential errors, such as failing to start the subprocess
         print(traceback.format_exc())  # Log the traceback to stdout (or use logging)
         return jsonify({"error": "An unexpected error occurred."}), 500
-@app.route('/health', methods=['GET'])
+@app.route('/health/analysis', methods=['GET'])
 def health_check():
     """
     Simple health check endpoint.

@@ -79,7 +79,9 @@ export interface AnalysisRequest {
 
 export interface HealthResponse {
   status: 'ok' | 'degraded' | 'unreachable';
-  object_storage: 'connected' | 'unreachable';
+  object_storage: 'ok' | 'connected' | 'unreachable';
+  data_status: 'ok' | 'not created' | 'unreachable';
+  fire_count: number | null;
   analysis_backend: 'ok' | 'degraded' | 'unreachable';
 }
 
@@ -88,46 +90,72 @@ export interface HealthResponse {
  * Unprotected endpoint
  */
 export const fetchHealth = async (): Promise<HealthResponse> => {
-  // Default values (if a service is unreachable)
-  let backendStatus: HealthResponse['status'] = 'unreachable';
-  let objectStorage: HealthResponse['object_storage'] = 'unreachable';
-  let analysisStatus: HealthResponse['analysis_backend'] = 'unreachable';
+  const endpoints = {
+    api: `${API_BASE_URL}/health/api`,
+    storage: `${API_BASE_URL}/health/storage`,
+    data: `${API_BASE_URL}/health/data`,
+    analysis: `${ANALYSIS_API_BASE_URL}/health/analysis`,
+  };
 
-  // FastAPI backend health (independent)
-  try {
-    const backendResponse = await fetch(`${API_BASE_URL}/health`, { cache: 'no-store' });
-    if (backendResponse.ok) {
-      const backendHealth = await backendResponse.json();
-      backendStatus = backendHealth?.status ?? 'unreachable';
-      objectStorage = backendHealth?.object_storage ?? 'unreachable';
-    } else {
-      console.warn(`Backend health check failed with status ${backendResponse.status}`);
-    }
-  } catch (e) {
-    console.warn('Backend health check error:', e);
-  }
+  const [apiRes, storageRes, dataRes, analysisRes] = await Promise.allSettled([
+    fetch(endpoints.api, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+    fetch(endpoints.storage, { cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+    fetch(endpoints.data, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+    fetch(endpoints.analysis, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+  ]);
 
-  // Analysis backend health (independent)
-  try {
-    const analysisResponse = await fetch(`${ANALYSIS_API_BASE_URL}/health`, { cache: 'no-store' });
-    if (analysisResponse.ok) {
-      const analysisHealth = await analysisResponse.json();
-      analysisStatus = analysisHealth?.status ?? 'unreachable';
-    } else {
-      console.warn(`Analysis health check failed with status ${analysisResponse.status}`);
-    }
-  } catch (e) {
-    console.warn('Analysis health check error:', e);
-  }
-
-  // Combine: if backend is good but analysis is down, don't fail the API status.
-  // Keep your original `status` semantics coming from the backend.
   return {
-    status: backendStatus,                 // keep backend's own status (ok/degraded/unreachable)
-    object_storage: objectStorage,         // from backend (or 'unreachable')
-    analysis_backend: analysisStatus,      // independent result for analysis
+    status: apiRes.status === 'fulfilled' ? (apiRes.value.status || 'ok') : 'unreachable',
+    object_storage: storageRes.status === 'fulfilled' ? (storageRes.value.status || 'connected') : 'unreachable',
+    data_status: dataRes.status === 'fulfilled' ? (dataRes.value.status || 'unreachable') : 'unreachable',
+    fire_count: dataRes.status === 'fulfilled' ? (dataRes.value.fire_count || null) : null,
+    analysis_backend: analysisRes.status == 'fulfilled' ? (analysisRes.value.status || 'ok') : 'unreachable'
   };
 };
+
+
+
+// export const fetchHealth = async (): Promise<HealthResponse> => {
+//   // Default values (if a service is unreachable)
+//   let backendStatus: HealthResponse['status'] = 'unreachable';
+//   let objectStorage: HealthResponse['object_storage'] = 'unreachable';
+//   let analysisStatus: HealthResponse['analysis_backend'] = 'unreachable';
+
+//   // FastAPI backend health (independent)
+//   try {
+//     const backendResponse = await fetch(`${API_BASE_URL}/health`, { cache: 'no-store' });
+//     if (backendResponse.ok) {
+//       const backendHealth = await backendResponse.json();
+//       backendStatus = backendHealth?.status ?? 'unreachable';
+//       objectStorage = backendHealth?.object_storage ?? 'unreachable';
+//     } else {
+//       console.warn(`Backend health check failed with status ${backendResponse.status}`);
+//     }
+//   } catch (e) {
+//     console.warn('Backend health check error:', e);
+//   }
+
+//   // Analysis backend health (independent)
+//   try {
+//     const analysisResponse = await fetch(`${ANALYSIS_API_BASE_URL}/health`, { cache: 'no-store' });
+//     if (analysisResponse.ok) {
+//       const analysisHealth = await analysisResponse.json();
+//       analysisStatus = analysisHealth?.status ?? 'unreachable';
+//     } else {
+//       console.warn(`Analysis health check failed with status ${analysisResponse.status}`);
+//     }
+//   } catch (e) {
+//     console.warn('Analysis health check error:', e);
+//   }
+
+//   // Combine: if backend is good but analysis is down, don't fail the API status.
+//   // Keep your original `status` semantics coming from the backend.
+//   return {
+//     status: backendStatus,                 // keep backend's own status (ok/degraded/unreachable)
+//     object_storage: objectStorage,         // from backend (or 'unreachable')
+//     analysis_backend: analysisStatus,      // independent result for analysis
+//   };
+// };
 
 /**
  * Triggers the BARC analysis on the Flask backend.

@@ -65,8 +65,10 @@ def get_unique_fire_numbers(year:str=None):
             """
             return [row[0] for row in con.execute(query).fetchall()]
     except Exception as e:
-        if "404" in str(e) or "Not Found" in str(e):
+        if "404" in str(e) or "Not Found" in str(e) or "NoSuchKey" in str(e):
             return []
+        else:
+            return None
 
 def get_fire_features(year: str, fire_number: str):
     query = f"""

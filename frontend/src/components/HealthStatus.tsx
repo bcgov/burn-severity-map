@@ -13,7 +13,13 @@ const HealthStatus: React.FC = () => {
         setHealth(data);
         console.log('Backend health fetched', data);
       } catch (error) {
-        setHealth({ status: 'unreachable', object_storage: 'unreachable', analysis_backend: 'unreachable' });
+        setHealth({
+          status: 'unreachable',
+          object_storage: 'unreachable',
+          data_status: 'unreachable',
+          fire_count: null,
+          analysis_backend: 'unreachable'
+        });
       } finally {
         setLoading(false);
       }
@@ -31,6 +37,8 @@ const HealthStatus: React.FC = () => {
         return 'orange';
       case 'unreachable':
         return 'red';
+      case 'not created':
+        return 'orange';
       default:
         return 'gray';
     }
@@ -50,6 +58,21 @@ const HealthStatus: React.FC = () => {
         <li>
           <strong>Object Storage:</strong>{' '}
           <span style={{ color: getStatusColor(health!.object_storage) }}>{health!.object_storage}</span>
+        </li>
+        <li>
+          <strong>Burn Severity Data:</strong>{' '}
+          <span style={{ color: getStatusColor(health!.data_status) }}>{health!.data_status}</span>
+
+          {health!.data_status === 'ok' && health!.fire_count !== null && (
+            <span style={{ marginLeft: '10px', fontSize: '0.9em', color: getStatusColor(health!.data_status) }}>
+              ({health!.fire_count} fire(s) tracked)
+            </span>
+          )}
+          {health!.data_status === 'not created' && (
+            <span style={{ marginLeft: '10px', fontSize: '0.9em', color: getStatusColor(health!.data_status) }}>
+              (Awaiting intial sync)
+            </span>
+          )}
         </li>
         <li>
           <strong>Analysis Status:</strong>{' '}
