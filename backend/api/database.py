@@ -76,7 +76,12 @@ def get_fire_features(year: str, fire_number: str):
         FROM '{PARQUET_PATH}'
         WHERE FIRE_YEAR=? and FIRE_NUMBER = ?
     """
-    return con.execute(query, [year, fire_number]).fetchdf()
+    try:
+        df = con.execute(query, [year, fire_number]).fetchdf()
+        return df
+    except Exception as e:
+        return None
+
 
 def get_years_with_features():
     query = f"""

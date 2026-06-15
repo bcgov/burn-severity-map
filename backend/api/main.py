@@ -94,11 +94,12 @@ def get_fire_by_number(year: str, fire_number: str, token_payload: dict = Depend
         df = get_fire_features(year,fire_number)
         features = []
 
-        for _, row in df.iterrows():
-            geometry = json.loads(row.pop("geometry"))
-            properties = FeatureProperties(**row.to_dict())
-            feature = Feature(geometry=Geometry(**geometry), properties=properties)
-            features.append(feature)
+        if not df is None:
+            for _, row in df.iterrows():
+                geometry = json.loads(row.pop("geometry"))
+                properties = FeatureProperties(**row.to_dict())
+                feature = Feature(geometry=Geometry(**geometry), properties=properties)
+                features.append(feature)
 
         return FeatureCollection(features=features)
     except Exception as e:

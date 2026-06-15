@@ -12,6 +12,25 @@ export interface Document {
 // Define your API's base URL. It's good practice to have this in an environment variable.
 const API_BASE_URL = '/api'; // Your FastAPI backend URL
 const ANALYSIS_API_BASE_URL = '/analysis'
+
+let cachedDataStatus: 'ok' | 'not created' | 'unreachable' | null = null;
+let activeHealthCheck: Promise<HealthResponse> | null = null;
+
+const ensureDataReady = async (): Promise<void> => {
+  if (cachedDataStatus === 'ok') return;
+
+  if (cachedDataStatus === null || cachedDataStatus === 'not created') {
+    await fetchHealth();
+  }
+
+  // if (cachedDataStatus === 'not created') {
+  //   throw new Error('No fire data is currently loaded in the system, please configure and run the analysis')
+  // }
+  if (cachedDataStatus === 'unreachable') {
+    throw new Error('Unable to verify system health, the application may be down')
+  }
+};
+
 /**
  * A wrapper around the native fetch function that automatically adds the
  * OIDC Authorization header to API requests.
@@ -90,27 +109,40 @@ export interface HealthResponse {
  * Unprotected endpoint
  */
 export const fetchHealth = async (): Promise<HealthResponse> => {
-  const endpoints = {
-    api: `${API_BASE_URL}/health/api`,
-    storage: `${API_BASE_URL}/health/storage`,
-    data: `${API_BASE_URL}/health/data`,
-    analysis: `${ANALYSIS_API_BASE_URL}/health/analysis`,
-  };
 
-  const [apiRes, storageRes, dataRes, analysisRes] = await Promise.allSettled([
-    fetch(endpoints.api, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-    fetch(endpoints.storage, { cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-    fetch(endpoints.data, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-    fetch(endpoints.analysis, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
-  ]);
+  if (activeHealthCheck) return activeHealthCheck;
 
-  return {
-    status: apiRes.status === 'fulfilled' ? (apiRes.value.status || 'ok') : 'unreachable',
-    object_storage: storageRes.status === 'fulfilled' ? (storageRes.value.status || 'connected') : 'unreachable',
-    data_status: dataRes.status === 'fulfilled' ? (dataRes.value.status || 'unreachable') : 'unreachable',
-    fire_count: dataRes.status === 'fulfilled' ? (dataRes.value.fire_count || null) : null,
-    analysis_backend: analysisRes.status == 'fulfilled' ? (analysisRes.value.status || 'ok') : 'unreachable'
-  };
+  activeHealthCheck = (async () => {
+    const endpoints = {
+      api: `${API_BASE_URL}/health/api`,
+      storage: `${API_BASE_URL}/health/storage`,
+      data: `${API_BASE_URL}/health/data`,
+      analysis: `${ANALYSIS_API_BASE_URL}/health/analysis`,
+    };
+
+    const [apiRes, storageRes, dataRes, analysisRes] = await Promise.allSettled([
+      fetch(endpoints.api, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      fetch(endpoints.storage, { cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      fetch(endpoints.data, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      fetch(endpoints.analysis, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    ]);
+
+    const result: HealthResponse = {
+      status: apiRes.status === 'fulfilled' ? (apiRes.value.status || 'ok') : 'unreachable',
+      object_storage: storageRes.status === 'fulfilled' ? (storageRes.value.status || 'connected') : 'unreachable',
+      data_status: dataRes.status === 'fulfilled' ? (dataRes.value.status || 'unreachable') : 'unreachable',
+      fire_count: dataRes.status === 'fulfilled' ? (dataRes.value.fire_count || null) : null,
+      analysis_backend: analysisRes.status == 'fulfilled' ? (analysisRes.value.status || 'ok') : 'unreachable'
+    };
+
+    cachedDataStatus = result.data_status;
+
+    activeHealthCheck = null;
+    return result;
+
+  })();
+
+  return activeHealthCheck;
 };
 
 /**
@@ -149,6 +181,8 @@ export const runBurnSeverityAnalysis = async (params: AnalysisRequest) => {
  */
 
 export const getFireData = async (year:string, fireNumber: string) => {
+  await ensureDataReady();
+
   console.log('getFireData',year,fireNumber)
   const response = await authedFetch(`/burn-severity/${year}/${fireNumber}`);
   if (!response.ok) {
@@ -163,6 +197,8 @@ export const getFireData = async (year:string, fireNumber: string) => {
  * response = [{"key":str,"filename":str,"url":str}]
  */
 export const getFireDocuments = async (year:string,fireNumber: string) => {
+  await ensureDataReady();
+
   const response = await authedFetch(`/docs/download/${year}/${fireNumber}`);
   if (!response.ok) {
     // handle non-2xx responses here.
@@ -178,13 +214,15 @@ export const getFireDocuments = async (year:string,fireNumber: string) => {
 
   return data.files;
 
-}
+};
 
 /**
  * Fetches the list of all available fire numbers.
  * Protected endpoint
  */
 export const getFireNumbers = async (year:string) => {
+  await ensureDataReady();
+
   const response = await authedFetch(`/burn-severity/${year}`);
   if (!response.ok) {
     // handle non-2xx responses here.
@@ -192,14 +230,15 @@ export const getFireNumbers = async (year:string) => {
     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
   }
   return response.json();
-}
+};
 
 export const syncFireResults = async (year: string,fire_number: string) => {
-    const response = await authedFetch(`/sync-burn-severity/${year}/${fire_number}`);
-    // handle non-2xx responses here.
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    return response.json();
-  };
+  await ensureDataReady();
+  const response = await authedFetch(`/sync-burn-severity/${year}/${fire_number}`);
+  // handle non-2xx responses here.
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
+    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
