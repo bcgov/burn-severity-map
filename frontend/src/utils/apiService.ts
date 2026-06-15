@@ -113,50 +113,6 @@ export const fetchHealth = async (): Promise<HealthResponse> => {
   };
 };
 
-
-
-// export const fetchHealth = async (): Promise<HealthResponse> => {
-//   // Default values (if a service is unreachable)
-//   let backendStatus: HealthResponse['status'] = 'unreachable';
-//   let objectStorage: HealthResponse['object_storage'] = 'unreachable';
-//   let analysisStatus: HealthResponse['analysis_backend'] = 'unreachable';
-
-//   // FastAPI backend health (independent)
-//   try {
-//     const backendResponse = await fetch(`${API_BASE_URL}/health`, { cache: 'no-store' });
-//     if (backendResponse.ok) {
-//       const backendHealth = await backendResponse.json();
-//       backendStatus = backendHealth?.status ?? 'unreachable';
-//       objectStorage = backendHealth?.object_storage ?? 'unreachable';
-//     } else {
-//       console.warn(`Backend health check failed with status ${backendResponse.status}`);
-//     }
-//   } catch (e) {
-//     console.warn('Backend health check error:', e);
-//   }
-
-//   // Analysis backend health (independent)
-//   try {
-//     const analysisResponse = await fetch(`${ANALYSIS_API_BASE_URL}/health`, { cache: 'no-store' });
-//     if (analysisResponse.ok) {
-//       const analysisHealth = await analysisResponse.json();
-//       analysisStatus = analysisHealth?.status ?? 'unreachable';
-//     } else {
-//       console.warn(`Analysis health check failed with status ${analysisResponse.status}`);
-//     }
-//   } catch (e) {
-//     console.warn('Analysis health check error:', e);
-//   }
-
-//   // Combine: if backend is good but analysis is down, don't fail the API status.
-//   // Keep your original `status` semantics coming from the backend.
-//   return {
-//     status: backendStatus,                 // keep backend's own status (ok/degraded/unreachable)
-//     object_storage: objectStorage,         // from backend (or 'unreachable')
-//     analysis_backend: analysisStatus,      // independent result for analysis
-//   };
-// };
-
 /**
  * Triggers the BARC analysis on the Flask backend.
  * Protected endpoint - Requires 'editor' role on the backend.

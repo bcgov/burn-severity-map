@@ -1,32 +1,34 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchHealth, HealthResponse } from '../utils/apiService';
+import { useHealth } from './HealthContext';
 
 const HealthStatus: React.FC = () => {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { health, loading } = useHealth();
+  // const [health, setHealth] = useState<HealthResponse | null>(null);
+  // const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    const loadHealth = async () => {
-      try {
-        const data = await fetchHealth();
-        setHealth(data);
-        console.log('Backend health fetched', data);
-      } catch (error) {
-        setHealth({
-          status: 'unreachable',
-          object_storage: 'unreachable',
-          data_status: 'unreachable',
-          fire_count: null,
-          analysis_backend: 'unreachable'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+  // useEffect(() => {
+  //   const loadHealth = async () => {
+  //     try {
+  //       const data = await fetchHealth();
+  //       setHealth(data);
+  //       console.log('Backend health fetched', data);
+  //     } catch (error) {
+  //       setHealth({
+  //         status: 'unreachable',
+  //         object_storage: 'unreachable',
+  //         data_status: 'unreachable',
+  //         fire_count: null,
+  //         analysis_backend: 'unreachable'
+  //       });
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    loadHealth();
-  }, []);
+  //   loadHealth();
+  // }, []);
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -45,6 +47,7 @@ const HealthStatus: React.FC = () => {
   };
 
   if (loading) return <p>Checking system health...</p>;
+  if (!health) return null;
   console.log("Health component mounted");
 
   return (
