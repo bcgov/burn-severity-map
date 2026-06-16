@@ -145,6 +145,8 @@ a {
   font-weight: 600;
   text-decoration: none;
   border-radius: var(--bcgov-radius-sm);
+  white-space: nowrap;
+  cursor: pointer;
   &:hover {
     background-color: #dbdbdb;
     text-decoration: none;
