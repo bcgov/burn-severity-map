@@ -7,7 +7,7 @@ import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
 import DocumentPanel from '../components/DocumentPanel'
 import { useAuth } from '../auth/AuthContext';
-import { getFireData, getFireNumbers, getFireDocuments, Document } from "../utils/apiService";
+import { getFireData, getFireYears, getFireNumbers, getFireDocuments, Document } from "../utils/apiService";
 import { Accordion, AccordionGroup } from '@bcgov/design-system-react-components';
 import BurnSeveritySummary from '../components/ol-maps/BurnSeveritySummary';
 

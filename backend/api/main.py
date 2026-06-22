@@ -14,8 +14,8 @@ import re
 import logging
 from oidc.oidcAuthorize import verify_token
 from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3
-from database import get_unique_fire_numbers, get_fire_features,check_connection
-from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
+from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
+from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -83,6 +83,14 @@ def list_fire_numbers(year: str, token_payload: dict = Depends(verify_token)):
     try:
         fire_numbers = get_unique_fire_numbers(year=year)
         return {"fire_numbers": fire_numbers}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/burn-severity/years", response_model=FireYearsList)
+def get_years(token_payload: dict = Depends(verify_token)):
+    try:
+        yearsList = get_years_with_features()
+        return {"fire_years": yearsList}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
