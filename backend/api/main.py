@@ -172,12 +172,9 @@ async def download_file(year:str, fire_number:str, token_payload: dict = Depends
 async def health_check():
     db_status = check_connection()
 
-    version= os.getenv('APP_VERSION', 'dev')
-
     status = {
         "status":"ok" if db_status else "degraded",
-        "object_storage": "connected" if db_status else "unreachable",
-        "version": version
+        "object_storage": "connected" if db_status else "unreachable"
     }
     return JSONResponse(content=status, status_code=200 if db_status else 503)
 

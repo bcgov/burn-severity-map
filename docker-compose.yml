@@ -82,7 +82,6 @@ services:
       - "8000:${BACKEND_PORT:-8000}"
     environment:
       <<: *shared-env
-      
     env_file:
       - .env
     volumes:
