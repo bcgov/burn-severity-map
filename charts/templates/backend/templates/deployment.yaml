@@ -42,8 +42,8 @@ spec:
                 name: {{ include "backend.fullname" . }}
             {{- end }}
           env:
-              - name: FRONTEND_URL
-                value: {{ printf "https://%s" .Values.frontend.domain | quote }}
+            - name: FRONTEND_URL
+              value: {{ printf "https://%s" .Values.frontend.domain | quote }}
             {{- range .Values.backend.env }}
               - name: {{ .name }}
               {{- if .value }}
@@ -53,6 +53,8 @@ spec:
                   {{- toYaml .valueFrom | nindent 18 }}
               {{- end }}
             {{- end }}
+            - name: APP_VERSION
+              value: {{ .Values.backend.appVersion | quote }}
             
 
 

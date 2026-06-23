@@ -102,6 +102,7 @@ export interface HealthResponse {
   data_status: 'ok' | 'not created' | 'unreachable';
   fire_count: number | null;
   analysis_backend: 'ok' | 'degraded' | 'unreachable';
+  version: string;
 }
 
 /**
@@ -132,7 +133,8 @@ export const fetchHealth = async (): Promise<HealthResponse> => {
       object_storage: storageRes.status === 'fulfilled' ? (storageRes.value.status || 'connected') : 'unreachable',
       data_status: dataRes.status === 'fulfilled' ? (dataRes.value.status || 'unreachable') : 'unreachable',
       fire_count: dataRes.status === 'fulfilled' ? (dataRes.value.fire_count || null) : null,
-      analysis_backend: analysisRes.status == 'fulfilled' ? (analysisRes.value.status || 'ok') : 'unreachable'
+      analysis_backend: analysisRes.status == 'fulfilled' ? (analysisRes.value.status || 'ok') : 'unreachable',
+      version: apiRes.status === 'fulfilled' ? (apiRes.value.version || 'dev') :'unknown'
     };
 
     cachedDataStatus = result.data_status;
