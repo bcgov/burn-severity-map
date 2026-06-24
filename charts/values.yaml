@@ -44,7 +44,7 @@ backend:
   #-- enable or disable backend
   enabled: true
 
-  appVersion: 'local-dev'
+  appVersion: 'dev'
 
   #-- the deployment strategy, can be "Recreate" or "RollingUpdate"
   deploymentStrategy: Recreate

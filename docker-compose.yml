@@ -13,7 +13,7 @@ x-shared-env: &shared-env
   NO_PROXY: ${NO_PROXY}
   AWS_REQUEST_CHECKSUM_CALCULATION: "when_required"
   AWS_RESPONSE_CHECKSUM_VALIDATION: "when_required"
-  APP_VERSION: 'local-dev'
+  APP_VERSION: 'dev-local'
 
 services:
   # Object Storage infrastructure

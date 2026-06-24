@@ -58,6 +58,7 @@ jobs:
         --set-string global.dirs.extDir=${{ vars.EXT_DIR }}
         --set-string global.dirs.mainDir=${{ vars.MAIN_DIR }}
         --set-string global.files.parquet=${{ vars.PARQUET_FILE }}
+        --set-string backend.appVersion=dev-${{ github.event.number }}
 
   results:
     name: PR Results
