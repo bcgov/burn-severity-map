@@ -43,6 +43,9 @@ global:
 backend:
   #-- enable or disable backend
   enabled: true
+
+  appVersion: 'dev'
+
   #-- the deployment strategy, can be "Recreate" or "RollingUpdate"
   deploymentStrategy: Recreate
   #-- autoscaling for the component. it is optional and is an object.

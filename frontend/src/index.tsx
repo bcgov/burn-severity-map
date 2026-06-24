@@ -7,6 +7,7 @@ import ReactDOM from "react-dom/client"; // React 18+ root API for rendering the
 import { useLocation } from "react-router-dom"; // React Router hook to access the current location
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"; // React Router for client-side routing
 import { AuthProvider } from './auth/AuthContext'; // Make sure this path is correct
+import { HealthProvider } from  './components/HealthContext';
 
 // Import reusable header and footer components from BCGov-branded UI library
 // IMPORTANT: Adjust path if 'bcgov-components' is not directly in 'components'
@@ -57,7 +58,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => (
   <Router>
     <AuthProvider>
-      <AppContent />
+      <HealthProvider>
+        <AppContent />
+      </HealthProvider>
     </AuthProvider>
   </Router>
 );

@@ -12,6 +12,25 @@ export interface Document {
 // Define your API's base URL. It's good practice to have this in an environment variable.
 const API_BASE_URL = '/api'; // Your FastAPI backend URL
 const ANALYSIS_API_BASE_URL = '/analysis'
+
+let cachedDataStatus: 'ok' | 'not created' | 'unreachable' | null = null;
+let activeHealthCheck: Promise<HealthResponse> | null = null;
+
+const ensureDataReady = async (): Promise<void> => {
+  if (cachedDataStatus === 'ok') return;
+
+  if (cachedDataStatus === null || cachedDataStatus === 'not created') {
+    await fetchHealth();
+  }
+
+  // if (cachedDataStatus === 'not created') {
+  //   throw new Error('No fire data is currently loaded in the system, please configure and run the analysis')
+  // }
+  if (cachedDataStatus === 'unreachable') {
+    throw new Error('Unable to verify system health, the application may be down')
+  }
+};
+
 /**
  * A wrapper around the native fetch function that automatically adds the
  * OIDC Authorization header to API requests.
@@ -79,8 +98,11 @@ export interface AnalysisRequest {
 
 export interface HealthResponse {
   status: 'ok' | 'degraded' | 'unreachable';
-  object_storage: 'connected' | 'unreachable';
+  object_storage: 'ok' | 'connected' | 'unreachable';
+  data_status: 'ok' | 'not created' | 'unreachable';
+  fire_count: number | null;
   analysis_backend: 'ok' | 'degraded' | 'unreachable';
+  version: string;
 }
 
 /**
@@ -88,45 +110,41 @@ export interface HealthResponse {
  * Unprotected endpoint
  */
 export const fetchHealth = async (): Promise<HealthResponse> => {
-  // Default values (if a service is unreachable)
-  let backendStatus: HealthResponse['status'] = 'unreachable';
-  let objectStorage: HealthResponse['object_storage'] = 'unreachable';
-  let analysisStatus: HealthResponse['analysis_backend'] = 'unreachable';
 
-  // FastAPI backend health (independent)
-  try {
-    const backendResponse = await fetch(`${API_BASE_URL}/health`, { cache: 'no-store' });
-    if (backendResponse.ok) {
-      const backendHealth = await backendResponse.json();
-      backendStatus = backendHealth?.status ?? 'unreachable';
-      objectStorage = backendHealth?.object_storage ?? 'unreachable';
-    } else {
-      console.warn(`Backend health check failed with status ${backendResponse.status}`);
-    }
-  } catch (e) {
-    console.warn('Backend health check error:', e);
-  }
+  if (activeHealthCheck) return activeHealthCheck;
 
-  // Analysis backend health (independent)
-  try {
-    const analysisResponse = await fetch(`${ANALYSIS_API_BASE_URL}/health`, { cache: 'no-store' });
-    if (analysisResponse.ok) {
-      const analysisHealth = await analysisResponse.json();
-      analysisStatus = analysisHealth?.status ?? 'unreachable';
-    } else {
-      console.warn(`Analysis health check failed with status ${analysisResponse.status}`);
-    }
-  } catch (e) {
-    console.warn('Analysis health check error:', e);
-  }
+  activeHealthCheck = (async () => {
+    const endpoints = {
+      api: `${API_BASE_URL}/health/api`,
+      storage: `${API_BASE_URL}/health/storage`,
+      data: `${API_BASE_URL}/health/data`,
+      analysis: `${ANALYSIS_API_BASE_URL}/health/analysis`,
+    };
 
-  // Combine: if backend is good but analysis is down, don't fail the API status.
-  // Keep your original `status` semantics coming from the backend.
-  return {
-    status: backendStatus,                 // keep backend's own status (ok/degraded/unreachable)
-    object_storage: objectStorage,         // from backend (or 'unreachable')
-    analysis_backend: analysisStatus,      // independent result for analysis
-  };
+    const [apiRes, storageRes, dataRes, analysisRes] = await Promise.allSettled([
+      fetch(endpoints.api, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      fetch(endpoints.storage, { cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      fetch(endpoints.data, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      fetch(endpoints.analysis, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    ]);
+
+    const result: HealthResponse = {
+      status: apiRes.status === 'fulfilled' ? (apiRes.value.status || 'ok') : 'unreachable',
+      object_storage: storageRes.status === 'fulfilled' ? (storageRes.value.status || 'connected') : 'unreachable',
+      data_status: dataRes.status === 'fulfilled' ? (dataRes.value.status || 'unreachable') : 'unreachable',
+      fire_count: dataRes.status === 'fulfilled' ? (dataRes.value.fire_count || null) : null,
+      analysis_backend: analysisRes.status == 'fulfilled' ? (analysisRes.value.status || 'ok') : 'unreachable',
+      version: apiRes.status === 'fulfilled' ? (apiRes.value.version || 'dev') :'unknown'
+    };
+
+    cachedDataStatus = result.data_status;
+
+    activeHealthCheck = null;
+    return result;
+
+  })();
+
+  return activeHealthCheck;
 };
 
 /**
@@ -165,6 +183,8 @@ export const runBurnSeverityAnalysis = async (params: AnalysisRequest) => {
  */
 
 export const getFireData = async (year:string, fireNumber: string) => {
+  await ensureDataReady();
+
   console.log('getFireData',year,fireNumber)
   const response = await authedFetch(`/burn-severity/${year}/${fireNumber}`);
   if (!response.ok) {
@@ -179,6 +199,8 @@ export const getFireData = async (year:string, fireNumber: string) => {
  * response = [{"key":str,"filename":str,"url":str}]
  */
 export const getFireDocuments = async (year:string,fireNumber: string) => {
+  await ensureDataReady();
+
   const response = await authedFetch(`/docs/download/${year}/${fireNumber}`);
   if (!response.ok) {
     // handle non-2xx responses here.
@@ -194,13 +216,15 @@ export const getFireDocuments = async (year:string,fireNumber: string) => {
 
   return data.files;
 
-}
+};
 
 /**
  * Fetches the list of all available fire numbers.
  * Protected endpoint
  */
 export const getFireNumbers = async (year:string) => {
+  await ensureDataReady();
+
   const response = await authedFetch(`/burn-severity/${year}`);
   if (!response.ok) {
     // handle non-2xx responses here.
@@ -208,14 +232,15 @@ export const getFireNumbers = async (year:string) => {
     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
   }
   return response.json();
-}
+};
 
 export const syncFireResults = async (year: string,fire_number: string) => {
-    const response = await authedFetch(`/sync-burn-severity/${year}/${fire_number}`);
-    // handle non-2xx responses here.
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    return response.json();
-  };
+  await ensureDataReady();
+  const response = await authedFetch(`/sync-burn-severity/${year}/${fire_number}`);
+  // handle non-2xx responses here.
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
+    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};

@@ -49,20 +49,26 @@ def check_connection():
         return False
 
 def get_unique_fire_numbers(year:str=None):
-    if year:
-        query = f"""
-            SELECT DISTINCT FIRE_NUMBER
-            FROM '{PARQUET_PATH}' WHERE FIRE_YEAR=?
-            ORDER BY FIRE_NUMBER
-        """
-        return [row[0] for row in con.execute(query,[year]).fetchall()]
-    else:
-        query = f"""
-            SELECT DISTINCT FIRE_NUMBER
-            FROM '{PARQUET_PATH}'
-            ORDER BY FIRE_NUMBER
-        """
-        return [row[0] for row in con.execute(query).fetchall()]
+    try:
+        if year:
+            query = f"""
+                SELECT DISTINCT FIRE_NUMBER
+                FROM '{PARQUET_PATH}' WHERE FIRE_YEAR=?
+                ORDER BY FIRE_NUMBER
+            """
+            return [row[0] for row in con.execute(query,[year]).fetchall()]
+        else:
+            query = f"""
+                SELECT DISTINCT FIRE_NUMBER
+                FROM '{PARQUET_PATH}'
+                ORDER BY FIRE_NUMBER
+            """
+            return [row[0] for row in con.execute(query).fetchall()]
+    except Exception as e:
+        if "404" in str(e) or "Not Found" in str(e) or "NoSuchKey" in str(e):
+            return []
+        else:
+            return None
 
 def get_fire_features(year: str, fire_number: str):
     query = f"""
@@ -70,7 +76,12 @@ def get_fire_features(year: str, fire_number: str):
         FROM '{PARQUET_PATH}'
         WHERE FIRE_YEAR=? and FIRE_NUMBER = ?
     """
-    return con.execute(query, [year, fire_number]).fetchdf()
+    try:
+        df = con.execute(query, [year, fire_number]).fetchdf()
+        return df
+    except Exception as e:
+        return None
+
 
 def get_years_with_features():
     query = f"""

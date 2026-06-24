@@ -1,5 +1,5 @@
 # Stage 1: Build the frontend
-FROM docker.io/node:18 AS builder
+FROM docker.io/node:22-alpine AS builder
 
 # Define build arguments
 # ARG REACT_APP_BASE_URL
