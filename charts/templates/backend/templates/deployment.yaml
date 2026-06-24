@@ -45,12 +45,12 @@ spec:
             - name: FRONTEND_URL
               value: {{ printf "https://%s" .Values.frontend.domain | quote }}
             {{- range .Values.backend.env }}
-              - name: {{ .name }}
+            - name: {{ .name }}
               {{- if .value }}
-                value: {{ tpl (.value | toString) $ | quote }}
+              value: {{ tpl (.value | toString) $ | quote }}
               {{- else if .valueFrom }}
-                valueFrom:
-                  {{- toYaml .valueFrom | nindent 18 }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
               {{- end }}
             {{- end }}
             - name: APP_VERSION
