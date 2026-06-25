@@ -18,7 +18,7 @@ let activeHealthCheck: Promise<HealthResponse> | null = null;
 
 const ensureDataReady = async (): Promise<void> => {
   if (cachedDataStatus === 'ok') return;
-
+  console.log("Checking system health...");
   if (cachedDataStatus === null || cachedDataStatus === 'not created') {
     await fetchHealth();
   }

@@ -25,7 +25,7 @@ const BurnSeverityPage: React.FC = () => {
   // State for the currently selected fire year
   const currentYear = String(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState<string[]>([]);
-  const [selectedDbYear, setSelectedDbYear] = useState<string | null>(currentYear);
+  const [selectedDbYear, setSelectedDbYear] = useState<string | null>(null);
   // State for the currently selected documents
   const [ documents, setDocuments ] = useState<Document[]>([]);
   const [ isLoading, setIsLoading ] = useState<boolean>(false);
@@ -36,7 +36,20 @@ const BurnSeverityPage: React.FC = () => {
   const handleBasemapChange = (newBasemap: string) => {
     setBasemap(newBasemap);
   };
-  
+  //get fire years on load
+  useEffect(() => {
+    console.log("Attempting to fetch years...");
+    getFireYears()
+      .then((years) => {
+        console.log("Years fetched successfully:", years);
+        setAvailableYears(years);
+      })
+      .catch((err) => {
+        console.error("Critical error fetching years:", err);
+      });
+  }, []);
+
+
   // Fetch the list of fire numbers when a selected year changes
   useEffect(() => {
     if (!selectedDbYear) {
@@ -79,11 +92,6 @@ const BurnSeverityPage: React.FC = () => {
   getDocuments();
   }, [selectedDbFire]); // only should run if selected fire changes
 
-  useEffect(() => {
-    getFireYears()
-      .then(setAvailableYears)
-      .catch(console.error);
-  }, []);
   // Handler for when a year is selected from the dropdown
   const handleDbYearSelect = (year: string | null) => {
     setSelectedDbYear(year);
