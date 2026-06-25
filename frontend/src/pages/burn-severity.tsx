@@ -38,6 +38,7 @@ const BurnSeverityPage: React.FC = () => {
   };
   //get fire years on load
   useEffect(() => {
+    if (!isAuthenticated) return;
     console.log("Attempting to fetch years...");
     getFireYears()
       .then((years) => {
@@ -47,7 +48,7 @@ const BurnSeverityPage: React.FC = () => {
       .catch((err) => {
         console.error("Critical error fetching years:", err);
       });
-  }, []);
+  }, [isAuthenticated]);
 
 
   // Fetch the list of fire numbers when a selected year changes

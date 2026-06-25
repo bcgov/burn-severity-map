@@ -238,7 +238,7 @@ export const getFireNumbers = async (year:string) => {
  * Fetch the list years for with bs results
  */
 export const getFireYears = async () => {
-  await ensureDataReady();
+  //await ensureDataReady();
 
   const response = await authedFetch(`/years`);
   if (!response.ok) {
@@ -247,7 +247,7 @@ export const getFireYears = async () => {
     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
   }
   const data = await response.json();
-  
+  console.log('getFireYears response:',data);
   // Extract the array, convert numbers to strings
   if (data && Array.isArray(data.fire_years)) {
     return data.fire_years.map((y: number | string) => String(y));
