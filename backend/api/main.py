@@ -86,13 +86,6 @@ def list_fire_numbers(year: str, token_payload: dict = Depends(verify_token)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/burn-severity/years", response_model=FireYearsList)
-def get_years(token_payload: dict = Depends(verify_token)):
-    try:
-        yearsList = get_years_with_features()
-        return {"fire_years": yearsList}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/burn-severity/{year}/{fire_number}", response_model=FeatureCollection)
 def get_fire_by_number(year: str, fire_number: str, token_payload: dict = Depends(verify_token)):
@@ -137,7 +130,13 @@ async def sync_burn_severity(year:str, fire_number: str):
         raise HTTPException(status_code=500, detail=str(e))
     return True
 
-
+@app.get("/years", response_model=FireYearsList)
+def get_years(token_payload: dict = Depends(verify_token)):
+    try:
+        yearsList = get_years_with_features()
+        return {"fire_years": yearsList}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 # @app.get(
 #     "/docs/list/{year}/{fire_number}",
 #     summary="get list of documents related to fire_number"
