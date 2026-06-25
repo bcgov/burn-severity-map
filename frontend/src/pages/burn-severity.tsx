@@ -24,6 +24,7 @@ const BurnSeverityPage: React.FC = () => {
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
   // State for the currently selected fire year
   const currentYear = String(new Date().getFullYear());
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedDbYear, setSelectedDbYear] = useState<string | null>(currentYear);
   // State for the currently selected documents
   const [ documents, setDocuments ] = useState<Document[]>([]);
@@ -78,6 +79,11 @@ const BurnSeverityPage: React.FC = () => {
   getDocuments();
   }, [selectedDbFire]); // only should run if selected fire changes
 
+  useEffect(() => {
+    getFireYears()
+      .then(setAvailableYears)
+      .catch(console.error);
+  }, []);
   // Handler for when a year is selected from the dropdown
   const handleDbYearSelect = (year: string | null) => {
     setSelectedDbYear(year);
@@ -102,6 +108,7 @@ const BurnSeverityPage: React.FC = () => {
           <h3>Processed Burn Severity Fires</h3>
           <FireSelector_db
             fires={fireNumbers}
+            availableYears={availableYears}
             onFireSelect={handleDbFireSelect}
             onYearSelect={handleDbYearSelect}
             selectedFire={selectedDbFire}
