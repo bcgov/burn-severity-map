@@ -1,52 +1,139 @@
 .document-list {
-list-style: none;
+  list-style: none;
   padding: 0;
   margin: 0;
 
-  li {
+  .document-item {
     margin-bottom: 0.75rem;
   }
 
-  a {
+  // --- Main Clickable Row ---
+  .document-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-
     background: #f9f9f9;
     border: 1px solid #ddd;
-    padding: 0.3rem 1rem;
+    padding: 0.4rem 1rem;
     border-radius: 8px;
-    text-decoration: none;
-    color: #222;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
 
-    transition: background 0.2s ease;
-
-    &:hover, &:focus {
+    &:hover, &.expanded {
       background: #eef6ff;
       border-color: #99c2ff;
-      outline: none;
+    }
+
+    &.expanded {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom: none; // seamlessly connects to the preview panel
+    }
+  }
+
+  // --- Row Contents ---
+  .file-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    margin-top: 2px;
+  }
+
+  .file-type-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .file-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 500;
+    word-break: break-word;
+    line-height: 1.4;
+
+    @media (max-width: 600px) {
+      white-space: normal;
+    }
+  }
+
+  .download-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    border-radius: 4px;
+    color: #555;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #d0e3f5;
+      color: #003366; 
+    }
+  }
+
+  // --- Expandable Preview Panel ---
+  .document-preview {
+    background: #ffffff;
+    border: 1px solid #99c2ff;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+    animation: slideDown 0.2s ease-out;
+
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem 1rem;
+      background: #f4f8fc;
+      padding: 0.75rem;
+      border-radius: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .metadata-item {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+    }
+
+    .metadata-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+
+    .metadata-value {
+      font-size: 0.85rem;
+      color: #222;
+      font-weight: 500;
+      line-height: 1.4;
+
+      overflow-wrap: break-word; 
+      word-wrap: break-word;
+      white-space: normal;
+      
+      font-family: monospace;
+      color: #444;
     }
   }
 }
 
-.file-type {
-        font-weight: 700;
-        border: 1px solid #707070;
-        padding: 0.25rem 0.5rem;
-        border-radius: 5px;
-    }
-
-.file-name {
-    flex: 1 1 auto;
-    min-width: 0; // enables truncation
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    @media (max-width: 600px) {
-    white-space: normal; // allow wrapping on small screens
-    word-break: break-word;
-    }
+// Smooth expansion animation
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }

@@ -13,6 +13,9 @@ import json
 import re
 import logging
 from oidc.oidcAuthorize import verify_token
+from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3, format_file_size
+from database import get_unique_fire_numbers, get_fire_features,check_connection
+from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
 from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3
 from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList
@@ -31,7 +34,7 @@ async def lifespan(app: FastAPI):
         if s3_connected():
             obj_list = s3_list_objects()
             geojson_pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
-            fire_jsons = [doc for doc in obj_list if geojson_pattern.match(doc)]
+            fire_jsons = [doc['Key'] for doc in obj_list if geojson_pattern.match(doc['Key'])]
             # application has never been run
             if not geoparquet_on_s3() and len(fire_jsons)==0:
                 logger.warning('No fires on objectstore to initialize application')
@@ -112,7 +115,7 @@ async def sync_burn_severity(year:str, fire_number: str):
         logger.info(f'Sync BS for {year}-{fire_number}')
         obj_list = s3_list_objects(file_prefix=f'{year}-{fire_number}')
         pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
-        fire_jsons = [doc for doc in obj_list if pattern.match(doc)]
+        fire_jsons = [doc['Key'] for doc in obj_list if pattern.match(doc['Key'])]
         logger.info(str(fire_jsons))
         if len(fire_jsons)==1:
             fire_json = fire_jsons[0]
@@ -155,25 +158,42 @@ async def download_file(year:str, fire_number:str, token_payload: dict = Depends
     Client will make a direct GET request to this URL.
     """
 
-    # get list of s3 objects with the given prefix
-    obj_list = s3_list_objects(file_prefix=f'{year}-{fire_number}')
-    if not obj_list:
-        return HTTPException(status_code=404, detail="No files found for the given prefix.")
+    # get list of s3 objects with the given prefix within the export folder
+    export_obj_list = s3_list_objects(file_prefix=f'{year}-{fire_number}/export')
+    if not export_obj_list:
+        raise HTTPException(status_code=404, detail="No files found for the given prefix.")
+    
+    # get list of s3 objects with the given prefix within the output folder
+    intermediate_obj_list = s3_list_objects(file_prefix=f'{year}-{fire_number}/output')
 
-    files = [
+    export_files = [
         # create a dictionary with the object key and its presigned URL
         {
-            "key": obj,
-            "filename": obj.split("/")[-1],
-            "url": s3_get_presigned_url(obj, expiration_seconds=3600)
+            "key": obj['Key'],
+            "filename": obj['Key'].split("/")[-1],
+            "url": s3_get_presigned_url(obj['Key'], expiration_seconds=3600),
+            "size": format_file_size(float(obj['Size'])),
+            "createdDate": obj['LastModified'].strftime('%Y-%m-%d')
         }
-        for obj in obj_list
+        for obj in export_obj_list
     ]
 
-    if not files:
-        return HTTPException(status_code=404, detail="No files found for the given prefix.")
+    if not export_files:
+        raise HTTPException(status_code=404, detail="No files found for the given prefix.")
     
-    return JSONResponse({"files": files})
+    intermediate_files = [
+        # create a dictionary with the object key and its presigned URL
+        {
+            "key": obj['Key'],
+            "filename": obj['Key'].split("/")[-1],
+            "url": s3_get_presigned_url(obj['Key'], expiration_seconds=3600),
+            "size": format_file_size(float(obj['Size'])),
+            "createdDate": obj['LastModified'].strftime('%Y-%m-%d')
+        }
+        for obj in intermediate_obj_list
+    ]
+    
+    return JSONResponse({"export_files": export_files, "intermediate_files": intermediate_files})
 
 @app.get("/health", summary="Health Check", tags=["Monitoring"])
 async def health_check():

@@ -55,6 +55,8 @@ def s3_connected()->bool:
         print(f"Connection failed: {e}")
         return False
 
+
+# TODO Update to get all data vs just the keys
 def s3_list_objects(bucket_name=S3_BUCKET, file_prefix="")->list:
     """Lists files in an S3-compliant bucket with an optional prefix."""
     obj_list = []
@@ -67,7 +69,7 @@ def s3_list_objects(bucket_name=S3_BUCKET, file_prefix="")->list:
 
                 # only append file that are not directories
                 if not obj['Key'].endswith('$') and not obj['Key'].endswith('/') and not obj['Key'].endswith('catalogs'):
-                    obj_list.append(obj['Key'])
+                    obj_list.append(obj)
 
         else:
             logger.warning(f"No files found in bucket '{bucket_name}' with prefix '{file_prefix}'.")
@@ -94,11 +96,22 @@ def s3_get_presigned_url(obj, expiration_seconds=3600):
         return response
     except ClientError as e:
         logger.error(f"ClientError generating presigned URL for {obj}: {e}")
-        return f"ClientError generating presigned URL for {obj}: {e}"
+        return None
     except Exception as e:
         logger.error(f"Error generating presigned URL for {obj}: {e}")
-        return f"Error generating presigned URL for {obj}: {e}"
+        return None
     
+
+def format_file_size(size: float):
+    factor = 1024
+    suffixes = ['B', 'KB', 'MB', 'GB', 'TB']
+
+    for suffix in suffixes:
+        if size < factor:
+            return f'{size:.2f} {suffix}'
+        size /= factor
+    return f'{size:.2f} {suffixes[-1]}'
+
 
 def append_geojson_to_geoparquet_s3(
     new_geojson_s3_obj_key: str, # Can be a Feature or a FeatureCollection

@@ -342,16 +342,16 @@ class InterimBurnSeverity:
 
                 output_pre_nbr_path = os.path.join(self.output_folder, output_pre) if self.use_folder else None
                 output_post_nbr_path = os.path.join(self.output_folder, output_post) if self.use_folder else None
-                output_pre_rgb_path = os.path.join(self.output_folder, output_pre_rgb) if self.use_folder else None
-                output_post_rgb_path = os.path.join(self.output_folder, output_post_rgb) if self.use_folder else None
+                output_pre_rgb_path = os.path.join(self.export_folder, output_pre_rgb) if self.use_folder else None
+                output_post_rgb_path = os.path.join(self.export_folder, output_post_rgb) if self.use_folder else None
                 output_dnbr_path = os.path.join(self.output_folder, output_dnbr) if self.use_folder else None
                 output_scaled_dnbr_path = os.path.join(self.output_folder, output_scaled) if self.use_folder else None
                 output_barc_path = os.path.join(self.output_folder, output_barc) if self.use_folder else None
                 output_filtered_path = os.path.join(self.export_folder, output_filtered) if self.use_folder else None
                 os_pre_nbr_path = f'{self.os_output_folder}/{output_pre}' if self.use_storage else None
                 os_post_nbr_path = f'{self.os_output_folder}/{output_post}' if self.use_storage else None
-                os_pre_rgb_path = f'{self.os_output_folder}/{output_pre_rgb}' if self.use_storage else None
-                os_post_rgb_path = f'{self.os_output_folder}/{output_post_rgb}' if self.use_storage else None
+                os_pre_rgb_path = f'{self.os_export_folder}/{output_pre_rgb}' if self.use_storage else None
+                os_post_rgb_path = f'{self.os_export_folder}/{output_post_rgb}' if self.use_storage else None
                 os_dnbr_path = f'{self.os_output_folder}/{output_dnbr}' if self.use_storage else None
                 os_scaled_dnbr_path = f'{self.os_output_folder}/{output_scaled}' if self.use_storage else None
                 os_barc_path = f'{self.os_output_folder}/{output_barc}' if self.use_storage else None
