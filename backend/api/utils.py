@@ -96,10 +96,10 @@ def s3_get_presigned_url(obj, expiration_seconds=3600):
         return response
     except ClientError as e:
         logger.error(f"ClientError generating presigned URL for {obj}: {e}")
-        return f"ClientError generating presigned URL for {obj}: {e}"
+        return None
     except Exception as e:
         logger.error(f"Error generating presigned URL for {obj}: {e}")
-        return f"Error generating presigned URL for {obj}: {e}"
+        return None
     
 
 def format_file_size(size: float):
