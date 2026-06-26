@@ -31,3 +31,5 @@ class FeatureCollection(BaseModel):
 
 class FireNumberList(BaseModel):
     fire_numbers: List[str]
+class FireYearsList(BaseModel):
+    fire_years: List[int]

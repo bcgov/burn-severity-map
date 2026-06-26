@@ -7,7 +7,7 @@ import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import FireSelector_db from '../components/ol-maps/FireSelector_db';
 import DocumentPanel from '../components/DocumentPanel'
 import { useAuth } from '../auth/AuthContext';
-import { getFireData, getFireNumbers, getFireDocuments, Document } from "../utils/apiService";
+import { getFireData, getFireYears, getFireNumbers, getFireDocuments, Document } from "../utils/apiService";
 import { Accordion, AccordionGroup } from '@bcgov/design-system-react-components';
 import BurnSeveritySummary from '../components/ol-maps/BurnSeveritySummary';
 
@@ -24,7 +24,8 @@ const BurnSeverityPage: React.FC = () => {
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
   // State for the currently selected fire year
   const currentYear = String(new Date().getFullYear());
-  const [selectedDbYear, setSelectedDbYear] = useState<string | null>(currentYear);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [selectedDbYear, setSelectedDbYear] = useState<string | null>(null);
   // State for the currently selected documents
   const [ documents, setDocuments ] = useState<Document[]>([]);
   const [ isLoading, setIsLoading ] = useState<boolean>(false);
@@ -35,7 +36,21 @@ const BurnSeverityPage: React.FC = () => {
   const handleBasemapChange = (newBasemap: string) => {
     setBasemap(newBasemap);
   };
-  
+  //get fire years on load
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    console.log("Attempting to fetch years...");
+    getFireYears()
+      .then((years) => {
+        console.log("Years fetched successfully:", years);
+        setAvailableYears(years);
+      })
+      .catch((err) => {
+        console.error("Critical error fetching years:", err);
+      });
+  }, [isAuthenticated]);
+
+
   // Fetch the list of fire numbers when a selected year changes
   useEffect(() => {
     if (!selectedDbYear) {
@@ -102,6 +117,7 @@ const BurnSeverityPage: React.FC = () => {
           <h3>Processed Burn Severity Fires</h3>
           <FireSelector_db
             fires={fireNumbers}
+            availableYears={availableYears}
             onFireSelect={handleDbFireSelect}
             onYearSelect={handleDbYearSelect}
             selectedFire={selectedDbFire}

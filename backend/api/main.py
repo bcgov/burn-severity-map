@@ -14,8 +14,8 @@ import re
 import logging
 from oidc.oidcAuthorize import verify_token
 from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3
-from database import get_unique_fire_numbers, get_fire_features,check_connection
-from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
+from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
+from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -86,6 +86,7 @@ def list_fire_numbers(year: str, token_payload: dict = Depends(verify_token)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/burn-severity/{year}/{fire_number}", response_model=FeatureCollection)
 def get_fire_by_number(year: str, fire_number: str, token_payload: dict = Depends(verify_token)):
     # Protected route
@@ -129,7 +130,13 @@ async def sync_burn_severity(year:str, fire_number: str):
         raise HTTPException(status_code=500, detail=str(e))
     return True
 
-
+@app.get("/years", response_model=FireYearsList)
+def get_years(token_payload: dict = Depends(verify_token)):
+    try:
+        yearsList = get_years_with_features()
+        return {"fire_years": yearsList}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 # @app.get(
 #     "/docs/list/{year}/{fire_number}",
 #     summary="get list of documents related to fire_number"
@@ -188,7 +195,7 @@ def api_health():
 
 @app.get("/health/storage")
 def storage_health():
-    if s3_connected:
+    if s3_connected():
         return {'status': 'connected'}
     else:
         return {'status': 'unreachable'}

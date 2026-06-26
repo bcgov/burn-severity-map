@@ -2,26 +2,19 @@
 import React from 'react';
 import './Selectors.scss';
 
+
 interface FireYearSelectorProps {
   selectedYear: string | null;
   onYearSelect: (year: string | null) => void;
-  availableYears?: string[]; // optional, defaults below
+  availableYears: string[]; 
 }
-
-const getAvailableYears = (startYear: number): string[] => {
-  const currentYear = new Date().getFullYear();
-
-  return Array.from(
-    { length: currentYear - startYear + 1 },
-    (_, i) => (currentYear - i).toString()
-  );
-};
 
 const FireYearSelector: React.FC<FireYearSelectorProps> = ({
   selectedYear,
   onYearSelect,
-  availableYears = getAvailableYears(2025)
+  availableYears
 }) => {
+
   return (
     <div className="bcgov-year-selector">
       <label className="bcgov-fire-selector-label">

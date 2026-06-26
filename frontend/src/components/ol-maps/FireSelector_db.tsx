@@ -4,6 +4,7 @@ import FireNumberSelector from './FireNumberSelector';
 
 interface FireSelectorDbProps {
   fires: string[];
+  availableYears: string[];
   selectedYear: string | null;
   selectedFire: string | null;
   onYearSelect: (year: string | null) => void;
@@ -12,6 +13,7 @@ interface FireSelectorDbProps {
 
 const FireSelectorDb: React.FC<FireSelectorDbProps> = ({
   fires,
+  availableYears,
   selectedYear,
   selectedFire,
   onYearSelect,
@@ -20,6 +22,7 @@ const FireSelectorDb: React.FC<FireSelectorDbProps> = ({
   return (
     <>
       <FireYearSelector
+        availableYears={availableYears}
         selectedYear={selectedYear}
         onYearSelect={onYearSelect}
       />
