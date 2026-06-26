@@ -195,7 +195,7 @@ def api_health():
 
 @app.get("/health/storage")
 def storage_health():
-    if s3_connected:
+    if s3_connected():
         return {'status': 'connected'}
     else:
         return {'status': 'unreachable'}
