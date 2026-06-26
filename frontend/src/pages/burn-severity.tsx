@@ -26,7 +26,8 @@ const BurnSeverityPage: React.FC = () => {
   const currentYear = String(new Date().getFullYear());
   const [selectedDbYear, setSelectedDbYear] = useState<string | null>(currentYear);
   // State for the currently selected documents
-  const [ documents, setDocuments ] = useState<Document[]>([]);
+  const [ exportDocuments, setExportDocuments ] = useState<Document[]>([]);
+  const [ intermediateDocuments, setIntermediateDocuments ] = useState<Document[]>([]);
   const [ isLoading, setIsLoading ] = useState<boolean>(false);
   const [ isRightPanelVisible, setRightPanelVisible ] = useState(true);
   const toggleRightPanel = () => {
@@ -60,17 +61,20 @@ const BurnSeverityPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedDbFire) {
-      setDocuments([]);
+      setExportDocuments([]);
+      setIntermediateDocuments([]);
       return;
     }
   const getDocuments = async () => {
     setIsLoading(true);
     try {
-      const fetchedDocs = await getFireDocuments(selectedDbYear,selectedDbFire);
-      setDocuments(fetchedDocs);
+      const [exportDocs, intermediateDocs] = await getFireDocuments(selectedDbYear,selectedDbFire);
+      setExportDocuments(exportDocs);
+      setIntermediateDocuments(intermediateDocs);
     }catch (error) {
         console.error("Failed to fetch documents:", error);
-        setDocuments([]); // Clear documents on error
+        setExportDocuments([]); // Clear documents on error
+        setIntermediateDocuments([]);
       } finally {
         setIsLoading(false); // Set loading to false after fetching is done
       }
@@ -107,12 +111,22 @@ const BurnSeverityPage: React.FC = () => {
             selectedFire={selectedDbFire}
             selectedYear={selectedDbYear}
           />
-          <h3>Documents</h3>
-          <DocumentPanel
-            selectedDbFire={ selectedDbFire }
-            documents= { documents }
-            isLoading= { isLoading }
-           />
+          <AccordionGroup title='Files' allowsMultipleExpanded defaultExpandedKeys={['1']}>
+            <Accordion id='1' label='Main Outputs'>
+            <DocumentPanel
+              selectedDbFire={ selectedDbFire }
+              documents= { exportDocuments }
+              isLoading= { isLoading }
+             />
+            </Accordion>
+            <Accordion id='2' label='Intermediate'>
+              <DocumentPanel
+                selectedDbFire={ selectedDbFire }
+                documents= { intermediateDocuments }
+                isLoading= { isLoading }
+               />
+            </Accordion>
+          </AccordionGroup>
         </div>
 
         {/* Center Panel - Map */}

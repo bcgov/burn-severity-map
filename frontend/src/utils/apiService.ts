@@ -7,6 +7,8 @@ export interface Document {
   key: string;
   filename: string;
   url: string;
+  size: string;
+  createdDate: string;
 }
 
 // Define your API's base URL. It's good practice to have this in an environment variable.
@@ -210,11 +212,11 @@ export const getFireDocuments = async (year:string,fireNumber: string) => {
   const data = await response.json();
   console.log("Raw response data:",data);
   
-  if (!Array.isArray(data.files)) {
+  if (!Array.isArray(data.export_files)) {
     throw new Error("Unexpected response format: 'files' field is missing or not an array.");
   }
 
-  return data.files;
+  return [data.export_files, data.intermediate_files];
 
 };
 
