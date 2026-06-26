@@ -20,7 +20,7 @@ let activeHealthCheck: Promise<HealthResponse> | null = null;
 
 const ensureDataReady = async (): Promise<void> => {
   if (cachedDataStatus === 'ok') return;
-
+  console.log("Checking system health...");
   if (cachedDataStatus === null || cachedDataStatus === 'not created') {
     await fetchHealth();
   }
@@ -234,6 +234,26 @@ export const getFireNumbers = async (year:string) => {
     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
   }
   return response.json();
+};
+
+/**
+ * Fetch the list years for with bs results
+ */
+export const getFireYears = async () => {
+  //await ensureDataReady();
+
+  const response = await authedFetch(`/years`);
+  if (!response.ok) {
+    // handle non-2xx responses here.
+    const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
+    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+  console.log('getFireYears response:',data);
+  // Extract the array, convert numbers to strings
+  if (data && Array.isArray(data.fire_years)) {
+    return data.fire_years.map((y: number | string) => String(y));
+  }
 };
 
 export const syncFireResults = async (year: string,fire_number: string) => {
