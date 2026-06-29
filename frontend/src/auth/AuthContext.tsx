@@ -1,7 +1,7 @@
 // src/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState,useCallback } from 'react';
-import { User } from 'oidc-client-ts';
-import userManager from './authService';
+import { User, UserManager } from 'oidc-client-ts';
+import { initializeAuthService, getUserManager } from './authService';
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +22,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Start as true
   const [authError, setAuthError] = useState<Error | null>(null); // For OIDC errors
   const [roles, setRoles] = useState<string[]>([]);
+
+  const [isConfigured, setIsConfigured] = useState(false)
 
   const handleUserLoaded = useCallback((loadedUser: User) => {
     setUser(loadedUser);
@@ -49,15 +51,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // setUser(null); // Uncomment if you want to immediately clear user on expiration
   }, []);
 
-  const handleUserSessionChanged = useCallback(() => {
+  const handleUserSessionChanged = useCallback(async () => {
     // This is fired if user session changes (e.g., from another tab)
-    userManager.getUser().then(user => {
-      if (user && !user.expired) {
-        setUser(user);
+    try {
+      const manager = getUserManager();
+      const currentUser = await manager.getUser();
+      if (currentUser && !currentUser.expired) {
+        setUser(currentUser);
       } else {
-        setUser(null);
+        setUser(null)
       }
-    });
+    } catch (error) {
+      setUser(null)
+    }
   }, []);
 
 
@@ -80,49 +86,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   useEffect(() => {
-    // Initial check for existing user session
-    userManager.getUser()
-      .then(user => {
-        if (user && !user.expired) {
-          //console.log("Token Claims:", user.profile); // Inspect this in the browser console
-          setUser(user);
+    let isMounted = true;
+    let managerInstance: UserManager | null = null;
+
+    const bootstrapAuth = async () => {
+      try {
+        managerInstance = await initializeAuthService();
+        if (!isMounted) return;
+
+        const currentUser = await managerInstance.getUser();
+        if (currentUser && !currentUser.expired) {
+          setUser(currentUser);
         } else {
-          setUser(null); // No valid user or expired
+          setUser(null);
         }
-      })
-      .catch(error => {
-        console.error("Error getting initial user:", error);
-        setAuthError(error);
-        setUser(null);
-      })
-      .finally(() => {
-        setIsLoadingAuth(false); // Regardless of outcome, initial check is complete
-      });
 
-    // Subscribe to OIDC events
-    userManager.events.addUserLoaded(handleUserLoaded);
-    userManager.events.addUserUnloaded(handleUserUnloaded);
-    userManager.events.addUserSignedOut(handleUserSignedOut); // Often same as UserUnloaded, but good to listen
-    userManager.events.addAccessTokenExpired(handleAccessTokenExpired);
-    userManager.events.addUserSessionChanged(handleUserSessionChanged);
-    userManager.events.addSilentRenewError(handleAuthError); // Handle silent renew errors
-    userManager.events.addAccessTokenExpiring(() => { /* Optional: prepare for renew */ });
+        managerInstance.events.addUserLoaded(handleUserLoaded);
+        managerInstance.events.addUserUnloaded(handleUserUnloaded);
+        managerInstance.events.addUserSignedOut(handleUserSignedOut);
+        managerInstance.events.addAccessTokenExpired(handleAccessTokenExpired);
+        managerInstance.events.addUserSessionChanged(handleUserSessionChanged);
+        managerInstance.events.addSilentRenewError(handleAuthError);
 
-    // Cleanup event listeners on unmount
-    return () => {
-      userManager.events.removeUserLoaded(handleUserLoaded);
-      userManager.events.removeUserUnloaded(handleUserUnloaded);
-      userManager.events.removeUserSignedOut(handleUserSignedOut);
-      userManager.events.removeAccessTokenExpired(handleAccessTokenExpired);
-      userManager.events.removeUserSessionChanged(handleUserSessionChanged);
-      userManager.events.removeSilentRenewError(handleAuthError);
-      userManager.events.removeAccessTokenExpiring(() => { /* Clean up if you added something */ });
+        setIsConfigured(true);
+      } catch (error) {
+        console.error('Critical error bootstrapping authentication:', error);
+        if (isMounted) {
+          setAuthError(error instanceof Error ? error : new Error(String(error)));
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingAuth(false);
+        }
+      }
     };
-  }, [handleUserLoaded, handleUserUnloaded, handleUserSignedOut, handleAccessTokenExpired, handleUserSessionChanged, handleAuthError]); // Add useCallback dependencies
+
+    bootstrapAuth();
+
+    return () => {
+      isMounted = false;
+      if (managerInstance) {
+        managerInstance.events.addUserLoaded(handleUserLoaded);
+        managerInstance.events.addUserUnloaded(handleUserUnloaded);
+        managerInstance.events.addUserSignedOut(handleUserSignedOut);
+        managerInstance.events.addAccessTokenExpired(handleAccessTokenExpired);
+        managerInstance.events.addUserSessionChanged(handleUserSessionChanged);
+        managerInstance.events.addSilentRenewError(handleAuthError);
+      }
+    };
+  }, [handleUserLoaded, handleUserUnloaded, handleUserSignedOut, handleAccessTokenExpired, handleUserSessionChanged, handleAuthError]);
 
   const login = () => {
+    if (!isConfigured) return;
     setIsLoadingAuth(true); // Indicate that a login flow is starting
-    userManager.signinRedirect().catch(error => {
+    getUserManager().signinRedirect().catch(error => {
       console.error("Signin redirect failed:", error);
       setAuthError(error);
       setIsLoadingAuth(false); // Stop loading if redirect fails
@@ -130,8 +148,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    if (!isConfigured) return;
     setIsLoadingAuth(true); // Indicate logout process
-    userManager.signoutRedirect().catch(error => {
+    getUserManager().signoutRedirect().catch(error => {
       console.error("Signout redirect failed:", error);
       setAuthError(error);
       setIsLoadingAuth(false); // Stop loading if redirect fails
@@ -139,12 +158,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getAccessToken = useCallback(async (): Promise<string | null> => {
-    const currentUser = await userManager.getUser();
+    if (!isConfigured) return null;
+    const currentUser = await getUserManager().getUser();
     if (currentUser && !currentUser.expired) {
       return currentUser.access_token;
     }
     return null;
-  }, []);
+  }, [isConfigured]);
 
   const isAuthenticated = !!user && !user.expired; // Derive isAuthenticated
 
