@@ -14,6 +14,8 @@ x-shared-env: &shared-env
   AWS_REQUEST_CHECKSUM_CALCULATION: "when_required"
   AWS_RESPONSE_CHECKSUM_VALIDATION: "when_required"
   APP_VERSION: 'dev-local'
+  OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+  OIDC_AUTHORITY: ${OIDC_AUTHORITY}
 
 services:
   # Object Storage infrastructure
