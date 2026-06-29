@@ -1,5 +1,5 @@
 // apiService.ts
-import userManager from '../auth/authService';
+import { getUserManager } from '../auth/authService';
 
 
 // documents returned by getFireDocuments
@@ -43,7 +43,8 @@ const ensureDataReady = async (): Promise<void> => {
  */
 async function authedFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   // Get the latest user object from the oidc-client-ts user manager.
-  const user = await userManager.getUser();
+  const manager = getUserManager()
+  const user = await manager.getUser();
 
   // If there's no user or the token is expired, the request cannot be authenticated.
   // You could throw an error or handle this case as needed.
