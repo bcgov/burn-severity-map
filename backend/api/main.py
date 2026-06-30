@@ -241,3 +241,10 @@ def data_health():
             'fire_count': len(lst_fires),
             'message': 'Data loaded successfully'
         }
+    
+@app.get('/config')
+def get_oidc_config():
+    return {
+        'oidc_client_id': os.getenv('OIDC_CLIENT_ID'),
+        'oidc_authority': os.getenv('OIDC_AUTHORITY')
+    }

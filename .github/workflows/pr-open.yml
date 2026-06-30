@@ -28,8 +28,8 @@ jobs:
           tag: ${{ github.event.number }}
           tag_fallback: latest
           # build_args: |
-          #   REACT_APP_BASE_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca
-          #   REACT_APP_AUTH_CALLBACK_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca/callback
+            # REACT_APP_BASE_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca
+            # REACT_APP_AUTH_CALLBACK_URL=https://burn-severity-map-${{ github.event.number }}-frontend.apps.silver.devops.gov.bc.ca/callback
           build_context: ${{ matrix.package == 'backend' && 'backend/api' || matrix.package }}
           build_file: ${{ matrix.package == 'backend' && 'backend/api/Dockerfile' || format('{0}/Dockerfile', matrix.package) }}
           triggers: ('${{ matrix.package }}/')
@@ -59,6 +59,8 @@ jobs:
         --set-string global.dirs.mainDir=${{ vars.MAIN_DIR }}
         --set-string global.files.parquet=${{ vars.PARQUET_FILE }}
         --set-string backend.appVersion=dev-${{ github.event.number }}
+        --set-string global.sso.clientID=${{ vars.OIDC_CLIENT_ID }}
+        --set-string global.sso.authorityURL=${{ vars.OIDC_AUTHORITY_DEV }}
 
   results:
     name: PR Results

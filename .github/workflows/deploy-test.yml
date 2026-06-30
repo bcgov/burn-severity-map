@@ -112,3 +112,5 @@ jobs:
         --set-string global.dirs.mainDir=${{ vars.MAIN_DIR }}
         --set-string global.files.parquet=${{ vars.PARQUET_FILE }}
         --set-string backend.appVersion=${{ needs.vars.outputs.tag }}
+        --set-string global.sso.clientID=${{ vars.OIDC_CLIENT_ID }}
+        --set-string global.sso.authorityURL=${{ vars.OIDC_AUTHORITY_TEST }}
