@@ -26,9 +26,9 @@ if os.getenv('FRONTEND_URL'):
     
 CORS(app, origins=origins,allow_headers=["Content-Type", "Authorization"])
 
-CLIENT_ID = "burn-severity-6058" 
-OIDC_ISSUER = "https://dev.loginproxy.gov.bc.ca/auth/realms/standard"
-JWKS_URL = f"{OIDC_ISSUER}/protocol/openid-connect/certs"
+OIDC_CLIENT_ID = os.getenv('OIDC_CLIENT_ID', 'burn-severity-6058')
+OIDC_AUTHORITY = os.getenv('OIDC_AUTHORITY', 'https://dev.loginproxy.gov.bc.ca/auth/realms/standard')
+JWKS_URL = f"{OIDC_AUTHORITY}/protocol/openid-connect/certs"
 
 def get_public_key(token):
     """Fetch public keys to verify"""
@@ -58,7 +58,7 @@ def roles_allowed(required_role):
                     token, 
                     public_key, 
                     algorithms=["RS256"], 
-                    audience=CLIENT_ID # From your client_id
+                    audience=OIDC_CLIENT_ID # From your client_id
                 )           
                 # Extract roles (matching the logic in your updated AuthContext)
                 roles = payload.get('client_roles', [])
