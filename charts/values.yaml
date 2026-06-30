@@ -222,6 +222,11 @@ analysis:
       value: "when_required"
     - name: AWS_RESPONSE_CHECKSUM_VALIDATION
       value: "when_required"
+    - name: OIDC_CLIENT_ID
+      value: "{{ .Values.global.sso.clientID }}"
+    - name: OIDC_AUTHORITY
+      value: "{{ .Values.global.sso.authorityURL }}"
+
 
   resources:
     requests:
