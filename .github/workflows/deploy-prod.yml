@@ -50,7 +50,7 @@ jobs:
         --set-string global.files.parquet=${{ vars.PARQUET_FILE }}
         --set-string backend.appVersion=${{ needs.vars.outputs.version }}
         --set-string global.sso.clientID=${{ vars.OIDC_CLIENT_ID }}
-        --set-string global.sso.authorityURL=${{ vars.OIDC_AUTHORITY }}
+        --set-string global.sso.authorityURL=${{ vars.OIDC_AUTHORITY_PROD }}
       tag: ${{ needs.vars.outputs.version }}
 
   promote:
