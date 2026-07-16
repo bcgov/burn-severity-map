@@ -8,13 +8,15 @@ import { Vector as VectorLayer } from 'ol/layer';
 import { Vector as VectorSource, OSM } from 'ol/source';
 import { GeoJSON } from 'ol/format';
 import { fromLonLat } from 'ol/proj';
-import { Style, Fill, Stroke } from 'ol/style';
+import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style';
 import ScaleLine from 'ol/control/ScaleLine';
 // Assuming other imports like BurnSeverityLegend are correct
 import BurnSeverityLegend from './BurnSeverityLegend'; 
 import BurnSeveritySummary from './BurnSeveritySummary';
 import { useAuth } from '../../auth/AuthContext';
 import { getFireData } from '../../utils/apiService'
+import { useFireData } from '../FireDataContext';
+import { Circle } from 'ol/geom';
 
 
 // ... other interfaces and constants ...
@@ -35,12 +37,14 @@ const OLMap: React.FC<OLMapProps> = ({
   selectedDbYear
 }) => {
   const { isAuthenticated } = useAuth();
+  const { fireGeoJSON, isLoadingFires } = useFireData();
   
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   
   // *** FIX: Use useRef for the layer to prevent re-render loops ***
   const burnSeverityLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const firePointsLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   
   // State for the GeoJSON data (to pass to summary) and legend visibility
   const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
@@ -113,13 +117,48 @@ const OLMap: React.FC<OLMapProps> = ({
     });
     initialMap.addControl(new ScaleLine());
     mapInstanceRef.current = initialMap;
+
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.setTarget(undefined);
         mapInstanceRef.current = null;
+
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || !fireGeoJSON) return;
+
+    if (firePointsLayerRef.current) {
+      mapInstanceRef.current.removeLayer(firePointsLayerRef.current);
+    }
+
+    const vectorSource = new VectorSource({
+      features: new GeoJSON().readFeatures(fireGeoJSON)
+    });
+
+    const firePointsLayer = new VectorLayer({
+      source: vectorSource,
+      style: new Style({
+        image: new CircleStyle({
+          radius: 6,
+          fill: new Fill({ color: 'rgba(255,0,0, 0.8)'}),
+          stroke: new Stroke({ color: '#ffffff', width: 1.5})
+        })
+      })
+    });
+
+    mapInstanceRef.current.addLayer(firePointsLayer);
+    firePointsLayerRef.current = firePointsLayer;
+
+    return () => {
+      if (mapInstanceRef.current && firePointsLayerRef.current) {
+        mapInstanceRef.current.removeLayer(firePointsLayerRef.current);
+        firePointsLayerRef.current = null;
+      }
+    };
+  }, [fireGeoJSON]);
 
   // Effect to swap the basemaps
   useEffect(() => {

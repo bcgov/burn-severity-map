@@ -267,3 +267,15 @@ export const syncFireResults = async (year: string,fire_number: string) => {
   }
   return response.json();
 };
+
+export const getLiveFiresGeoJSON = async (): Promise<any> => {
+  const response = await authedFetch('/fires/live');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch live fires: ${response.status}`)
+  }
+
+  const data = await response.json()
+  console.log('getLiveFires response:',data);
+
+  return data;
+}

@@ -10,6 +10,7 @@ import { useAuth } from '../auth/AuthContext';
 import { getFireData, getFireYears, getFireNumbers, getFireDocuments, Document } from "../utils/apiService";
 import { Accordion, AccordionGroup } from '@bcgov/design-system-react-components';
 import BurnSeveritySummary from '../components/ol-maps/BurnSeveritySummary';
+import { FireDataProvider } from '../components/FireDataContext';
 
 const BurnSeverityPage: React.FC = () => {
   const { user, login, isAuthenticated, isLoadingAuth } = useAuth();
@@ -114,6 +115,7 @@ const BurnSeverityPage: React.FC = () => {
     <div className="App">
       
       {isAuthenticated ? (
+      <FireDataProvider>
       <div className="app-layout">
         {/* Left Panel - Fire Selection */}
         <div className="left-panel">
@@ -164,6 +166,7 @@ const BurnSeverityPage: React.FC = () => {
         </div>
 
       </div>
+      </FireDataProvider>
       ):(
       <div>
         <p> Please log in to access the application.</p>
