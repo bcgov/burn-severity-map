@@ -1,33 +1,60 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { getLiveFiresGeoJSON } from '../utils/apiService';
+import React, { createContext, useState, useEffect, useContext, useMemo, ReactNode } from 'react';
+import { getLivePointsGeoJSON, getLivePerimetersGeoJSON } from '../utils/apiService';
 
 interface FireDataContextType {
-    fireGeoJSON: any | null;
+    firePointsGeoJSON: any | null;
+    firePolysGeoJSON: any | null;
     isLoadingFires: boolean;
 }
 
 const FireDataContext = createContext<FireDataContextType | undefined>(undefined);
 
 export const FireDataProvider: React.FC<{ children: ReactNode }> = ({ children }: { children: React.ReactNode }) => {
-    const [fireGeoJSON, setFireGeoJSON] = useState<any | null>(null);
+    const [rawPointsGeoJSON, setRawPointsGeoJSON] = useState<any | null>(null);
+    const [firePolysGeoJSON, setFirePolysGeoJSON] = useState<any | null>(null);
     const [isLoadingFires, setIsLoadingFires] = useState<boolean>(true);
 
     useEffect(() => {
-        const fetchFires = async () => {
+        const fetchAllFireData = async () => {
             try {
-                const data = await getLiveFiresGeoJSON();
-                setFireGeoJSON(data);
+                const [pointData, polyData] = await Promise.all([
+                    getLivePointsGeoJSON(),
+                    getLivePerimetersGeoJSON()
+                ]);
+                setRawPointsGeoJSON(pointData);
+                setFirePolysGeoJSON(polyData);
             } catch (error) {
-                console.error('Error loading live fires into context:', error)
+                console.error('Error loading fires into context:', error);
             } finally {
                 setIsLoadingFires(false);
             }
         };
-        fetchFires();
+        fetchAllFireData();
     }, []);
 
+    const firePointsGeoJSON = useMemo(() => {
+        if (!rawPointsGeoJSON || !firePolysGeoJSON) return null;
+
+        const activePerimeterNumbers = new Set(
+            firePolysGeoJSON.features
+                .map((feature: any) => {
+                    const props = feature.properties || {};
+                    const num = props.FIRE_NUMBER || props.fire_number;
+                    return num ? String(num).trim() : null;
+                })
+                .filter(Boolean)
+        );
+
+        const filteredFeatures = rawPointsGeoJSON.features.filter((feature: any) => {
+            const props = feature.properties || {};
+            const num = props.FIRE_NUMBER || props.fire_number;
+            return num && activePerimeterNumbers.has(String(num).trim());
+        });
+        return { ...rawPointsGeoJSON, features: filteredFeatures };
+    }, [rawPointsGeoJSON, firePolysGeoJSON]);
+
     return (
-        <FireDataContext.Provider value={{ fireGeoJSON, isLoadingFires }}>
+        <FireDataContext.Provider value={{ firePointsGeoJSON, firePolysGeoJSON, isLoadingFires }}>
             {children}
         </FireDataContext.Provider>
     );

@@ -268,14 +268,26 @@ export const syncFireResults = async (year: string,fire_number: string) => {
   return response.json();
 };
 
-export const getLiveFiresGeoJSON = async (): Promise<any> => {
-  const response = await authedFetch('/fires/live');
+export const getLivePointsGeoJSON = async (): Promise<any> => {
+  const response = await authedFetch('/fires/points');
   if (!response.ok) {
-    throw new Error(`Failed to fetch live fires: ${response.status}`)
+    throw new Error(`Failed to fetch live fire points: ${response.status}`)
   }
 
   const data = await response.json()
-  console.log('getLiveFires response:',data);
+  console.log('getLivePoints response:',data);
+
+  return data;
+}
+
+export const getLivePerimetersGeoJSON = async (): Promise<any> => {
+  const response = await authedFetch('/fires/perimeters');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch live fire perimeters: ${response.status}`)
+  }
+
+  const data = await response.json()
+  console.log('getLivePerimeters response:',data);
 
   return data;
 }

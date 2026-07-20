@@ -1,56 +1,50 @@
 import httpx
-import asyncio
+import time
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix='/fires', tags=['fires'])
 
 FIRE_POINTS_URL = 'https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_PNTS_SP&outputFormat=application/json&srsName=EPSG:3857'
-FIRE_POLYS_URL = (
-    'https://openmaps.gov.bc.ca/geo/pub/ows?'
-    'service=WFS&version=1.0.0&request=GetFeature'
-    '&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP'
-    '&outputFormat=application/json'
-    '&srsName=EPSG:3857'
-    '&propertyName=FIRE_NUMBER'
-)
+FIRE_POLYS_URL = 'https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP&outputFormat=application/json&srsName=EPSG:3857&CQL_FILTER=FIRE_SIZE_HECTARES>=10'
 
-@router.get('/live')
-async def get_live_fires():
+CACHE_TTL_SECONDS = 300
+_cache = {
+    'points': {'data': None, 'expiry': 0},
+    'perimeters': {'data': None, 'expiry': 0}
+}
 
+async def fetch_with_cache(key: str, url: str) -> dict:
+    now = time.time()
+
+    if _cache[key]['data'] is not None and now < _cache[key]['expiry']:
+        return _cache[key]['data']
+    
     async with httpx.AsyncClient() as client:
         try:
-            point_response, poly_response = await asyncio.gather(
-                client.get(FIRE_POINTS_URL, timeout=30.0),
-                client.get(FIRE_POLYS_URL, timeout=30.0)
-            )
+            response = await client.get(url, timeout=30.0)
+            response.raise_for_status()
+            data = response.json()
 
-            point_response.raise_for_status()
-            poly_response.raise_for_status()
-
-            point_data = point_response.json()
-            poly_data = poly_response.json()
-
-            perimeter_fire_numbers = set()
-            for feature in poly_data.get('features', []):
-                properties = feature.get('properties', {})
-
-                fire_num = properties.get('FIRE_NUMBER') or properties.get('fire_number')
-                if fire_num:
-                    perimeter_fire_numbers.add(str(fire_num).strip())
-            all_points = point_data.get('features', [])
-            filtered_points = []
-
-            for feature in all_points:
-                properties = feature.get('properties', {})
-                fire_num = properties.get('FIRE_NUMBER') or properties.get('fire_number')
-                if fire_num and str(fire_num).strip() in perimeter_fire_numbers:
-                    filtered_points.append(feature)
-            
-            point_data['features'] = filtered_points
-
-            print(f'Returned {len(filtered_points)} of {len(all_points)} fires')
-
-            return point_data
-
+            _cache[key]['data'] = data
+            _cache[key]['expiry'] = now + CACHE_TTL_SECONDS
+            return data
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f'Failed to fetch WFS data: {str(e)}')
+            if _cache[key]['data'] is not None:
+                print(f'WFS Error: {str(e)}. Serving stale cache fallback')
+                return _cache[key]['data']
+            raise e
+
+
+@router.get('/points')
+async def get_live_points():
+    try:
+        return await fetch_with_cache(key='points', url=FIRE_POINTS_URL)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to fetch points: {str(e)}')
+    
+@router.get('/perimeters')
+async def get_live_perimeters():
+    try:
+        return await fetch_with_cache(key='perimeters', url=FIRE_POLYS_URL)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to fetch perimeters: {str(e)}')

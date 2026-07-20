@@ -37,7 +37,7 @@ const OLMap: React.FC<OLMapProps> = ({
   selectedDbYear
 }) => {
   const { isAuthenticated } = useAuth();
-  const { fireGeoJSON, isLoadingFires } = useFireData();
+  const { firePointsGeoJSON, firePolysGeoJSON } = useFireData();
   
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
@@ -45,6 +45,7 @@ const OLMap: React.FC<OLMapProps> = ({
   // *** FIX: Use useRef for the layer to prevent re-render loops ***
   const burnSeverityLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const firePointsLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const firePolysLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   
   // State for the GeoJSON data (to pass to summary) and legend visibility
   const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
@@ -127,15 +128,42 @@ const OLMap: React.FC<OLMapProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (!mapInstanceRef.current || !fireGeoJSON) return;
+  
 
-    if (firePointsLayerRef.current) {
-      mapInstanceRef.current.removeLayer(firePointsLayerRef.current);
-    }
+  useEffect(() => {
+    if (!mapInstanceRef.current || !firePolysGeoJSON) return;
+    if (firePolysLayerRef.current) mapInstanceRef.current.removeLayer(firePolysLayerRef.current);
 
     const vectorSource = new VectorSource({
-      features: new GeoJSON().readFeatures(fireGeoJSON)
+      features: new GeoJSON().readFeatures(firePolysGeoJSON)
+    });
+
+    const firePolysLayer = new VectorLayer({
+      source: vectorSource,
+      style: new Style({
+        fill: new Fill({ color: 'rgba(230, 81, 0, 0.15)'}),
+        stroke: new Stroke({ color: 'rgba(230, 81, 0, 0, 0.85)', width: 1.5 })
+      }),
+      minZoom: 9
+    });
+
+    mapInstanceRef.current.addLayer(firePolysLayer);
+    firePolysLayerRef.current = firePolysLayer;
+
+    return () => {
+      if (mapInstanceRef.current && firePolysLayerRef.current) {
+        mapInstanceRef.current.removeLayer(firePolysLayerRef.current);
+        firePolysLayerRef.current = null;
+      }
+    };
+  }, [firePolysGeoJSON]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || !firePointsGeoJSON) return;
+    if (firePointsLayerRef.current) mapInstanceRef.current.removeLayer(firePointsLayerRef.current);
+
+    const vectorSource = new VectorSource({
+      features: new GeoJSON().readFeatures(firePointsGeoJSON)
     });
 
     const firePointsLayer = new VectorLayer({
@@ -158,7 +186,8 @@ const OLMap: React.FC<OLMapProps> = ({
         firePointsLayerRef.current = null;
       }
     };
-  }, [fireGeoJSON]);
+  }, [firePointsGeoJSON]);
+
 
   // Effect to swap the basemaps
   useEffect(() => {
