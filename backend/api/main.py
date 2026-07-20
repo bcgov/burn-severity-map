@@ -6,6 +6,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.concurrency import run_in_threadpool
 from contextlib import asynccontextmanager
 import os
@@ -63,6 +64,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Burn Severity API", version="1.0",lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(fires.router)
 
 # Allow your frontend origin
