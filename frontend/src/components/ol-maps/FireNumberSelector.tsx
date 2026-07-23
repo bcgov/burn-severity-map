@@ -1,9 +1,10 @@
 //src/components/ol-maps/FireNumberSelector.tsx
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import './Selectors.scss';
+import { FireOption } from '../../pages/burn-severity';
 
 interface FireNumberSelectorProps {
-  fires: string[];
+  fires: FireOption[];
   selectedFire: string | null;
   onFireSelect: (fire: string | null) => void;
   disabled?: boolean;
@@ -37,15 +38,13 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const sortedFires = useMemo(
-    () => [...fires].sort(sortAlphaNumeric),
-    [fires]
-  );
+  const sortedFires = useMemo(() => {
+    return [...fires].sort((a, b) => sortAlphaNumeric(a.fireNumber, b.fireNumber));
+  }, [fires]);
 
-  const filteredFires = useMemo(
-    () =>
+  const filteredFires = useMemo(() =>
       sortedFires.filter(f =>
-        f.toLowerCase().includes(searchTerm.toLowerCase())
+        f.fireNumber.toLowerCase().includes(searchTerm.toLowerCase())
       ),
     [sortedFires, searchTerm]
   );
@@ -60,10 +59,21 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  const selectFire = (fire: string) => {
-    onFireSelect(fire);
+  const selectFire = (fireNumber: string | null) => {
+    onFireSelect(fireNumber);
     setIsOpen(false);
     setSearchTerm('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if ((e.key === 'Backspace' || e.key === 'Delete' ) && searchTerm === '' && selectedFire) {
+      e.preventDefault();
+      selectFire(null);
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
   };
 
   return (
@@ -83,6 +93,7 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
         }
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
+        onKeyDown={handleKeyDown}
         onClick={() => !disabled && setIsOpen(true)}
         disabled={disabled}
         aria-disabled={disabled}
@@ -96,15 +107,20 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
             </div>
           ) : (
             <ul className="bcgov-fire-selector-list">
-              {filteredFires.map(fire => (
+              {filteredFires.map(option => (
                 <li
-                  key={fire}
+                  key={option.fireNumber}
                   className={`bcgov-fire-selector-item ${
-                    fire === selectedFire ? 'selected' : ''
+                    option.fireNumber === selectedFire ? 'selected' : ''
                   }`}
-                  onClick={() => selectFire(fire)}
+                  onClick={() => selectFire(option.fireNumber)}
                 >
-                  {fire}
+                  <span>{option.fireNumber} - {option.geogDescription}</span>
+                  {option.isProcessed && (
+                    <span style={{ fontSize: '0.8em', backgroundColor: '#e0f7fa', color: '#006064', padding: '2px 6px', borderRadius: '4px' }}>
+                      Processed
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

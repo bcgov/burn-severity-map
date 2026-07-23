@@ -1,42 +1,56 @@
-import React, { createContext, useState, useEffect, useContext, useMemo, ReactNode } from 'react';
-import { getLivePointsGeoJSON, getLivePerimetersGeoJSON } from '../utils/apiService';
+import React, { createContext, useState, useEffect, useContext, useMemo, ReactNode, useCallback } from 'react';
+import { getFirePoints, getFirePerimeters, getFireNumbers } from '../utils/apiService';
 
 interface FireDataContextType {
     firePointsGeoJSON: any | null;
     firePolysGeoJSON: any | null;
     isLoadingFires: boolean;
+    selectedYear: string;
+    setSelectedYear: (year: string) => void;
+    refetchFires: () => Promise<void>
 }
 
 const FireDataContext = createContext<FireDataContextType | undefined>(undefined);
 
 export const FireDataProvider: React.FC<{ children: ReactNode }> = ({ children }: { children: React.ReactNode }) => {
+    const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
     const [rawPointsGeoJSON, setRawPointsGeoJSON] = useState<any | null>(null);
     const [firePolysGeoJSON, setFirePolysGeoJSON] = useState<any | null>(null);
+    const [processedFireNumbers, setProcessedFireNumbers] = useState<Set<string>>(new Set());
     const [isLoadingFires, setIsLoadingFires] = useState<boolean>(true);
 
-    useEffect(() => {
-        const fetchAllFireData = async () => {
-            try {
-                const [pointData, polyData] = await Promise.all([
-                    getLivePointsGeoJSON(),
-                    getLivePerimetersGeoJSON()
-                ]);
-                setRawPointsGeoJSON(pointData);
-                setFirePolysGeoJSON(polyData);
-            } catch (error) {
-                console.error('Error loading fires into context:', error);
-            } finally {
-                setIsLoadingFires(false);
+
+    const fetchAllFireData = useCallback(async () => {
+        setIsLoadingFires(true)
+        try {
+            const [pointData, polyData, processedData] = await Promise.all([
+                getFirePoints({ year: selectedYear }),
+                getFirePerimeters({ year: selectedYear, min_hectares: 10 }),
+                getFireNumbers(selectedYear).catch(() => ({ fire_numbers: [] }))
+            ]);
+            setRawPointsGeoJSON(pointData);
+            setFirePolysGeoJSON(polyData);
+            if (processedData && Array.isArray(processedData.fire_numbers)) {
+                setProcessedFireNumbers(new Set(processedData.fire_numbers.map((n: string) => n.trim())));
+            } else {
+                setProcessedFireNumbers(new Set());
             }
-        };
+        } catch (error) {
+            console.error(`Error loading fires into context for year ${selectedYear}:`, error);
+        } finally {
+            setIsLoadingFires(false);
+        }
+    }, [selectedYear]);
+
+    useEffect(() => {
         fetchAllFireData();
-    }, []);
+    }, [fetchAllFireData]);
 
     const firePointsGeoJSON = useMemo(() => {
         if (!rawPointsGeoJSON || !firePolysGeoJSON) return null;
 
         const activePerimeterNumbers = new Set(
-            firePolysGeoJSON.features
+            (firePolysGeoJSON.features || [])
                 .map((feature: any) => {
                     const props = feature.properties || {};
                     const num = props.FIRE_NUMBER || props.fire_number;
@@ -48,13 +62,21 @@ export const FireDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         const filteredFeatures = rawPointsGeoJSON.features.filter((feature: any) => {
             const props = feature.properties || {};
             const num = props.FIRE_NUMBER || props.fire_number;
-            return num && activePerimeterNumbers.has(String(num).trim());
+            const fireId = num ? String(num).trim() : '';
+            if (fireId && activePerimeterNumbers.has(fireId)) {
+                feature.properties = {
+                    ...feature.properties,
+                    is_processed: processedFireNumbers.has(fireId)
+                };
+                return true;
+            }
+            return false;
         });
         return { ...rawPointsGeoJSON, features: filteredFeatures };
-    }, [rawPointsGeoJSON, firePolysGeoJSON]);
+    }, [rawPointsGeoJSON, firePolysGeoJSON, processedFireNumbers]);
 
     return (
-        <FireDataContext.Provider value={{ firePointsGeoJSON, firePolysGeoJSON, isLoadingFires }}>
+        <FireDataContext.Provider value={{ firePointsGeoJSON, firePolysGeoJSON, isLoadingFires, selectedYear, setSelectedYear, refetchFires: fetchAllFireData }}>
             {children}
         </FireDataContext.Provider>
     );
