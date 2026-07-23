@@ -21,34 +21,39 @@ con.execute(f"SET extension_directory = '{DUCKDB_EXTENSION_PATH}';")
 con.execute("INSTALL httpfs; LOAD httpfs;")
 con.execute("INSTALL spatial; LOAD spatial;")
 
-# Configure S3 access
-con.execute(f"SET s3_access_key_id='{S3_ACCESS_ID}';")
-con.execute(f"SET s3_secret_access_key='{S3_KEY}';")
-con.execute(f"SET s3_endpoint='{S3_ENDPOINT}';")
-con.execute("SET s3_url_style='path';")
-if S3_SSL == 'false':
-    con.execute('SET s3_use_ssl=false;')
-else:
-    con.execute('SET s3_use_ssl=true;')
+# Configure S3/MinIO access globally using DuckDB Secrets
+ssl_flag = 'false' if S3_SSL == 'false' else 'true'
+
+con.execute(f"""
+    CREATE OR REPLACE SECRET storage_secret (
+        TYPE S3,
+        KEY_ID '{S3_ACCESS_ID}',
+        SECRET '{S3_KEY}',
+        ENDPOINT '{S3_ENDPOINT}',
+        URL_STYLE 'path',
+        USE_SSL {ssl_flag}
+    );
+""")
 
 def check_connection():
     """
     Checks if the object storage connection to the parquet file is working.
     Returns True if the connection is successful, False otherwise.
     """
+    cursor = con.cursor()
     try:
         # Perform a quick query to test the connection without fetching all data
         query = f"SELECT count(*) FROM '{PARQUET_PATH}' LIMIT 1"
-        con.execute(query).fetchone()
+        cursor.execute(query).fetchone()
         return True
-    except duckdb.duckdb.InvalidInputException as e:
+    except Exception as e:
         print(f"Connection failed: {e}")
         return False
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return False
+    finally:
+        cursor.close()
 
 def get_unique_fire_numbers(year:str=None):
+    cursor = con.cursor()
     try:
         if year:
             query = f"""
@@ -56,37 +61,58 @@ def get_unique_fire_numbers(year:str=None):
                 FROM '{PARQUET_PATH}' WHERE FIRE_YEAR=?
                 ORDER BY FIRE_NUMBER
             """
-            return [row[0] for row in con.execute(query,[year]).fetchall()]
+            return [row[0] for row in cursor.execute(query,[year]).fetchall()]
         else:
             query = f"""
                 SELECT DISTINCT FIRE_NUMBER
                 FROM '{PARQUET_PATH}'
                 ORDER BY FIRE_NUMBER
             """
-            return [row[0] for row in con.execute(query).fetchall()]
+            return [row[0] for row in cursor.execute(query).fetchall()]
     except Exception as e:
         if "404" in str(e) or "Not Found" in str(e) or "NoSuchKey" in str(e):
             return []
-        else:
-            return None
+        return None
+    finally:
+        cursor.close()
 
 def get_fire_features(year: str, fire_number: str):
+    cursor = con.cursor()
     query = f"""
         SELECT ST_AsGeoJSON(geometry) AS geometry, *
         FROM '{PARQUET_PATH}'
         WHERE FIRE_YEAR=? and FIRE_NUMBER = ?
     """
     try:
-        df = con.execute(query, [year, fire_number]).fetchdf()
-        return df
+        return cursor.execute(query, [year, fire_number]).fetchdf()
     except Exception as e:
+        print(f'Error fetching fire features: {e}')
         return None
+    finally:
+        cursor.close()
 
 
 def get_years_with_features():
-    query = f"""
-        SELECT DISTINCT FIRE_YEAR
-        FROM '{PARQUET_PATH}'
-        ORDER BY FIRE_YEAR
-    """
-    return [row[0] for row in con.execute(query).fetchall()]
+    cursor = con.cursor()
+    try:
+        # Added IS NOT NULL to prevent Pydantic validation failures on empty rows
+        # Added DESC order so the newest years appear at the top of the dropdown
+        query = f"""
+            SELECT DISTINCT FIRE_YEAR
+            FROM '{PARQUET_PATH}'
+            WHERE FIRE_YEAR IS NOT NULL
+            ORDER BY FIRE_YEAR DESC
+        """
+        results = cursor.execute(query).fetchall()
+        
+        # Explicitly cast to string to guarantee type safety for the frontend
+        return [str(row[0]) for row in results]
+        
+    except Exception as e:
+        # Gracefully handle missing files (e.g., brand new deployments)
+        if "404" in str(e) or "Not Found" in str(e) or "NoSuchKey" in str(e):
+            print(f"Parquet file not found when fetching years: {e}")
+            return []
+        return []
+    finally:
+        cursor.close()
