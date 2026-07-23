@@ -11,6 +11,17 @@ export interface Document {
   createdDate: string;
 }
 
+export interface FirePoints {
+  year?: string | number |null;
+  historical?: boolean;
+}
+
+export interface FirePerimeters {
+  year?: string | number | null;
+  min_hectares?: number;
+  historical?: boolean;
+}
+
 // Define your API's base URL. It's good practice to have this in an environment variable.
 const API_BASE_URL = '/api'; // Your FastAPI backend URL
 const ANALYSIS_API_BASE_URL = '/analysis'
@@ -264,6 +275,49 @@ export const syncFireResults = async (year: string,fire_number: string) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred' }));
     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
+
+export const getFirePoints = async (params?: FirePoints): Promise<any> => {
+  const searchParams = new URLSearchParams();
+
+  if (params?.year) {
+    searchParams.append('year', String(params.year));
+  }
+  if (params?.historical) {
+    searchParams.append('historical', 'true');
+  }
+
+  const queryString = searchParams.toString();
+  const url = `/fires/points${queryString ? `?${queryString}` : ''}`;
+
+  const response = await authedFetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch fire points: ${response.status}`);
+  }
+  return response.json();
+};
+
+export const getFirePerimeters = async (params?: FirePerimeters): Promise<any> =>{
+  const searchParams = new URLSearchParams();
+
+  if (params?.year) {
+    searchParams.append('year', String(params.year));
+  }
+  if (params?.min_hectares !== undefined) {
+    searchParams.append('min_hectares', String(params.min_hectares));
+  }
+  if (params?.historical) {
+    searchParams.append('historical', 'true');
+  }
+
+  const queryString = searchParams.toString();
+  const url = `/fires/perimeters${queryString ? `?${queryString}` : ''}`;
+
+  const response = await authedFetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch fire perimeters: ${response.status}`);
   }
   return response.json();
 };

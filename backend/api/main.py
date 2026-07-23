@@ -6,6 +6,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.concurrency import run_in_threadpool
 from contextlib import asynccontextmanager
 import os
@@ -19,6 +20,7 @@ from models import FireNumberList, FeatureCollection, Feature, Geometry, Feature
 from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3
 from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList
+from routers import fires
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,6 +64,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Burn Severity API", version="1.0",lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.include_router(fires.router)
 
 # Allow your frontend origin
 origins = [

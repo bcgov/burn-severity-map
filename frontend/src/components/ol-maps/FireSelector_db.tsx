@@ -1,9 +1,10 @@
 import React from 'react';
 import FireYearSelector from './FireYearSelector';
 import FireNumberSelector from './FireNumberSelector';
+import { FireOption } from '../../pages/burn-severity';
 
 interface FireSelectorDbProps {
-  fires: string[];
+  fires: FireOption[];
   availableYears: string[];
   selectedYear: string | null;
   selectedFire: string | null;
