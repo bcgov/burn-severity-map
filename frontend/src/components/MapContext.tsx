@@ -2,7 +2,8 @@
 // src/MapContext.ts
 import React from 'react';
 import type { Map } from 'ol';
-import { Fire } from './FireSelector';
+// import { Fire } from './FireSelector';
+import { FireOption } from './FireDataContext';
 
 type MapContextType = {
   map: Map | null;
@@ -11,8 +12,8 @@ type MapContextType = {
   removePreviewLayer: () => void;
   addFireBoundary: (fireNumber: string) => void;
   updateMapView: (centre: [number,number], zoom: number) => void; //centre: [lon, lat]
-  selectedFire: Fire | null;
-  setSelectedFire: (fire: Fire | null) => void;
+  selectedFire: FireOption | null;
+  setSelectedFire: (fire: FireOption | null) => void;
   analysisFire: string | null;
   setAnalysisFire: (fireNumber: string | null) => void;
 };

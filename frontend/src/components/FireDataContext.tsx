@@ -1,6 +1,17 @@
 import React, { createContext, useState, useEffect, useContext, useMemo, ReactNode, useCallback } from 'react';
 import { getFirePoints, getFirePerimeters, getFireNumbers } from '../utils/apiService';
 
+export interface FireOption {
+    id: string;
+    fireNumber: string;
+    incidentName: string;
+    ignitionDate: string;
+    geogDescription: string;
+    lonLat: [number, number];
+    year: number;
+    isProcessed: boolean;
+}
+
 interface FireDataContextType {
     firePointsGeoJSON: any | null;
     firePolysGeoJSON: any | null;

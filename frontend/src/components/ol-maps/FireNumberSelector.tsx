@@ -1,7 +1,7 @@
 //src/components/ol-maps/FireNumberSelector.tsx
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import './Selectors.scss';
-import { FireOption } from '../../pages/burn-severity';
+import { FireOption } from '../FireDataContext';
 
 interface FireNumberSelectorProps {
   fires: FireOption[];
@@ -115,7 +115,7 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
                   }`}
                   onClick={() => selectFire(option.fireNumber)}
                 >
-                  <span>{option.fireNumber} - {option.geogDescription}</span>
+                  <span>{option.fireNumber} - {option.incidentName === option.fireNumber ? option.geogDescription : option.fireNumber}</span>
                   {option.isProcessed && (
                     <span style={{ fontSize: '0.8em', backgroundColor: '#e0f7fa', color: '#006064', padding: '2px 6px', borderRadius: '4px' }}>
                       Processed

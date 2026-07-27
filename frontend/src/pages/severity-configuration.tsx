@@ -1,44 +1,115 @@
 //src/pages/severity-configuration.tsx
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import './severity-configuration.scss';
+import '../style.scss';
+import './burn-severity.scss';
 import { MapContext } from '../components/MapContext';
 import StacSearchPanel from '../components/StacSearchPanel'
-import { Fire } from '../components/FireSelector'
 
-import 'ol/ol.css';
-import Map from 'ol/Map';
-import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
-import { toLonLat, fromLonLat } from 'ol/proj';
+import { useAuth } from '../auth/AuthContext';
+// import { Fire } from '../components/FireSelector'
+
 import { Style, Fill, Stroke } from 'ol/style';
-import Layer from 'ol/layer/Layer';
+import VectorLayer from 'ol/layer/Vector';
+import GeoJSON from 'ol/format/GeoJSON';
+import {all} from 'ol/loadingstrategy';
+import VectorSource from 'ol/source/Vector';
 import GeoTIFF from 'ol/source/GeoTIFF';
 import WebGLTileLayer from 'ol/layer/WebGLTile';
-import FireSelector from '../components/FireSelector';
-import VectorLayer from 'ol/layer/Vector';
-import Vector from 'ol/source/Vector'
-import GeoJSON from 'ol/format/GeoJSON'
-import {all} from 'ol/loadingstrategy'
-import VectorSource from 'ol/source/Vector';
+import MapOL from 'ol/Map';
+
+// import FireSelector from '../components/FireSelector';
+import FireSelector_db from '../components/ol-maps/FireSelector_db';
+import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import { getFireData, getFireNumbers } from '../utils/apiService';
+import { FireDataProvider, useFireData, FireOption} from '../components/FireDataContext';
+
+import OLMap from '../components/ol-maps/OLMap';
 
 
 const ConfigurationApp: React.FC = () => {
-  const mapContainer = useRef<HTMLDivElement | null>(null);
-  const [mapInstance, setMapInstance] = useState<Map | null>(null);
+  const { selectedYear, setSelectedYear, firePointsGeoJSON } = useFireData();
+  const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
+  const [mapInstance, setMapInstance] = useState<MapOL | null>(null);
   const [bounds, setBounds] = useState<any>(null); // OpenLayers doesn't use LngLatBounds
   const previewLayerRef = useRef<WebGLTileLayer | null>(null);
   const perimeterLayerRef = useRef<VectorLayer | null>(null);
   const [previewLayerUrl, setPreviewLayerUrl] = useState<string | null>(null);
   const [perimeterLayerUrl, setPerimeterLayerUrl] = useState<string | null>(null);
-  const [center, setCenter] = useState<[number, number]>([-123.3656, 48.4284]);
-  const [zoom, setZoom] = useState<number>(10);
-  const [selectedFire, setSelectedFire] = useState<Fire | null>(null);
+  const [center, setCenter] = useState<[number, number]>([-126.5, 54.5]);
+  const [zoom, setZoom] = useState(5);
+  const [basemap, setBasemap] = useState('osm');
+  const [selectedFire, setSelectedFire] = useState<FireOption | null>(null);
+  // const [fires, setFires] = useState<Fire[]>([]);
   const [analysisFire, setAnalysisFire] = useState<string | null>(null);
   const resultsLayerRef = useRef<VectorLayer | null>(null);
   const [resultsFeatureCollection, setResultsFeatureCollection] = useState<any | null>(null);
   const currentYear = String(new Date().getFullYear());
+  const [visibleFireNumbers, setVisibleFireNumbers] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let y = currentYear; y >= 2000; y--) {
+      years.push(y.toString());
+    }
+    return years;
+  }, []);
+
+  const fireOptions: FireOption[] = useMemo(() => {
+    if (!firePointsGeoJSON || ! firePointsGeoJSON.features) return [];
+
+    const optionsMap = new Map<string, FireOption>();
+
+    firePointsGeoJSON.features.forEach((feature: any) => {
+      const props = feature.properties || {};
+      const fireNum = props.FIRE_NUMBER || props.fire_number;
+      const coords = feature.geometry.coordinates;
+
+      if (fireNum) {
+        const cleanNum = String(fireNum).trim();
+        optionsMap.set(cleanNum, {
+          id: props.FIRE_ID.toString(),
+          fireNumber: cleanNum,
+          isProcessed: !!props.is_processed,
+          incidentName: props.INCIDENT_NAME,
+          geogDescription: props.GEOGRAPHIC_DESCRIPTION,
+          ignitionDate: props.IGNITION_DATE,
+          lonLat: [coords[0], coords[1]],
+          year: props.FIRE_YEAR
+        });
+      }
+    });
+    return Array.from(optionsMap.values()).sort((a,b) => a.fireNumber.localeCompare(b.fireNumber));
+  }, [firePointsGeoJSON]);
+
+
+  const displayedFires = useMemo(() => {
+      if (!visibleFireNumbers) return fireOptions;
+      return fireOptions.filter(fire => visibleFireNumbers.includes(fire.fireNumber));
+  }, [fireOptions, visibleFireNumbers]);
+
+  const handleDbYearSelect = (year: string | null) => {
+    if (year) {
+      setSelectedYear(year);
+    }
+    setSelectedDbFire(null);
+    setAnalysisFire(null);
+  };
+
+  const handleDbFireSelect = (fireNumber: string | null) => {
+    setSelectedDbFire(fireNumber);
+    const selectedOption = fireOptions.find(f => f.fireNumber === fireNumber) || null;
+    console.log("selected option", selectedOption)
+    setSelectedFire(selectedOption);
+
+    if (fireNumber) {
+      addFireBoundary(fireNumber);
+      setAnalysisFire(fireNumber);
+    }
+  };
 
   const handleUpdateMapView = (newCenter: [number,number], newZoom: number) => {
     setCenter(newCenter)
@@ -52,6 +123,7 @@ const ConfigurationApp: React.FC = () => {
       padding: [50, 50, 50, 50]
     });
   }, [mapInstance]);
+
   const addPreviewLayer = (url: string) => {
     setPreviewLayerUrl(url);
   };
@@ -110,44 +182,23 @@ const ConfigurationApp: React.FC = () => {
         resultsLayerRef.current = null;
       }
     }
-  }, [mapInstance]);
+  }, [mapInstance, currentYear]);
+
   //useEffect for init of map
   useEffect(() => {
-    if (!mapContainer.current) return; // Wait until ref is set
-    if (mapInstance) return; // Prevent re-initialization
+    if (!mapInstance) return; // Wait until ref is set
     
-    const map = new Map({
-      target: mapContainer.current as HTMLElement,
-      layers: [
-        new TileLayer({
-          source: new OSM(),
-        }),
-      ],
-      view: new View({
-        center: fromLonLat(center),
-        zoom: zoom,
-      }),
-    });
+    const onMoveEnd = () => {
+      const view = mapInstance.getView();
+      const extent = view.calculateExtent();
+      setBounds(extent);
+    };
 
-  setMapInstance(map);
+    mapInstance.on('moveend', onMoveEnd);
+    // Trigger initial bounds calculation
+    onMoveEnd();
 
-  const onMoveEnd = () => {
-    const view = map.getView();
-    const extent = view.calculateExtent();
-    setBounds(extent);
-    // const newCenter = toLonLat(view.getCenter() || [0, 0]);
-    // setCenter(newCenter as [number, number]);
-    // setZoom(view.getZoom() || 0);
-  };
-
-  map.on('moveend', onMoveEnd);
-  // Trigger initial bounds calculation
-  onMoveEnd();
-  
-  return () => {
-    map.setTarget(undefined); // Clean up properly
-  };
-  }, []);
+  }, [mapInstance]);
 
  // useEffect to manage the preview layer
   useEffect(() => {
@@ -206,11 +257,12 @@ const ConfigurationApp: React.FC = () => {
   // useEffect to update map when center or zoom change
   useEffect(() => {
     if (mapInstance) {
-      const view = mapInstance.getView();
-      view.setCenter(fromLonLat(center));
-      view.setZoom(zoom);
+      // const view = mapInstance.getView();
+      // view.setCenter(fromLonLat(center));
+      // view.setZoom(zoom);
     }
   }, [center, zoom, mapInstance]);
+
   // useEffect to update map with analysis results
   useEffect(() => {
     if (!mapInstance) return;
@@ -225,28 +277,78 @@ const ConfigurationApp: React.FC = () => {
         resultsLayerRef.current = null;
       }
     }
-  }, [selectedFire,analysisFire, fetchAndDisplayBurnGeometry,mapInstance]);
+  }, [selectedFire,analysisFire, fetchAndDisplayBurnGeometry, mapInstance]);
   return (
-    <MapContext.Provider value={{ 
-      map: mapInstance, 
-      bounds, 
-      addFireBoundary,
-      addPreviewLayer,
-      removePreviewLayer,
-      analysisFire,
-      setAnalysisFire,
-      updateMapView: handleUpdateMapView, 
-      selectedFire, setSelectedFire }}>
-      <div className="app-container">
-        <div className="sidebar">
-          <h2>Configure Burn Severity Analysis</h2>
-          <FireSelector />
-          <StacSearchPanel />
+      <MapContext.Provider value={{ 
+        map: mapInstance, 
+        bounds, 
+        addFireBoundary,
+        addPreviewLayer,
+        removePreviewLayer,
+        analysisFire,
+        setAnalysisFire,
+        updateMapView: handleUpdateMapView, 
+        selectedFire, setSelectedFire }}>
+        <div className="app-container">
+          <div className="sidebar">
+            <h2>Configure Burn Severity Analysis</h2>
+            <div>
+              <h3>Select Fire</h3>
+              <div style={{width: '100%'}}>
+                <FireSelector_db
+                  fires={displayedFires}
+                  availableYears={availableYears}
+                  onFireSelect={handleDbFireSelect}
+                  onYearSelect={handleDbYearSelect}
+                  selectedFire={selectedDbFire}
+                  selectedYear={selectedYear}
+                />
+              </div>
+              {/* This container will reserve space for all status messages */}
+              <div className="fire-selector-status">
+                {error && <p className="text-sm text-red-500">Error: {error}</p>}
+                {selectedFire !== null && (
+              <p><span>Ignition Date:</span> {new Date(selectedFire.ignitionDate).toLocaleDateString('en-CA')}</p>
+                )}
+              </div>
+            </div>
+            <StacSearchPanel />
+          </div>
+          <div className='center-panel'>
+            <div className="map-container">
+              <OLMap
+                center={center}
+                zoom={zoom}
+                basemap={basemap}
+                onMapInit={setMapInstance}
+                onVisibleFiresChange={setVisibleFireNumbers}
+              />
+            </div>
+            <div className="bcgov-basemap-selector">
+              <BasemapSelector selectedBasemap={basemap} onBasemapChange={(newBasemap) => setBasemap(newBasemap)} />
+            </div>
+          </div>
         </div>
-        <div className="map-container" ref={mapContainer}></div>
-      </div>
-    </MapContext.Provider>
+      </MapContext.Provider>
   );
 };
 
-export default ConfigurationApp;
+const SeverityConfigurationPage: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <div className='App'>
+      {isAuthenticated ? (
+        <FireDataProvider>
+          <ConfigurationApp />
+        </FireDataProvider>
+      ) : (
+        <div>
+          <p> Please log in to access the application.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SeverityConfigurationPage;

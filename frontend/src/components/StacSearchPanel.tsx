@@ -5,7 +5,7 @@ import { Extent } from 'ol/extent';
 import { toLonLat } from 'ol/proj';
 import { getBottomLeft, getTopRight } from 'ol/extent';
 import { Accordion, AccordionGroup, Button, Switch } from '@bcgov/design-system-react-components';
-import Fire from './FireSelector';
+// import Fire from './FireSelector';
 import { PuffLoader } from 'react-spinners';
 import { syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
@@ -133,8 +133,12 @@ const StacSearchPanel: React.FC = () => {
       }
     } catch (error) {
         setAnalysisRunning(false);
-        console.error("Error running analysis:", error);
-        alert(error.message|| "Failed to start analysis.");
+        let errorMessage = 'Failed to start analysis.';
+        if (error instanceof Error){
+          errorMessage = error.message;
+        }
+        console.error("Error running analysis:", errorMessage);
+        alert(errorMessage);
     } finally {
       setAnalysisRunning(false);
     }

@@ -3,11 +3,29 @@ html, body {
   margin: 0;
 }
 
+.App {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 .app-container {
   display: flex;
   height: 100%;
   width: 100%;
   overflow: hidden;
+}
+
+.center-panel {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; // Critical for flex child
+  background: #f5f5f5;
 }
 
 .sidebar {

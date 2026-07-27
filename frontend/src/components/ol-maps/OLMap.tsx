@@ -28,6 +28,7 @@ interface OLMapProps {
   selectedDbFire?: string | null;
   selectedDbYear?: string | null;
   onVisibleFiresChange?: (fireNumbers: string[]) => void;
+  onMapInit?: (map: Map) => void;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -36,7 +37,8 @@ const OLMap: React.FC<OLMapProps> = ({
   basemap = 'osm',
   selectedDbFire,
   selectedDbYear,
-  onVisibleFiresChange
+  onVisibleFiresChange,
+  onMapInit
 }) => {
   const { isAuthenticated } = useAuth();
   const { firePointsGeoJSON, firePolysGeoJSON } = useFireData();
@@ -151,6 +153,7 @@ const OLMap: React.FC<OLMapProps> = ({
     });
     initialMap.addControl(new ScaleLine());
     mapInstanceRef.current = initialMap;
+    onMapInit?.(initialMap)
 
     return () => {
       if (mapInstanceRef.current) {
@@ -220,7 +223,7 @@ const OLMap: React.FC<OLMapProps> = ({
         let fillColour = 'rgba(128, 128, 128, 1)';
         const statusUpper = status.toUpperCase();
 
-        if (statusUpper.includes('OUT OF CONTROL', 'FIRE OF NOTE')) {
+        if (statusUpper.includes('OUT OF CONTROL') || statusUpper.includes('FIRE OF NOTE')) {
           fillColour = 'rgba(255, 0, 0, 1)';
         } else if (statusUpper.includes('BEING HELD')){
           fillColour = 'rgba(255, 255, 0, 1)';
