@@ -71,6 +71,7 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
     if ((e.key === 'Backspace' || e.key === 'Delete' ) && searchTerm === '' && selectedFire) {
       e.preventDefault();
       selectFire(null);
+      onFireSelect(null);
     } else if (e.key === 'Escape') {
       setIsOpen(false);
     }

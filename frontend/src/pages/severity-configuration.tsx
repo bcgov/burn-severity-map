@@ -101,8 +101,14 @@ const ConfigurationApp: React.FC = () => {
 
   const handleDbFireSelect = (fireNumber: string | null) => {
     setSelectedDbFire(fireNumber);
+    if (!fireNumber) {
+      setAnalysisFire(null);
+      setSelectedFire(null)
+      setPerimeterLayerUrl(null);
+      removePreviewLayer();
+      return;
+    }
     const selectedOption = fireOptions.find(f => f.fireNumber === fireNumber) || null;
-    console.log("selected option", selectedOption)
     setSelectedFire(selectedOption);
 
     if (fireNumber) {
@@ -132,6 +138,8 @@ const ConfigurationApp: React.FC = () => {
     setPreviewLayerUrl(null);
   };
 
+
+
   const addFireBoundary = (fireNumber: string) => {
     const perimeterUrl = `https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP&outputFormat=application/json&srsName=EPSG:3857&CQL_FILTER=FIRE_NUMBER='${fireNumber}'`;
     setPerimeterLayerUrl(perimeterUrl);
@@ -141,7 +149,7 @@ const ConfigurationApp: React.FC = () => {
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstance) return;
     try {
-      const featureCollection = await getFireData(currentYear,fireNumber);
+      const featureCollection = await getFireData(selectedYear, fireNumber);
       
       setResultsFeatureCollection(featureCollection);
 
@@ -182,7 +190,15 @@ const ConfigurationApp: React.FC = () => {
         resultsLayerRef.current = null;
       }
     }
-  }, [mapInstance, currentYear]);
+  }, [mapInstance, selectedYear]);
+
+  const addAnalysisLayer = useCallback(() => {
+    if (!mapInstance) return;
+
+    if (selectedFire && selectedFire.fireNumber) {
+      fetchAndDisplayBurnGeometry(selectedFire.fireNumber);
+    }
+  }, [mapInstance, selectedFire, fetchAndDisplayBurnGeometry]);
 
   //useEffect for init of map
   useEffect(() => {
@@ -268,6 +284,7 @@ const ConfigurationApp: React.FC = () => {
     if (!mapInstance) return;
 
     // This effect runs when a new fire is selected, or when an analysis is triggered.
+    console.log('selectedFire', selectedFire)
     if (selectedFire && selectedFire.fireNumber) {
       fetchAndDisplayBurnGeometry(selectedFire.fireNumber);
     } else {
@@ -285,6 +302,7 @@ const ConfigurationApp: React.FC = () => {
         addFireBoundary,
         addPreviewLayer,
         removePreviewLayer,
+        addAnalysisLayer,
         analysisFire,
         setAnalysisFire,
         updateMapView: handleUpdateMapView, 
@@ -312,7 +330,7 @@ const ConfigurationApp: React.FC = () => {
                 )}
               </div>
             </div>
-            <StacSearchPanel />
+            {selectedFire != null && <StacSearchPanel />}
           </div>
           <div className='center-panel'>
             <div className="map-container">
