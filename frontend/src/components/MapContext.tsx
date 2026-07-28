@@ -10,7 +10,7 @@ type MapContextType = {
   bounds: any; // You can refine this later
   addPreviewLayer: (url: string) => void;
   removePreviewLayer: () => void;
-  addFireBoundary: (fireNumber: string) => void;
+  // addFireBoundary: (fireNumber: string) => void;
   addAnalysisLayer: () => void;
   updateMapView: (centre: [number,number], zoom: number) => void; //centre: [lon, lat]
   selectedFire: FireOption | null;
@@ -24,7 +24,7 @@ export const MapContext = React.createContext<MapContextType>({
   bounds: null,
   addPreviewLayer: () => {},
   removePreviewLayer: () => {},
-  addFireBoundary: () => {},
+  // addFireBoundary: () => {},
   addAnalysisLayer: () => {},
   updateMapView: () => {},
   selectedFire: null,

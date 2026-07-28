@@ -50,6 +50,7 @@ const OLMap: React.FC<OLMapProps> = ({
   const burnSeverityLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const firePointsLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const firePolysLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const highlightLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   
   // State for the GeoJSON data (to pass to summary) and legend visibility
   const [selectedFireFeatureCollection, setSelectedFireFeatureCollection] = useState<any | null>(null);
@@ -96,6 +97,7 @@ const OLMap: React.FC<OLMapProps> = ({
 
         const newLayer = new VectorLayer({
           source: vectorSource,
+          zIndex: 100,
           style: (feature) => {
             const burnSeverity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
             let fillColor = 'rgba(0,0,0,0.1)';
@@ -110,10 +112,10 @@ const OLMap: React.FC<OLMapProps> = ({
         // *** FIX: Store the new layer in the ref instead of state ***
         burnSeverityLayerRef.current = newLayer;
 
-        if (vectorSource.getFeatures().length > 0) {
-          const extent = vectorSource.getExtent();
-          fitMapToExtent(extent);
-        }
+        // if (vectorSource.getFeatures().length > 0) {
+        //   const extent = vectorSource.getExtent();
+        //   fitMapToExtent(extent);
+        // }
       } else {
         setSelectedFireFeatureCollection(null);
         setShowLegend(false);
@@ -125,7 +127,7 @@ const OLMap: React.FC<OLMapProps> = ({
       setShowLegend(false);
       setShowSummary(false);
     }
-  }, [fitMapToExtent]); // *** FIX: Removed burnSeverityLayer from dependency array ***
+  }, []); // *** FIX: Removed burnSeverityLayer from dependency array ***
 
 
   const emitVisibleFires = useCallback(() => {
@@ -293,7 +295,7 @@ const OLMap: React.FC<OLMapProps> = ({
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
-    if (selectedDbFire) {
+    if (selectedDbFire && selectedDbYear) {
       fetchAndDisplayBurnGeometry(selectedDbYear, selectedDbFire);
     } else {
       // If no fire is selected, clear the layer using the ref
@@ -305,9 +307,68 @@ const OLMap: React.FC<OLMapProps> = ({
         setShowSummary(false);
       }
     }
-  }, [selectedDbFire, fetchAndDisplayBurnGeometry]);
+  }, [selectedDbFire, selectedDbYear, fetchAndDisplayBurnGeometry]);
 
-  // ... rest of the component (other effects, return with JSX) remains the same ...
+
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    if (highlightLayerRef.current) {
+      mapInstanceRef.current.removeLayer(highlightLayerRef.current);
+      highlightLayerRef.current = null;
+    }
+
+    if (!selectedDbFire) return;
+
+    let selectedFeatureJson = null;
+
+    if (firePolysGeoJSON && firePolysGeoJSON.features) {
+      selectedFeatureJson = firePolysGeoJSON.features.find(
+        (f: any) => f.properties.FIRE_NUMBER === selectedDbFire || f.properties.fire_number === selectedDbFire
+      );
+    }
+
+    if (!selectedFeatureJson && firePointsGeoJSON && firePointsGeoJSON.features) {
+      selectedFeatureJson = firePointsGeoJSON.features.find(
+        (f: any) => f.properties.FIRE_NUMBER === selectedDbFire || f.properties.fire_number === selectedDbFire
+      );
+    }
+
+    if (selectedFeatureJson){
+      const featureCollection = {
+        type: 'FeatureCollection',
+        features: [selectedFeatureJson]
+      };
+
+      const features = new GeoJSON().readFeatures(featureCollection);
+      const highlightSource = new VectorSource({
+        features: features,
+      });
+
+      const highlightLayer = new VectorLayer({
+        source: highlightSource,
+        zIndex: 999,
+        style: new Style({
+          stroke: new Stroke({color: '#00FFFF', width: 4}),
+          // fill: new Fill({ color: 'rgba(0, 255, 255, 0.15)'}),
+          image: new CircleStyle({
+            radius: 8,
+            stroke: new Stroke({ color: '#00FFFF', width: 3}),
+            fill: new Fill({ color: 'rgba(0,0,0,0.5)' }),
+          }),
+        }),
+      });
+
+      mapInstanceRef.current.addLayer(highlightLayer);
+      highlightLayerRef.current = highlightLayer;
+
+      const extent = highlightSource.getExtent();
+      fitMapToExtent(extent, { maxZoom: 14, duration: 800});
+    }
+
+  }, [selectedDbFire, firePointsGeoJSON, firePolysGeoJSON, fitMapToExtent]);
+
+
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
