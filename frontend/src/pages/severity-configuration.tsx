@@ -33,9 +33,9 @@ const ConfigurationApp: React.FC = () => {
   const [mapInstance, setMapInstance] = useState<MapOL | null>(null);
   const [bounds, setBounds] = useState<any>(null); // OpenLayers doesn't use LngLatBounds
   const previewLayerRef = useRef<WebGLTileLayer | null>(null);
-  const perimeterLayerRef = useRef<VectorLayer | null>(null);
+  // const perimeterLayerRef = useRef<VectorLayer | null>(null);
   const [previewLayerUrl, setPreviewLayerUrl] = useState<string | null>(null);
-  const [perimeterLayerUrl, setPerimeterLayerUrl] = useState<string | null>(null);
+  // const [perimeterLayerUrl, setPerimeterLayerUrl] = useState<string | null>(null);
   const [center, setCenter] = useState<[number, number]>([-126.5, 54.5]);
   const [zoom, setZoom] = useState(5);
   const [basemap, setBasemap] = useState('osm');
@@ -104,7 +104,7 @@ const ConfigurationApp: React.FC = () => {
     if (!fireNumber) {
       setAnalysisFire(null);
       setSelectedFire(null)
-      setPerimeterLayerUrl(null);
+      // setPerimeterLayerUrl(null);
       removePreviewLayer();
       return;
     }
@@ -112,7 +112,7 @@ const ConfigurationApp: React.FC = () => {
     setSelectedFire(selectedOption);
 
     if (fireNumber) {
-      addFireBoundary(fireNumber);
+      // addFireBoundary(fireNumber);
       setAnalysisFire(fireNumber);
     }
   };
@@ -140,12 +140,14 @@ const ConfigurationApp: React.FC = () => {
 
 
 
-  const addFireBoundary = (fireNumber: string) => {
-    const perimeterUrl = `https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP&outputFormat=application/json&srsName=EPSG:3857&CQL_FILTER=FIRE_NUMBER='${fireNumber}'`;
-    setPerimeterLayerUrl(perimeterUrl);
-    console.log('addFireBoundary:',fireNumber);
+  // const addFireBoundary = (fireNumber: string) => {
+  //   const perimeterUrl = `https://openmaps.gov.bc.ca/geo/pub/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP&outputFormat=application/json&srsName=EPSG:3857&CQL_FILTER=FIRE_NUMBER='${fireNumber}'`;
+  //   // setPerimeterLayerUrl(perimeterUrl);
+  //   console.log('addFireBoundary:',fireNumber);
     
-  };
+  // };
+
+
   const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
     if (!mapInstance) return;
     try {
@@ -229,9 +231,10 @@ const ConfigurationApp: React.FC = () => {
     // Add new layer if a URL is provided
     if (previewLayerUrl) {
       const geoTiffLayer = new WebGLTileLayer({
+        zIndex: 0,
         source: new GeoTIFF({
           sources: [{ url: previewLayerUrl }],
-        }),
+        })
       });
 
       mapInstance.addLayer(geoTiffLayer);
@@ -239,37 +242,40 @@ const ConfigurationApp: React.FC = () => {
     }
 
   }, [previewLayerUrl, mapInstance]); 
-  // useEffect to manage the perimeter vectorLayer
-  useEffect(() => {
-    if (!mapInstance) return;
 
-    if (perimeterLayerRef.current){
-      mapInstance.removeLayer(perimeterLayerRef.current);
-      perimeterLayerRef.current = null;
-    }
-    if (perimeterLayerUrl){
-      console.log('Add vector Layer url:',perimeterLayerUrl);
-      const perimterVectorSource = new VectorSource({
-        format: new GeoJSON(),
-        url: perimeterLayerUrl,
-        strategy: all,
-      });
-      const perimeterLayer = new VectorLayer({
-        source: perimterVectorSource,
-        style: {
-          'stroke-width': 2.5,
-          'stroke-color': 'red',
-        },
-      });
-      perimeterLayer.setZIndex(1000);
-      mapInstance.addLayer(perimeterLayer);
-      perimeterLayerRef.current = perimeterLayer;
-      perimterVectorSource.on('featuresloadend', () => {
-        const extent = perimterVectorSource.getExtent();
-        fitMapToExtent(extent);
-      });
-    }
-  }, [perimeterLayerUrl, mapInstance,fitMapToExtent])
+  // // useEffect to manage the perimeter vectorLayer
+  // useEffect(() => {
+  //   if (!mapInstance) return;
+
+  //   if (perimeterLayerRef.current){
+  //     mapInstance.removeLayer(perimeterLayerRef.current);
+  //     perimeterLayerRef.current = null;
+  //   }
+  //   if (perimeterLayerUrl){
+  //     console.log('Add vector Layer url:',perimeterLayerUrl);
+  //     const perimterVectorSource = new VectorSource({
+  //       format: new GeoJSON(),
+  //       url: perimeterLayerUrl,
+  //       strategy: all,
+  //     });
+  //     const perimeterLayer = new VectorLayer({
+  //       source: perimterVectorSource,
+  //       style: {
+  //         'stroke-width': 2.5,
+  //         'stroke-color': 'red',
+  //       },
+  //     });
+  //     perimeterLayer.setZIndex(1000);
+  //     mapInstance.addLayer(perimeterLayer);
+  //     perimeterLayerRef.current = perimeterLayer;
+  //     perimterVectorSource.on('featuresloadend', () => {
+  //       const extent = perimterVectorSource.getExtent();
+  //       fitMapToExtent(extent);
+  //     });
+  //   }
+  // }, [perimeterLayerUrl, mapInstance,fitMapToExtent])
+
+
   // useEffect to update map when center or zoom change
   useEffect(() => {
     if (mapInstance) {
@@ -299,7 +305,7 @@ const ConfigurationApp: React.FC = () => {
       <MapContext.Provider value={{ 
         map: mapInstance, 
         bounds, 
-        addFireBoundary,
+        // addFireBoundary,
         addPreviewLayer,
         removePreviewLayer,
         addAnalysisLayer,
@@ -340,6 +346,8 @@ const ConfigurationApp: React.FC = () => {
                 basemap={basemap}
                 onMapInit={setMapInstance}
                 onVisibleFiresChange={setVisibleFireNumbers}
+                selectedDbFire={selectedDbFire}
+                selectedDbYear={selectedYear}
               />
             </div>
             <div className="bcgov-basemap-selector">
