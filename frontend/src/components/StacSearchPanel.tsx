@@ -5,7 +5,7 @@ import { Extent } from 'ol/extent';
 import { toLonLat } from 'ol/proj';
 import { getBottomLeft, getTopRight } from 'ol/extent';
 import { Accordion, AccordionGroup, Button, Switch } from '@bcgov/design-system-react-components';
-import Fire from './FireSelector';
+// import Fire from './FireSelector';
 import { PuffLoader } from 'react-spinners';
 import { syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
@@ -35,7 +35,7 @@ interface AnalysisConfig {
 
 const StacSearchPanel: React.FC = () => {
   const { getAccessToken } = useAuth();
-  const { bounds, addPreviewLayer, removePreviewLayer, selectedFire, setAnalysisFire } = useContext(MapContext);
+  const { bounds, addPreviewLayer, removePreviewLayer, selectedFire, setAnalysisFire, addAnalysisLayer } = useContext(MapContext);
   const [previewLayerId, setPreviewLayerId] = useState<string | null>(null);
 
   const [searchCriteria, setSearchCriteria] = useState<StacSearchCriteria>({
@@ -73,9 +73,33 @@ const StacSearchPanel: React.FC = () => {
   }, [bounds]);
 
   useEffect(() => {
-    if (!selectedFire) return;
+    if (!selectedFire){
+      setAnalysisConfig({
+        fire_number: null,
+        year: null,
+        sensor: 'S2',
+        preImageDate: null,
+        postImageDate: null,
+        preImageID: null,
+        postImageID: null,
+        imageIDs: null,
+        preImageCloud: 0,
+        postImageCloud: 0,
+        cloudCover: 0,
+      });
+      setSearchResults([]);
+      setSelectedPreImageId(null);
+      setSelectedPostImageId(null);
+      if (previewLayerId) {
+        removePreviewLayer();
+        setPreviewLayerId(null);
+      }
+      return;
+    }
     setAnalysisConfig(prev => ({ ...prev,fire_number:selectedFire.fireNumber,year:selectedFire.year}));
   }, [selectedFire]);
+
+
   // is analysis config ready
   useEffect(() => {
     console.log("Analysis config: ", analysisConfig);
@@ -110,6 +134,7 @@ const StacSearchPanel: React.FC = () => {
     const eCloud = analysisConfig.postImageCloud ?? defaultCloud;
     const cloud =  Math.max(Number(sCloud)+1, Number(eCloud)+1);
     const imageIDs = analysisConfig.preImageID + ':' + analysisConfig.postImageID;
+    console.log('Year', thisYear);
     setAnalysisRunning(true);
 
     const payload: AnalysisRequest = {
@@ -130,11 +155,16 @@ const StacSearchPanel: React.FC = () => {
       if (analysisConfig.fire_number){
         await syncFireResults(String(thisYear),analysisConfig.fire_number)
         setAnalysisFire(analysisConfig.fire_number);
+        addAnalysisLayer()
       }
     } catch (error) {
         setAnalysisRunning(false);
-        console.error("Error running analysis:", error);
-        alert(error.message|| "Failed to start analysis.");
+        let errorMessage = 'Failed to start analysis.';
+        if (error instanceof Error){
+          errorMessage = error.message;
+        }
+        console.error("Error running analysis:", errorMessage);
+        alert(errorMessage);
     } finally {
       setAnalysisRunning(false);
     }
@@ -238,215 +268,223 @@ const StacSearchPanel: React.FC = () => {
   return (
     <div className="StacSearchPanel">
       <h3>Configuration Settings</h3>
-      {analysisConfig.fire_number && (
-        <div className="panel-box">
-          <h4>Attributes</h4>
-          <p><span>Fire:</span> {String(new Date().getFullYear())}-{analysisConfig.fire_number}</p>
-          <p><span>Start Date:</span> {analysisConfig.preImageDate}</p>
-          <p><span>Start ID:</span> {analysisConfig.preImageID}</p>
-          <p><span>End Date:</span> {analysisConfig.postImageDate}</p>
-          <p><span>End ID:</span> {analysisConfig.postImageID}</p>
-          <p>
-            <span>Cloud Cover:</span>{' '}
-            {Math.max(
-              analysisConfig.preImageCloud ?? 0,
-              analysisConfig.postImageCloud ?? 0
-            )}%
-          </p>
+      {!selectedFire ? (
+        <div className='panel-box'>
+          <p>Please select a fire to configure the burn severity analysis.</p>
         </div>
-      )}
-
-      <div className="panel-box">
-        <h4>Bounding Box (from map)</h4>
-        {searchCriteria.bbox ? (
-          <div>
-            <p><span>NE:</span> {toLonLat(getTopRight(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getTopRight(searchCriteria.bbox))[1].toFixed(4)}</p>
-            <p><span>SW:</span> {toLonLat(getBottomLeft(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getBottomLeft(searchCriteria.bbox))[1].toFixed(4)}</p>
-          </div>
-        ) : (
-          <p>Loading bounds...</p>
-        )}
-      </div>
-
-      <div className="panel-box">
-        <h4>Image Search</h4>      
-
-        <div className="image-search-options">
-          {/* Pre-fire slider */}
-          <div className="slider-box">
-            <h5>Pre-fire Offset</h5>
-            <input
-              type="range"
-              min="1"
-              max="12"
-              value={13 - searchCriteria.preOffset}
-              onChange={(e) =>
-                setSearchCriteria(prev => ({
-                  ...prev,
-                  preOffset: 13 - Number(e.target.value)
-                }))
-              }
-            />
-            <div className="slider-month-text">{searchCriteria.preOffset} month(s)</div>
-          </div>
-
-          {/* Fire emoji */}
-          <div className="fire-emoji">🔥</div>
-
-          {/* Post-fire slider */}
-          <div className="slider-box">
-            <h5>Post-fire Offset</h5>
-            <input
-              type="range"
-              min="1"
-              max="12"
-              value={searchCriteria.postOffset}
-              onChange={(e) =>
-                setSearchCriteria(prev => ({
-                  ...prev,
-                  postOffset: Number(e.target.value)
-                }))
-              }
-            />
-            <div className="slider-month-text">{searchCriteria.postOffset} month(s)</div>
-          </div>
-        </div>
-      </div>
-
-      <label> Max allowed cloud (%) :
-      <input
-        type="number"
-        value={searchCriteria.cloudCover !== null ? searchCriteria.cloudCover : ''}
-        onChange={handleCloudCoverChange}
-        min="0"
-        max="100"
-        placeholder="0-100"
-      />
-      </label>
-
-      <div className="stac-interaction-box">
-
-        <div className="button-group-container">
-          {/* Conditionally render the PuffLoader 
-          
-          */}
-
-          {loading || analysisRunning && (
-          <div className='analysis-spinner'>
-            <PuffLoader color="#003366" size={50}/>
-          </div>
+      ) : (
+        <>
+          {analysisConfig.fire_number && (
+            <div className="panel-box">
+              <h4>Attributes</h4>
+              <p><span>Fire:</span> {String(analysisConfig.year)}-{analysisConfig.fire_number}</p>
+              <p><span>Start Date:</span> {analysisConfig.preImageDate}</p>
+              <p><span>Start ID:</span> {analysisConfig.preImageID}</p>
+              <p><span>End Date:</span> {analysisConfig.postImageDate}</p>
+              <p><span>End ID:</span> {analysisConfig.postImageID}</p>
+              <p>
+                <span>Cloud Cover:</span>{' '}
+                {Math.max(
+                  analysisConfig.preImageCloud ?? 0,
+                  analysisConfig.postImageCloud ?? 0
+                )}%
+              </p>
+            </div>
           )}
-          <div className="button-box">
-            <Button onPress={handleSearch} isDisabled={loading}>
-              {loading ? 'Searching...' : 'Load images'}
-            </Button>
-            <Button onPress={handleStartAnalysis} isDisabled={!analysisReady || analysisRunning}>
-              Start Analysis
-            </Button>
-          </div>
-        
 
-          {error && <p className="error-text">Error: {error}</p>}
-        </div>
-        {searchResults.length > 0 && (
-          <div>
-            <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
-              {preIgnitionResults.map(item => (
-                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
-                  <div>
-                    <strong>ID: </strong> {item.id} <br />
-                    <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
-                    <div className="image-interaction-box">
-                      <Switch
-                        children="Select as pre fire image"
-                        isSelected={selectedPreImageId === item.id}
-                        onChange={(isSelected) => {
-                          if (isSelected) {
-                            handlePreImageSelection(
-                              Number(item.properties["eo:cloud_cover"].toFixed(0)),
-                              new Date(item.properties.datetime).toLocaleDateString('en-CA'),
-                              item.id
-                            );
-                          } else {
-                            setSelectedPreImageId(null);
-                            setAnalysisConfig(prev => ({
-                              ...prev,
-                              preImageDate: null,
-                              preImageCloud: null,
-                              preImageID: null,
-                            }));
-                          }
-                        }}
-                      />
-                      <Button
-                        size="small"
-                        onPress={() => {
-                          if (previewLayerId === item.id) {
-                            removePreviewLayer();
-                            setPreviewLayerId(null);
-                          } else {
-                            addPreviewLayer(item.assets.visual.href);
-                            setPreviewLayerId(item.id);
-                          }
-                        }}
-                      >
-                        {previewLayerId === item.id ? 'Remove preview' : 'Preview'}
-                      </Button>
-                    </div>
-                  </div>
-                </Accordion>
-              ))}
-            </AccordionGroup>
-            <AccordionGroup title='Post ignition images' allowsMultipleExpanded>
-              {postIgnitionResults.map(item => (
-                <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
-                  <div>
-                    <strong>ID: </strong> {item.id} <br />
-                    <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
-                    <div className="image-interaction-box">
-                      <Switch
-                        children="Select as post fire image"
-                        isSelected={selectedPostImageId === item.id}
-                        onChange={(isSelected) => {
-                          if (isSelected) {
-                            handlePostImageSelection(
-                              Number(item.properties["eo:cloud_cover"].toFixed(0)),
-                              new Date(item.properties.datetime).toLocaleDateString('en-CA'),
-                              item.id
-                            );
-                          } else {
-                            setSelectedPostImageId(null);
-                            setAnalysisConfig(prev => ({
-                              ...prev,
-                              postImageDate: null,
-                              postImageCloud: null,
-                              postImageID: null,
-                            }));
-                          }
-                        }}
-                      />
-                    <Button
-                      size="small"
-                      onPress={() => {
-                        if (previewLayerId === item.id) {
-                          removePreviewLayer();
-                          setPreviewLayerId(null);
-                        } else {
-                          addPreviewLayer(item.assets.visual.href);
-                          setPreviewLayerId(item.id);
-                        }
-                      }}
-                    >
-                      {previewLayerId === item.id ? 'Remove preview' : 'Preview'}
-                    </Button>
-                  </div>
-                  </div>
-                </Accordion>
-              ))}
-            </AccordionGroup>
+          <div className="panel-box">
+            <h4>Bounding Box (from map)</h4>
+            {searchCriteria.bbox ? (
+              <div>
+                <p><span>NE:</span> {toLonLat(getTopRight(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getTopRight(searchCriteria.bbox))[1].toFixed(4)}</p>
+                <p><span>SW:</span> {toLonLat(getBottomLeft(searchCriteria.bbox))[0].toFixed(4)}, {toLonLat(getBottomLeft(searchCriteria.bbox))[1].toFixed(4)}</p>
+              </div>
+            ) : (
+              <p>Loading bounds...</p>
+            )}
           </div>
-        )}
-      </div>
+          
+          <div className="panel-box">
+            <h4>Image Search</h4>      
+          
+            <div className="image-search-options">
+              {/* Pre-fire slider */}
+              <div className="slider-box">
+                <h5>Pre-fire Offset</h5>
+                <input
+                  type="range"
+                  min="1"
+                  max="12"
+                  value={13 - searchCriteria.preOffset}
+                  onChange={(e) =>
+                    setSearchCriteria(prev => ({
+                      ...prev,
+                      preOffset: 13 - Number(e.target.value)
+                    }))
+                  }
+                />
+                <div className="slider-month-text">{searchCriteria.preOffset} month(s)</div>
+              </div>
+                
+              {/* Fire emoji */}
+              <div className="fire-emoji">🔥</div>
+                
+              {/* Post-fire slider */}
+              <div className="slider-box">
+                <h5>Post-fire Offset</h5>
+                <input
+                  type="range"
+                  min="1"
+                  max="12"
+                  value={searchCriteria.postOffset}
+                  onChange={(e) =>
+                    setSearchCriteria(prev => ({
+                      ...prev,
+                      postOffset: Number(e.target.value)
+                    }))
+                  }
+                />
+                <div className="slider-month-text">{searchCriteria.postOffset} month(s)</div>
+              </div>
+            </div>
+          </div>
+                
+          <label> Max allowed cloud (%) :
+          <input
+            type="number"
+            value={searchCriteria.cloudCover !== null ? searchCriteria.cloudCover : ''}
+            onChange={handleCloudCoverChange}
+            min="0"
+            max="100"
+            placeholder="0-100"
+          />
+          </label>
+                
+          <div className="stac-interaction-box">
+                
+            <div className="button-group-container">
+              {/* Conditionally render the PuffLoader 
+
+              */}
+
+              {loading || analysisRunning && (
+              <div className='analysis-spinner'>
+                <PuffLoader color="#003366" size={50}/>
+              </div>
+              )}
+              <div className="button-box">
+                <Button onPress={handleSearch} isDisabled={loading}>
+                  {loading ? 'Searching...' : 'Load images'}
+                </Button>
+                <Button onPress={handleStartAnalysis} isDisabled={!analysisReady || analysisRunning}>
+                  Start Analysis
+                </Button>
+              </div>
+            
+            
+              {error && <p className="error-text">Error: {error}</p>}
+            </div>
+            {searchResults.length > 0 && (
+              <div>
+                <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
+                  {preIgnitionResults.map(item => (
+                    <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
+                      <div>
+                        <strong>ID: </strong> {item.id} <br />
+                        <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
+                        <div className="image-interaction-box">
+                          <Switch
+                            children="Select as pre fire image"
+                            isSelected={selectedPreImageId === item.id}
+                            onChange={(isSelected) => {
+                              if (isSelected) {
+                                handlePreImageSelection(
+                                  Number(item.properties["eo:cloud_cover"].toFixed(0)),
+                                  new Date(item.properties.datetime).toLocaleDateString('en-CA'),
+                                  item.id
+                                );
+                              } else {
+                                setSelectedPreImageId(null);
+                                setAnalysisConfig(prev => ({
+                                  ...prev,
+                                  preImageDate: null,
+                                  preImageCloud: null,
+                                  preImageID: null,
+                                }));
+                              }
+                            }}
+                          />
+                          <Button
+                            size="small"
+                            onPress={() => {
+                              if (previewLayerId === item.id) {
+                                removePreviewLayer();
+                                setPreviewLayerId(null);
+                              } else {
+                                addPreviewLayer(item.assets.visual.href);
+                                setPreviewLayerId(item.id);
+                              }
+                            }}
+                          >
+                            {previewLayerId === item.id ? 'Remove preview' : 'Preview'}
+                          </Button>
+                        </div>
+                      </div>
+                    </Accordion>
+                  ))}
+                </AccordionGroup>
+                <AccordionGroup title='Post ignition images' allowsMultipleExpanded>
+                  {postIgnitionResults.map(item => (
+                    <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
+                      <div>
+                        <strong>ID: </strong> {item.id} <br />
+                        <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
+                        <div className="image-interaction-box">
+                          <Switch
+                            children="Select as post fire image"
+                            isSelected={selectedPostImageId === item.id}
+                            onChange={(isSelected) => {
+                              if (isSelected) {
+                                handlePostImageSelection(
+                                  Number(item.properties["eo:cloud_cover"].toFixed(0)),
+                                  new Date(item.properties.datetime).toLocaleDateString('en-CA'),
+                                  item.id
+                                );
+                              } else {
+                                setSelectedPostImageId(null);
+                                setAnalysisConfig(prev => ({
+                                  ...prev,
+                                  postImageDate: null,
+                                  postImageCloud: null,
+                                  postImageID: null,
+                                }));
+                              }
+                            }}
+                          />
+                        <Button
+                          size="small"
+                          onPress={() => {
+                            if (previewLayerId === item.id) {
+                              removePreviewLayer();
+                              setPreviewLayerId(null);
+                            } else {
+                              addPreviewLayer(item.assets.visual.href);
+                              setPreviewLayerId(item.id);
+                            }
+                          }}
+                        >
+                          {previewLayerId === item.id ? 'Remove preview' : 'Preview'}
+                        </Button>
+                      </div>
+                      </div>
+                    </Accordion>
+                  ))}
+                </AccordionGroup>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

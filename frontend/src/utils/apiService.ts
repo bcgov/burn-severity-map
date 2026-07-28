@@ -100,7 +100,7 @@ async function authedFetch(endpoint: string, options: RequestInit = {}): Promise
 
 // --- Define your specific API functions here ---
 export interface AnalysisRequest {
-  fire: string;
+  fire: string | null;
   year: number;
   sensor: 'S2';
   s_date?: string;

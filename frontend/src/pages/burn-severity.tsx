@@ -9,13 +9,7 @@ import DocumentPanel from '../components/DocumentPanel'
 import { useAuth } from '../auth/AuthContext';
 import { getFireYears, getFireDocuments, Document } from "../utils/apiService";
 import { Accordion, AccordionGroup } from '@bcgov/design-system-react-components';
-import { FireDataProvider, useFireData } from '../components/FireDataContext';
-
-export interface FireOption {
-  fireNumber: string;
-  geogDescription: string;
-  isProcessed: boolean;
-}
+import { FireDataProvider, useFireData, FireOption } from '../components/FireDataContext';
 
 const BurnSeverityContent: React.FC = () => {
   const { selectedYear, setSelectedYear, firePointsGeoJSON } = useFireData();
@@ -48,16 +42,19 @@ const BurnSeverityContent: React.FC = () => {
     firePointsGeoJSON.features.forEach((feature: any) => {
       const props = feature.properties || {};
       const fireNum = props.FIRE_NUMBER || props.fire_number;
-      if (props.is_processed === false) {
-        return;
-      }
+      const coords = feature.geometry.coordinates;
 
       if (fireNum) {
         const cleanNum = String(fireNum).trim();
         optionsMap.set(cleanNum, {
+          id: props.FIRE_ID.toString(),
           fireNumber: cleanNum,
           isProcessed: !!props.is_processed,
-          geogDescription: props.GEOGRAPHIC_DESCRIPTION
+          incidentName: props.INCIDENT_NAME,
+          geogDescription: props.GEOGRAPHIC_DESCRIPTION,
+          ignitionDate: props.IGNITION_DATE,
+          lonLat: [coords[0], coords[1]],
+          year: props.FIRE_YEAR
         });
       }
     });

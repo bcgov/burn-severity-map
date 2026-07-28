@@ -19,9 +19,8 @@ const FireYearSelector: React.FC<FireYearSelectorProps> = ({
     <div className="bcgov-year-selector">
       <label className="bcgov-fire-selector-label">
         <h4>Fire Year</h4>
-        <p>Select a fire to view burn severity</p>
+        <p>Select a year to view burn severity</p>
       </label>
-
       <select
         className="bcgov-fire-selector-input"
         value={selectedYear ?? ''}
