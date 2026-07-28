@@ -277,7 +277,7 @@ const StacSearchPanel: React.FC = () => {
           {analysisConfig.fire_number && (
             <div className="panel-box">
               <h4>Attributes</h4>
-              <p><span>Fire:</span> {String(new Date().getFullYear())}-{analysisConfig.fire_number}</p>
+              <p><span>Fire:</span> {String(analysisConfig.year)}-{analysisConfig.fire_number}</p>
               <p><span>Start Date:</span> {analysisConfig.preImageDate}</p>
               <p><span>Start ID:</span> {analysisConfig.preImageID}</p>
               <p><span>End Date:</span> {analysisConfig.postImageDate}</p>
