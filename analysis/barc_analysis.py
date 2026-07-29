@@ -66,7 +66,7 @@ def get_input_parameters():
         parser.add_argument('-i', '--image_ids', type=str, nargs='?', help='Optional image ids to use for processing. Image ids should be comma separated values with pre and post values separated by a semi-colon (ie. pre_id1,pre_id2:post_id1,post_id2)')
         parser.add_argument('--log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                             help='Log level')
-        parser.add_argument('--log_dir', help='Path to log directory')
+        parser.add_argument('--log_dir', default='/tmp/app_logs', help='Path to log directory')
 
         args = parser.parse_args()
         if not args.output_folder and not args.object_storage:
