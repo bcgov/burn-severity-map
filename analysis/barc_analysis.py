@@ -612,7 +612,7 @@ class InterimBurnSeverity:
         self.logger.info('Processing complete')
 
     def write_json(self, data: gpd.geodataframe, folder_path: str=None, os_path: str=None, file_name: str=None):
-
+        self.logger.info('Writing GeoJSON')
         if folder_path and self.use_folder:
             try:
                 data.to_file(os.path.join(folder_path, file_name), 'GeoJSON')
@@ -629,6 +629,7 @@ class InterimBurnSeverity:
                 self.logger.error(f'Error writing object storage file {os_path}: {e}')    
 
     def write_shapefile(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None, file_name: str=None):
+        self.logger.info('Writing shapefile')
         temp_dir = None
         if folder_path and self.use_folder:
             out_path = os.path.join(folder_path, 'shapefile')
@@ -701,6 +702,7 @@ class InterimBurnSeverity:
         writes pdf map to file or object storage
 
         '''
+        self.logger.info('Writing pdf map')
         temp_folder = Path(os.getenv('TMPDIR','/tmp'))
         file='fire_bs.geojson'
         # setup paths 
