@@ -120,9 +120,24 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
                   }`}
                   onClick={() => selectFire(option.fireNumber)}
                 >
-                  <span>{option.fireNumber} - {option.incidentName.includes(option.fireNumber) ? option.geogDescription : option.incidentName}</span>
+                  <span
+                    className='fire-label'
+                    title={`${option.fireNumber} - ${option.incidentName.includes(option.fireNumber) ? option.geogDescription : option.incidentName}`}
+                  >
+                    {option.fireNumber} - {option.incidentName.includes(option.fireNumber) ? option.geogDescription : option.incidentName}
+                  </span>
                   {option.isProcessed && (
-                    <span style={{ fontSize: '0.8em', backgroundColor: '#e0f7fa', color: '#006064', padding: '2px 6px', borderRadius: '4px' }}>
+                    <span
+                      className='processed-badge'
+                      style={{
+                        fontSize: '0.8em',
+                        backgroundColor: '#e0f7fa',
+                        color: '#006064',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        flexShrink: 0
+                      }}
+                    >
                       Processed
                     </span>
                   )}
