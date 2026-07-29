@@ -50,7 +50,7 @@ const BurnSeverityContent: React.FC = () => {
           id: props.FIRE_ID.toString(),
           fireNumber: cleanNum,
           isProcessed: !!props.is_processed,
-          incidentName: props.INCIDENT_NAME,
+          incidentName: props.INCIDENT_NAME && props.INCIDENT_NAME !== cleanNum ? props.INCIDENT_NAME : props.GEOGRAPHIC_DESCRIPTION,
           geogDescription: props.GEOGRAPHIC_DESCRIPTION,
           ignitionDate: props.IGNITION_DATE,
           lonLat: [coords[0], coords[1]],
