@@ -562,14 +562,17 @@ class InterimBurnSeverity:
 
             f_gdf = gpd.GeoDataFrame(pd.concat(lst_dfs, ignore_index=True), crs=lst_dfs[0].crs)
 
-
+            self.logger.info('    - Classifying severity')
             f_gdf['BURN_SEVERITY_RATING'] = f_gdf.apply(lambda x: self.classify_severity(x), axis=1)
             f_gdf = f_gdf.drop(['gridcode'], axis=1)
 
+            self.logger.info('    - Dissolving geometries by severity rating')
+            f_gdf =  f_gdf.dissolve(by=self.fld_burn_sev, as_index=False)
 
-
-
+            self.logger.info('    - Building topology')
             topo = tp.Topology(f_gdf, prequantize=True)
+
+            self.logger.info('    - Simplifying topology')
             s_gdf = topo.toposimplify(1).to_gdf().to_crs('EPSG:3005')
             clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number])
 
