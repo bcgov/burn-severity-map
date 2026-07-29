@@ -574,14 +574,18 @@ class InterimBurnSeverity:
 
             self.logger.info('    - Simplifying topology')
             s_gdf = topo.toposimplify(1).to_gdf().to_crs('EPSG:3005')
+
+            self.logger.info('    - Clipping to fire boundary')
             clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number])
 
+            self.logger.info('    - Exploding to singlepart')
             gpdf_singlepoly = clip_gdf.explode()
 
             gpdf_singlepoly['AREA_HA'] = gpdf_singlepoly.geometry.area/10000
             gpdf_singlepoly['FEATURE_AREA_SQM'] = gpdf_singlepoly.geometry.area
             gpdf_singlepoly['FEATURE_LENGTH_M'] = gpdf_singlepoly.geometry.length
 
+            self.logger.info('    - Projecting')
             gpdf_4326 = gpdf_singlepoly.to_crs(4326)
             # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
             self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
