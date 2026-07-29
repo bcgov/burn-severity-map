@@ -193,7 +193,6 @@ class InterimBurnSeverity:
         fires = WFS.get_data(dataset=ds_poly, query=fire_sql, fields=poly_fields)
         if not fires:
             return None, 0
-        self.logger.info(fires)
         gdf_fires = gpd.GeoDataFrame.from_features(features=fires, crs=3005)
         gdf_fires.drop(columns=gdf_fires.columns.difference(poly_fields + ['geometry']), inplace=True)
         
@@ -201,7 +200,6 @@ class InterimBurnSeverity:
         if int_fire_count != 0:
 
             fire_points = WFS.get_data(dataset=ds_point, query=fire_sql, fields=point_fields)
-            self.logger.info(fire_points)
             gdf_points = gpd.GeoDataFrame.from_features(features=fire_points, crs=3005)
             gdf_points.drop(columns=gdf_points.columns.difference(self.lst_fire_point_fields), inplace=True)
             gdf_points[self.fld_fire_ign_date] = pd.to_datetime(gdf_points[self.fld_fire_ign_date], format='%Y-%m-%dZ')
@@ -505,102 +503,111 @@ class InterimBurnSeverity:
                      f.write(f'\n{err}')
 
     def conversion(self, barc, meta):
+        try:
+            lst_dfs = []
 
-        lst_dfs = []
-    
-        # barc_name = os.path.basename(barc_tif)
-        self.logger.info('Converting to polygon')
+            # barc_name = os.path.basename(barc_tif)
+            self.logger.info('Converting to polygon')
 
-        results = ({'properties': {'raster_val': v}, 'geometry': s}
-                    for i, (s, v) in enumerate(shapes(barc, mask=None, transform=meta['transform'])))
-
-
-
-        geoms = list(results)
-        gdf = gpd.GeoDataFrame.from_features(geoms, crs=meta['crs'])
-        gdf = gdf.drop(gdf[gdf.raster_val > 4].index)
-        gdf = gdf.rename({'raster_val': 'gridcode'}, axis=1)
-        #FIRE_NUMBER
-        f = 'FIRE_NUMBER'
-        gdf[f] = self.fire_number
-        self.logger.info('    - added fire number to feature class')
-        #FIRE_YEAR
-        f = 'FIRE_YEAR'
-        gdf[f] = self.fire_year
-        self.logger.info('    - added fire_year to feature class')
-        #PRE_FIRE_IMAGE
-        f = 'PRE_FIRE_IMAGE'
-        # pre_fire_image_list = data_dict['pre_scenes']
-        pre_fire_image = ','.join(self.dict_fires[self.fire_number].lst_pre_image)
-        gdf[f] = pre_fire_image
-        self.logger.info('    - added pre img to feature class')
-        #PRE_FIRE_IMAGE_DATE
-        f = "PRE_FIRE_IMAGE_DATE"
-        pre_img_date_str = ','.join([dt for dt in list(set(self.dict_fires[self.fire_number].lst_pre_dates))])
-        gdf[f] = pre_img_date_str
-        self.logger.info('    - added pre img date to feature class')
-        #POST_FIRE_IMAGE
-        f = 'POST_FIRE_IMAGE'
-        # post_fire_image_list = data_dict['post_scenes']
-        post_fire_image = ','.join(self.dict_fires[self.fire_number].lst_post_image)
-        gdf[f] = post_fire_image
-        self.logger.info('    - added post img to feature class')
-        #POST_FIRE_IMAGE_DATE
-        f = "POST_FIRE_IMAGE_DATE"
-        post_img_date_str = ','.join([dt for dt in list(set(self.dict_fires[self.fire_number].lst_post_dates))])
-        gdf[f] = post_img_date_str
-        self.logger.info('    - added post img date to feature class')
-        #COMMENTS
-        f = "COMMENTS"
-        gdf[f] = ''
-        gdf[self.fld_fire_status] = self.fire_status
-        lst_dfs.append(gdf)
-
-        f_gdf = gpd.GeoDataFrame(pd.concat(lst_dfs, ignore_index=True), crs=lst_dfs[0].crs)
+            results = ({'properties': {'raster_val': v}, 'geometry': s}
+                        for i, (s, v) in enumerate(shapes(barc, mask=None, transform=meta['transform'])))
 
 
-        f_gdf['BURN_SEVERITY_RATING'] = f_gdf.apply(lambda x: self.classify_severity(x), axis=1)
-        f_gdf = f_gdf.drop(['gridcode'], axis=1)
+
+            geoms = list(results)
+            gdf = gpd.GeoDataFrame.from_features(geoms, crs=meta['crs'])
+            gdf = gdf.drop(gdf[gdf.raster_val > 4].index)
+            gdf = gdf.rename({'raster_val': 'gridcode'}, axis=1)
+            #FIRE_NUMBER
+            f = 'FIRE_NUMBER'
+            self.logger.info(f'    - adding {self.fire_number} to {f}')
+            gdf[f] = self.fire_number
+            self.logger.info('    - added fire number to feature class')
+            #FIRE_YEAR
+            f = 'FIRE_YEAR'
+            self.logger.info(f'    - adding {self.fire_year} to {f}')
+            gdf[f] = self.fire_year
+            self.logger.info('    - added fire_year to feature class')
+            #PRE_FIRE_IMAGE
+            f = 'PRE_FIRE_IMAGE'
+            # pre_fire_image_list = data_dict['pre_scenes']
+            pre_fire_image = ','.join(self.dict_fires[self.fire_number].lst_pre_image)
+            self.logger.info(f'    - adding {pre_fire_image} to {f}')
+            gdf[f] = pre_fire_image
+            self.logger.info('    - added pre img to feature class')
+            #PRE_FIRE_IMAGE_DATE
+            f = "PRE_FIRE_IMAGE_DATE"
+            pre_img_date_str = ','.join([dt for dt in list(set(self.dict_fires[self.fire_number].lst_pre_dates))])
+            self.logger.info(f'    - adding {pre_img_date_str} to {f}')
+            gdf[f] = pre_img_date_str
+            self.logger.info('    - added pre img date to feature class')
+            #POST_FIRE_IMAGE
+            f = 'POST_FIRE_IMAGE'
+            # post_fire_image_list = data_dict['post_scenes']
+            post_fire_image = ','.join(self.dict_fires[self.fire_number].lst_post_image)
+            self.logger.info(f'    - adding {post_fire_image} to {f}')
+            gdf[f] = post_fire_image
+            self.logger.info('    - added post img to feature class')
+            #POST_FIRE_IMAGE_DATE
+            f = "POST_FIRE_IMAGE_DATE"
+            post_img_date_str = ','.join([dt for dt in list(set(self.dict_fires[self.fire_number].lst_post_dates))])
+            self.logger.info(f'    - adding {post_img_date_str} to {f}')
+            gdf[f] = post_img_date_str
+            self.logger.info('    - added post img date to feature class')
+            #COMMENTS
+            f = "COMMENTS"
+            gdf[f] = ''
+            gdf[self.fld_fire_status] = self.fire_status
+            lst_dfs.append(gdf)
+
+            f_gdf = gpd.GeoDataFrame(pd.concat(lst_dfs, ignore_index=True), crs=lst_dfs[0].crs)
 
 
-        
+            f_gdf['BURN_SEVERITY_RATING'] = f_gdf.apply(lambda x: self.classify_severity(x), axis=1)
+            f_gdf = f_gdf.drop(['gridcode'], axis=1)
 
-        topo = tp.Topology(f_gdf, prequantize=True)
-        s_gdf = topo.toposimplify(1).to_gdf().to_crs('EPSG:3005')
-        clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number])
 
-        gpdf_singlepoly = clip_gdf.explode()
 
-        gpdf_singlepoly['AREA_HA'] = gpdf_singlepoly.geometry.area/10000
-        gpdf_singlepoly['FEATURE_AREA_SQM'] = gpdf_singlepoly.geometry.area
-        gpdf_singlepoly['FEATURE_LENGTH_M'] = gpdf_singlepoly.geometry.length
 
-        gpdf_4326 = gpdf_singlepoly.to_crs(4326)
-        # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
-        self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
-        self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
-        self.write_pdf_map(data=gpdf_4326,folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
-        # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
+            topo = tp.Topology(f_gdf, prequantize=True)
+            s_gdf = topo.toposimplify(1).to_gdf().to_crs('EPSG:3005')
+            clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number])
 
-        if self.use_folder:
-            try:
-                #recalculate AREA_HA field
-                self.logger.info('Creating final geodatabase')
+            gpdf_singlepoly = clip_gdf.explode()
 
-                #copy final layer to a new database
-                gdb_name_final = f'interim_burn_severity_{self.fire_year}'
+            gpdf_singlepoly['AREA_HA'] = gpdf_singlepoly.geometry.area/10000
+            gpdf_singlepoly['FEATURE_AREA_SQM'] = gpdf_singlepoly.geometry.area
+            gpdf_singlepoly['FEATURE_LENGTH_M'] = gpdf_singlepoly.geometry.length
 
-                #create fgdb to hold outputs:
-                output_gdb_final = self.out_gdb.replace('_temp','')
-                final_gdf = gpd.read_file(filename=output_gdb_final, layer=gdb_name_final, driver='OpenFileGDB')
-                final_gdf = final_gdf.explode()
-                if (final_gdf == self.fire_number).any().any():
-                    self.logger.info(f'{self.fire_number} exists in the database already, removing')
-                    final_gdf = final_gdf[final_gdf[self.fld_fire_num] != self.fire_number]
-                final_gdf = pd.concat([final_gdf, gpdf_singlepoly])
-                final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
-            except Exception as e:
-                gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
+            gpdf_4326 = gpdf_singlepoly.to_crs(4326)
+            # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
+            self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
+            self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
+            self.write_pdf_map(data=gpdf_4326,folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
+            # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
+
+            if self.use_folder:
+                try:
+                    #recalculate AREA_HA field
+                    self.logger.info('Creating final geodatabase')
+
+                    #copy final layer to a new database
+                    gdb_name_final = f'interim_burn_severity_{self.fire_year}'
+
+                    #create fgdb to hold outputs:
+                    output_gdb_final = self.out_gdb.replace('_temp','')
+                    final_gdf = gpd.read_file(filename=output_gdb_final, layer=gdb_name_final, driver='OpenFileGDB')
+                    final_gdf = final_gdf.explode()
+                    if (final_gdf == self.fire_number).any().any():
+                        self.logger.info(f'{self.fire_number} exists in the database already, removing')
+                        final_gdf = final_gdf[final_gdf[self.fld_fire_num] != self.fire_number]
+                    final_gdf = pd.concat([final_gdf, gpdf_singlepoly])
+                    final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
+                except Exception as e:
+                    gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
+        except Exception as e:
+            self.logger.error(f'Error in conversion: {e}')
+            return
 
         self.logger.info('Processing complete')
 
