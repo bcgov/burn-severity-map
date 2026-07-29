@@ -42,12 +42,16 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
     return [...fires].sort((a, b) => sortAlphaNumeric(a.fireNumber, b.fireNumber));
   }, [fires]);
 
-  const filteredFires = useMemo(() =>
-      sortedFires.filter(f =>
-        f.fireNumber.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [sortedFires, searchTerm]
-  );
+  const filteredFires = useMemo(() => {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    
+    return sortedFires.filter(f => {
+        const matchFireNumber = f.fireNumber.toLowerCase().includes(lowerSearchTerm);
+        const matchIncidentName = f.incidentName?.toLowerCase().includes(lowerSearchTerm);
+
+        return matchFireNumber || matchIncidentName;
+    });
+  }, [sortedFires, searchTerm]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -90,7 +94,7 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
         placeholder={
           disabled
             ? 'Select a year first'
-            : selectedFire || 'Search fire number...'
+            : selectedFire || 'Search fire number or name...'
         }
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
@@ -116,9 +120,24 @@ const FireNumberSelector: React.FC<FireNumberSelectorProps> = ({
                   }`}
                   onClick={() => selectFire(option.fireNumber)}
                 >
-                  <span>{option.fireNumber} - {option.incidentName.includes(option.fireNumber) ? option.geogDescription : option.incidentName}</span>
+                  <span
+                    className='fire-label'
+                    title={`${option.fireNumber} - ${option.incidentName.includes(option.fireNumber) ? option.geogDescription : option.incidentName}`}
+                  >
+                    {option.fireNumber} - {option.incidentName.includes(option.fireNumber) ? option.geogDescription : option.incidentName}
+                  </span>
                   {option.isProcessed && (
-                    <span style={{ fontSize: '0.8em', backgroundColor: '#e0f7fa', color: '#006064', padding: '2px 6px', borderRadius: '4px' }}>
+                    <span
+                      className='processed-badge'
+                      style={{
+                        fontSize: '0.8em',
+                        backgroundColor: '#e0f7fa',
+                        color: '#006064',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        flexShrink: 0
+                      }}
+                    >
                       Processed
                     </span>
                   )}

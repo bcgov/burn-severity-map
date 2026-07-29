@@ -95,6 +95,7 @@
 
 // Fire Selector
 .bcgov-fire-selector {
+  position: relative;
   width: 100%;
 
   &-header {
@@ -395,4 +396,32 @@
     cursor: pointer;
     user-select: none;
   }
+}
+
+.bcgov-fire-selector-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  .fire-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+    min-width: 0;
+    margin-right: 8px;
+  }
+}
+
+.bcgov-fire-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
