@@ -126,10 +126,11 @@ async def sync_burn_severity(year:str, fire_number: str):
             logger.info(f'Loading new bs to application {year}-{fire_number}')
             fire_list = get_unique_fire_numbers()
             if fire_number not in fire_list:
-                await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json)
+                await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json, fire_number)
             else:
-                logger.info(f'Fire {fire_number} already has a burn severity classification')
-                raise HTTPException(status_code=404, detail=(f'Fire {fire_number} already has a burn severity classification'))
+                logger.info(f'Fire {fire_number} already has a burn severity classification, overwriting')
+                await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json, fire_number, overwrite=True)
+                # raise HTTPException(status_code=404, detail=(f'Fire {fire_number} already has a burn severity classification'))
         else:
             logger.debug(f'{len(fire_jsons)} json files matching pattern. Expecting 1')
             raise HTTPException(status_code=500, detail=(f'{len(fire_jsons)} json files matching pattern. Expecting 1'))

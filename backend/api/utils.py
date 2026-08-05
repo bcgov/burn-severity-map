@@ -115,7 +115,9 @@ def format_file_size(size: float):
 
 def append_geojson_to_geoparquet_s3(
     new_geojson_s3_obj_key: str, # Can be a Feature or a FeatureCollection
-    geoparquet_key: str = PARQUET_PATH
+    fire_number: str,
+    overwrite: bool = False,
+    geoparquet_key: str = PARQUET_PATH,
 ):
     """
     Appends new GeoJSON data (Feature or FeatureCollection) to an existing
@@ -176,6 +178,10 @@ def append_geojson_to_geoparquet_s3(
         elif existing_gdf.crs and new_gdf.crs is None:
             logger.warning("Warning: Existing data has CRS, new data has none. Assigning existing CRS to new data for consistency.")
             new_gdf.crs = existing_gdf.crs
+
+        if fire_number and overwrite:
+            logger.info('Filtering out existing fire')
+            existing_gdf = existing_gdf[existing_gdf['FIRE_NUMBER'] != fire_number]
 
         # Concatenate new data
         combined_gdf = pd.concat([existing_gdf, new_gdf], ignore_index=True)
