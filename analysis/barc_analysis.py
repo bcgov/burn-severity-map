@@ -8,7 +8,6 @@ from collections import defaultdict
 import rasterio
 from rasterio.features import shapes, sieve
 from rasterio.io import MemoryFile
-import topojson as tp
 from rio_cogeo.profiles import cog_profiles
 from rio_cogeo.cogeo import cog_translate
 from io import BytesIO
@@ -477,7 +476,7 @@ class InterimBurnSeverity:
                 self.logger.info('Writing barc to file')
                 self.write_raster(data=barc.astype(np.uint8), meta=s_class_meta, folder_path=output_barc_path, os_path=os_barc_path)
 
-                self.logger.info('Filtering barc to remove fragments less thatn 10 m2')
+                self.logger.info('Filtering barc to remove fragments less than 10 m2')
                 barc_filter = sieve(source=barc.astype(np.uint8), size=10)
 
                 filter_meta = s_class_meta.copy()
@@ -511,8 +510,6 @@ class InterimBurnSeverity:
 
             results = ({'properties': {'raster_val': v}, 'geometry': s}
                         for i, (s, v) in enumerate(shapes(barc, mask=None, transform=meta['transform'])))
-
-
 
             geoms = list(results)
             gdf = gpd.GeoDataFrame.from_features(geoms, crs=meta['crs'])
@@ -568,12 +565,7 @@ class InterimBurnSeverity:
 
             self.logger.info('    - Dissolving geometries by severity rating')
             f_gdf =  f_gdf.dissolve(by=self.fld_burn_sev, as_index=False)
-
-            self.logger.info('    - Building topology')
-            topo = tp.Topology(f_gdf, prequantize=True)
-
-            self.logger.info('    - Simplifying topology')
-            s_gdf = topo.toposimplify(1).to_gdf().to_crs('EPSG:3005')
+            s_gdf = f_gdf.to_crs('EPSG:3005')
 
             self.logger.info('    - Clipping to fire boundary')
             clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number])
@@ -613,7 +605,7 @@ class InterimBurnSeverity:
                 except Exception as e:
                     gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
         except Exception as e:
-            self.logger.error(f'Error in conversion: {e}')
+            self.logger.error(f'Error in conversion: {e} \n Traceback: {traceback.print_exc()}')
             return
 
         self.logger.info('Processing complete')
