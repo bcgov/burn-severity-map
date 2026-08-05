@@ -58,6 +58,7 @@ class Environment:
         sh = logging.StreamHandler()
         sh.setLevel(args.log_level)
         sh.setFormatter(log_fmt)
+        sh.setStream(sys.stdout)
         logger.addHandler(sh)
 
         if args.log_dir:

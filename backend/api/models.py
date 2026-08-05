@@ -6,9 +6,9 @@ class FeatureProperties(BaseModel):
     FIRE_NUMBER: str
     FIRE_YEAR: int
     PRE_FIRE_IMAGE: str
-    PRE_FIRE_IMAGE_DATE: date
+    PRE_FIRE_IMAGE_DATE: str
     POST_FIRE_IMAGE: str
-    POST_FIRE_IMAGE_DATE: date
+    POST_FIRE_IMAGE_DATE: str
     COMMENTS: Optional[str]
     FIRE_STATUS: str
     BURN_SEVERITY_RATING: str
