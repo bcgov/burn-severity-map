@@ -36,16 +36,20 @@ const BurnSeverityLegend: React.FC<BurnSeverityLegendProps> = ({ isVisible, onCl
           <span>High</span>
         </div>
         <div className="legend-item">
-          <div className="color-box moderate"></div>
-          <span>Moderate</span>
+          <div className="color-box medium"></div>
+          <span>Medium</span>
         </div>
         <div className="legend-item">
           <div className="color-box low"></div>
           <span>Low</span>
         </div>
         <div className="legend-item">
-          <div className="color-box unburnt"></div>
-          <span>Unburnt</span>
+          <div className="color-box unburned"></div>
+          <span>Unburned</span>
+        </div>
+        <div className="legend-item">
+          <div className="color-box unknown"></div>
+          <span>Unknown</span>
         </div>
       </div>
     </div>

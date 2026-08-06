@@ -19,8 +19,9 @@ import BurnSeverity from "./pages/burn-severity";
 import ConfigurationApp from "./pages/severity-configuration";
 import Callback from './pages/Callback'; // Your OIDC callback page
 
-
 import ProtectedRoute from './auth/ProtectedRoute'; // Your protected route component
+
+import { BURN_SEVERITY_COLOURS } from './utils/severityColours';
 
 // Your main App component, which correctly sets up AuthProvider and Routes
 const AppContent: React.FC = () => {
@@ -71,6 +72,13 @@ const appElement = document.getElementById("app");
 
 // Only render the app if the root element is found in the DOM
 if (appElement) {
+
+  // Add in the standardized burn severity colours to the css sheets
+
+  Object.entries(BURN_SEVERITY_COLOURS).forEach(([key, value]) => {
+    document.documentElement.style.setProperty(`--colour-${key}`, value);
+  });
+
   ReactDOM.createRoot(appElement).render(
     <React.StrictMode> {/* Good practice to wrap in StrictMode for development */}
       <App /> {/* Render your main App component */}

@@ -83,19 +83,23 @@
     }
     
     &.high {
-      border-left-color: #d73027;
+      border-left-color: var(--colour-high);
     }
     
     &.medium {
-      border-left-color: #fc8d59;
+      border-left-color: var(--colour-medium);
     }
     
     &.low {
-      border-left-color: #fee08b;
+      border-left-color: var(--colour-low);
     }
     
     &.unburned {
-      border-left-color: #91cf60;
+      border-left-color: var(--colour-unburned);
+    }
+
+    &.unknown {
+      border-left-color: var(--colour-unknown);
     }
     
     .severity-header {
@@ -112,19 +116,23 @@
       }
       
       .high .severity-indicator {
-        background-color: #d73027;
+        background-color: var(--colour-high);
       }
       
       .medium .severity-indicator {
-        background-color: #fc8d59;
+        background-color: var(--colour-medium);
       }
       
       .low .severity-indicator {
-        background-color: #fee08b;
+        background-color: var(--colour-low);
       }
       
       .unburned .severity-indicator {
-        background-color: #91cf60;
+        background-color: var(--colour-unburned);
+      }
+
+      .unknown .severity-indicator {
+        background-color: var(--colour-unknown);
       }
       
       .severity-name {
@@ -292,23 +300,23 @@
         }
         
         &.high td:first-child {
-          border-left: 4px solid #d73027;
+          border-left: 4px solid var(--colour-high);
         }
         
         &.medium td:first-child {
-          border-left: 4px solid #fc8d59;
+          border-left: 4px solid var(--colour-medium);
         }
         
         &.low td:first-child {
-          border-left: 4px solid #fee08b;
+          border-left: 4px solid var(--colour-low);
         }
         
         &.unburned td:first-child {
-          border-left: 4px solid #91cf60;
+          border-left: 4px solid var(--colour-unburned);
         }
         
         &.unknown td:first-child {
-          border-left: 4px solid #999;
+          border-left: 4px solid var(--colour-unknown);
         }
         
         td:first-child {
@@ -325,23 +333,23 @@
         margin-right: 10px;
         
         .high & {
-          background-color: #d73027;
+          background-color: var(--colour-high);
         }
         
         .medium & {
-          background-color: #fc8d59;
+          background-color: var(--colour-medium);
         }
         
         .low & {
-          background-color: #fee08b;
+          background-color: var(--colour-low);
         }
         
         .unburned & {
-          background-color: #91cf60;
+          background-color: var(--colour-unburned);
         }
         
         .unknown & {
-          background-color: #999;
+          background-color: var(--colour-unknown);
         }
       }
       
@@ -396,19 +404,23 @@
   // Severity color classes
   .severity-card {
     &.high .severity-indicator {
-      background-color: #d73027;
+      background-color: var(--colour-high);
     }
     
     &.medium .severity-indicator {
-      background-color: #fc8d59;
+      background-color: var(--colour-medium);
     }
     
     &.low .severity-indicator {
-      background-color: #fee08b;
+      background-color: var(--colour-low);
     }
     
     &.unburned .severity-indicator {
-      background-color: #91cf60;
+      background-color: var(--colour-unburned);
+    }
+
+    &.unknown .severity-indicator {
+      background-color: var(--colour-unknown);
     }
   }
 }

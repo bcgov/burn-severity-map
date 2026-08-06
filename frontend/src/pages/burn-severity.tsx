@@ -13,7 +13,7 @@ import { FireDataProvider, useFireData, FireOption } from '../components/FireDat
 
 const BurnSeverityContent: React.FC = () => {
   const { selectedYear, setSelectedYear, firePointsGeoJSON } = useFireData();
-  const [basemap, setBasemap] = useState('osm');
+  const [basemap, setBasemap] = useState('satellite');
   const [center] = useState<[number, number]>([-126.5, 54.5]);
   const [zoom] = useState(5);
 

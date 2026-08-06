@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Accordion, Heading } from '@bcgov/design-system-react-components';
 import './BurnSeveritySummary.scss';
+import { BURN_SEVERITY_COLOURS } from '../../utils/severityColours';
 
 // Define the colors to match the map symbology
-const SEVERITY_COLORS = {
-  'High': '#d73027',      // Red
-  'Medium': '#fc8d59',    // Orange
-  'Moderate': '#fc8d59',  // Same orange for Moderate
-  'Low': '#fee08b',       // Yellow
-  'Unburned': '#91cf60',  // Green
-  'Unburnt': '#91cf60',   // Same green for Unburnt
-  'Unchanged': '#91cf60', // Same green for Unchanged
-  'Unknown': '#cccccc',   // Gray fallback
-};
+// const SEVERITY_COLORS = {
+//   'High': '#D61A1D',      // Red
+//   'Medium': '#E69800',    // Orange
+//   'Low': '#FFFF00',       // Yellow
+//   'Unburned': '#98E600',  // Green
+//   'Unknown': '#828282',   // Gray fallback
+// };
 
 // Interface for aggregated data
 interface SeveritySummary {
@@ -57,7 +55,7 @@ const BurnSeveritySummary: React.FC<BurnSeveritySummaryProps> = ({ featureCollec
         }
       });
 
-      const severityOrder = ['High', 'Medium', 'Moderate', 'Low', 'Unburned', 'Unburnt', 'Unchanged', 'Unknown'];
+      const severityOrder = ['High', 'Medium', 'Low', 'Unburned', 'Unknown'];
       const aggregatedData: SeveritySummary[] = Object.entries(severityGroups)
         .map(([severity, area]) => ({
           severity,
@@ -115,7 +113,7 @@ return (
               {summaryData.map(item => (
                 <tr key={item.severity}>
                   <td>
-                    <div className="severity-color" style={{ backgroundColor: SEVERITY_COLORS[item.severity as keyof typeof SEVERITY_COLORS] || '#cccccc' }}></div>
+                    <div className="severity-color" style={{ backgroundColor: BURN_SEVERITY_COLOURS[item.severity.toLowerCase() as keyof typeof BURN_SEVERITY_COLOURS]}}></div>
                     {item.severity}
                   </td>
                   <td>{item.area.toFixed(2)}</td>
@@ -133,7 +131,7 @@ return (
               className="chart-bar"
               style={{
                 width: `${item.percentage}%`,
-                backgroundColor: SEVERITY_COLORS[item.severity as keyof typeof SEVERITY_COLORS] || '#cccccc',
+                backgroundColor: BURN_SEVERITY_COLOURS[item.severity.toLowerCase() as keyof typeof BURN_SEVERITY_COLOURS],
               }}
               title={`${item.severity}: ${item.area.toFixed(2)} ha (${item.percentage.toFixed(1)}%)`}
             >

@@ -54,19 +54,23 @@
       border: 1px solid #333;
       
       &.high {
-        background-color: rgba(204, 0, 0, 0.6); /* #d73027 with opacity */
+        background-color: var(--colour-high);
       }
       
-      &.moderate {
-        background-color: rgba(255, 153, 51, 0.6); /* #fc8d59 with opacity */
+      &.medium {
+        background-color: var(--colour-medium);
       }
       
       &.low {
-        background-color: rgba(255, 255, 0, 0.6); /* #fee08b with opacity */
+        background-color: var(--colour-low);;
       }
       
-      &.unburnt {
-        background-color: rgba(0, 0, 0, 0.1); /* Transparent black */
+      &.unburned {
+        background-color: var(--colour-unburned);;
+      }
+
+      &.unknown {
+        background-color: var(--colour-unknown);;
       }
     }
     

@@ -13,7 +13,7 @@ const BasemapSelector: React.FC<BasemapSelectorProps> = ({
   const [isExpanded, setIsExpanded] = useState(true);
 
   const basemapOptions = [
-    { id: 'osm', name: 'OpenStreetMap' },
+    { id: 'osm', name: 'Open Street Map' },
     { id: 'satellite', name: 'Satellite' }
   ];
 

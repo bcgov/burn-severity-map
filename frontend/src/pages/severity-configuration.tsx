@@ -23,6 +23,7 @@ import FireSelector_db from '../components/ol-maps/FireSelector_db';
 import BasemapSelector from '../components/ol-maps/BasemapSelector';
 import { getFireData, getFireNumbers } from '../utils/apiService';
 import { FireDataProvider, useFireData, FireOption} from '../components/FireDataContext';
+import { BURN_SEVERITY_COLOURS } from '../utils/severityColours';
 
 import OLMap from '../components/ol-maps/OLMap';
 
@@ -38,7 +39,7 @@ const ConfigurationApp: React.FC = () => {
   // const [perimeterLayerUrl, setPerimeterLayerUrl] = useState<string | null>(null);
   const [center, setCenter] = useState<[number, number]>([-126.5, 54.5]);
   const [zoom, setZoom] = useState(5);
-  const [basemap, setBasemap] = useState('osm');
+  const [basemap, setBasemap] = useState('satellite');
   const [selectedFire, setSelectedFire] = useState<FireOption | null>(null);
   // const [fires, setFires] = useState<Fire[]>([]);
   const [analysisFire, setAnalysisFire] = useState<string | null>(null);
@@ -168,12 +169,14 @@ const ConfigurationApp: React.FC = () => {
 
       const newLayer = new VectorLayer({
         source: vectorSource,
+        opacity: 0.6,
         style: (feature) => {
           const burnSeverity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
-          let fillColor = 'rgba(0,0,0,0.1)';
-          if (burnSeverity === 'High') fillColor = 'rgba(204,0,0,0.6)';
-          else if (burnSeverity === 'Medium' || burnSeverity === 'Moderate') fillColor = 'rgba(255,153,51,0.6)';
-          else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.6)';
+          let fillColor = BURN_SEVERITY_COLOURS[burnSeverity.toLowerCase() as keyof typeof BURN_SEVERITY_COLOURS];
+          // if (burnSeverity === 'High') fillColor = 'rgba(214,26,29,0.7)';
+          // else if (burnSeverity === 'Medium') fillColor = 'rgba(230,152,0,0.7)';
+          // else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.7)';
+          // else if (burnSeverity === 'Unburned') fillColor = 'rgba(152,230,0,0.7)'
           return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
         }
       });
