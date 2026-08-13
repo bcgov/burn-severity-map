@@ -37,7 +37,7 @@ print("\t... Success")
 # Processing.initialize()
 
 
-def bs_map_exporter(qgis_project:str,burn_severity_geojson:str,output:str,layer_name:str = 'bs',layout_name='burnmap') -> str:
+def bs_map_exporter(qgis_project:str, burn_severity_geojson:str, fire_perimeter_geojson:str, output:str, layer_name:str = 'Burn Severity',layout_name='burnmap') -> str:
     
 
     """
@@ -60,6 +60,10 @@ def bs_map_exporter(qgis_project:str,burn_severity_geojson:str,output:str,layer_
 
     q_proj = QgsProject.instance()
     q_proj.read(qgis_project)
+
+    layers = q_proj.mapLayersByName('Fire Perimeter')
+    layers[0].setDataSource(dataSource=fire_perimeter_geojson)
+
     # update bs datasouce
     layers = q_proj.mapLayersByName(layer_name)
     layers[0].setDataSource(dataSource=burn_severity_geojson)
