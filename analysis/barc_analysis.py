@@ -231,7 +231,7 @@ class InterimBurnSeverity:
             self.gdf_fires, int_fire_count = self.get_fire(ds_poly=self.__historic_perimeters, ds_point=self.__historic_points, fire_sql=fire_sql, 
                                                            poly_fields=[fld for fld in self.lst_fire_fields if fld != self.fld_fire_status], 
                                                            point_fields=self.lst_fire_point_fields)
-            
+            self.fire_status = 'Out'
             if int_fire_count == 0:
                 self.logger.error(f'The year and fire number combination of {self.fire_year} and {self.fire_number} does not exist in the current or historical datasets.  Please try a different combination')
                 return False
@@ -246,9 +246,12 @@ class InterimBurnSeverity:
             else:
                 ign_date = self.start_date
                 self.gdf_fires.at[i, self.fld_fire_ign_date] = self.start_date
+
+            self.logger.info(self.gdf_fires.at[i, self.fld_fire_status])
+            if not self.bl_historical:
+                self.fire_status = self.gdf_fires.at[i, self.fld_fire_status]
+            
             if not self.end_date:
-                if not self.bl_historical:
-                    self.fire_status = self.gdf_fires.at[i, self.fld_fire_status]
                 if self.fire_status == 'Out' or self.bl_historical:
                     out_date = self.gdf_fires.at[i, self.fld_fire_out_date]
                 else:
@@ -263,7 +266,7 @@ class InterimBurnSeverity:
         str_ign_date = ign_date.strftime('%Y-%m-%d')
         str_out_date = out_date.strftime('%Y-%m-%d')
 
-        self.logger.info(f'Fire {self.fire_number} ignited on {str_ign_date} and was extinguished on {str_out_date}')
+        self.logger.info(f'Fire {self.fire_number} with status {self.fire_status} ignited on {str_ign_date} and was extinguished on {str_out_date}')
 
         ign_date = ign_date - timedelta(days=1)
         out_date = out_date
@@ -582,7 +585,7 @@ class InterimBurnSeverity:
             # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
             self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
             self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
-            self.write_pdf_map(data=gpdf_4326,folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
+            self.write_pdf_map(bs_data=gpdf_singlepoly, perim_data=self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number], folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
             # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
             if self.use_folder:
@@ -696,31 +699,38 @@ class InterimBurnSeverity:
         except Exception as e:
             self.logger.error(f'An unexpected error occured during COG creation: {e}')
 
-    def write_pdf_map(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> bool:
+    def write_pdf_map(self, bs_data: gpd.GeoDataFrame, perim_data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None,file_name: str=None, qgis_project: str='resources/bs-map.qgz') -> bool:
         '''
         writes pdf map to file or object storage
 
         '''
         self.logger.info('Writing pdf map')
         temp_folder = Path(os.getenv('TMPDIR','/tmp'))
-        file='fire_bs.geojson'
+        bs_file='fire_bs.geojson'
+        perim_file='fire_perim.geojson'
+
         # setup paths 
         # TODO: Fix this logic to fit combinations of local and object storage exports
         if folder_path and self.use_folder:
             folder_path = Path(folder_path)
-            output_geojson = folder_path.joinpath(file)
+            output_geojson = folder_path.joinpath(bs_file)
+            output_perim = folder_path.joinpath(perim_file)
             temp_pdf = temp_folder.joinpath(file_name)
         elif self.use_storage and os_path:
-            output_geojson = temp_folder.joinpath(file)
+            output_geojson = temp_folder.joinpath(bs_file)
+            output_perim = temp_folder.joinpath(perim_file)
             temp_pdf = temp_folder.joinpath(file_name)
 
         # export geojson for map layer new datasource
-        data.to_file(output_geojson, 'GeoJSON')
+        bs_data.to_file(output_geojson, 'GeoJSON')
         assert os.path.exists(output_geojson), f'Failed to find exported burn severity geojson: {output_geojson}'
+
+        perim_data.to_file(output_perim, 'GeoJSON')
+        assert os.path.exists(output_perim), f'Failed to find exported fire perimeter geojson: {output_perim}'
      
         # create pdf map using qgis template
-        result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson),\
-                    output=str(temp_pdf),layer_name='bs',layout_name='burnmap')
+        result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson), fire_perimeter_geojson=str(output_perim), 
+                                 output=str(temp_pdf),layer_name='Burn Severity',layout_name='burnmap')
         
         # write bs pdf to objectstore
         if self.use_storage:

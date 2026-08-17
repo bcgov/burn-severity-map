@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { BURN_SEVERITY_COLOURS } from '../../utils/severityColours';
 import './FireDetailsPanel.scss';
 
 // Interface for a single fire record similar to FireSelector_db
@@ -162,24 +163,25 @@ const FireDetailsPanel: React.FC<FireDetailsPanelProps> = ({ featureCollection, 
     const percentOfTotal = processedData.totalArea > 0 ? (areaTotal / processedData.totalArea * 100) : 0;
     
     // Assign a color based on severity class
-    let color = '';
-    switch (severity) {
-      case 'High':
-        color = '#ff0000'; // Red
-        break;
-      case 'Medium':
-        color = '#ff9900'; // Orange
-        break;
-      case 'Low':
-        color = '#33cc33'; // Green
-        break;
-      case 'Unburned':
-        color = '#3399ff'; // Blue
-        break;
-      default:
-        color = '#cccccc'; // Gray for unknown
-        break;
-    }
+    // let color = '';
+    // switch (severity) {
+    //   case 'High':
+    //     color = '#D61A1D'; // Red
+    //     break;
+    //   case 'Medium':
+    //     color = '#E69800'; // Orange
+    //     break;
+    //   case 'Low':
+    //     color = '#FFFF00'; // Yellow
+    //     break;
+    //   case 'Unburned':
+    //     color = '#98E600'; // Green
+    //     break;
+    //   default:
+    //     color = '#828282'; // Gray for unknown
+    //     break;
+    // }
+    let color = BURN_SEVERITY_COLOURS[severity.toLowerCase() as keyof typeof BURN_SEVERITY_COLOURS];
     
     return {
       severity,
