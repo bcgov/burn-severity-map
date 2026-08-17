@@ -87,14 +87,14 @@ def bs_map_exporter(qgis_project:str, burn_severity_geojson:str, fire_perimeter_
     ref_map = layout.referenceMap()
     ref_map.zoomToExtent(new_extent)
     scale = ref_map.scale()
-    new_scale = math.ceil(scale/10000)*10000 #up scale value to nearest 10,000
+    new_scale = math.ceil(scale/5000)*5000 #up scale value to nearest 5,000
     ref_map.setScale(new_scale)
     layout.refresh()
 
     # export'o-rama
     exporter = QgsLayoutExporter(layout)
     pdf_settings = QgsLayoutExporter.PdfExportSettings()
-    pdf_settings.dpi = 92
+    pdf_settings.dpi = 300
     pdf_settings.exportMetadata = False
     exporter.exportToPdf( output ,pdf_settings)
 

@@ -30,6 +30,7 @@ interface OLMapProps {
   selectedDbYear?: string | null;
   onVisibleFiresChange?: (fireNumbers: string[]) => void;
   onMapInit?: (map: Map) => void;
+  refreshTrigger?: number;
 }
 
 const OLMap: React.FC<OLMapProps> = ({
@@ -39,7 +40,8 @@ const OLMap: React.FC<OLMapProps> = ({
   selectedDbFire,
   selectedDbYear,
   onVisibleFiresChange,
-  onMapInit
+  onMapInit,
+  refreshTrigger = 0
 }) => {
   const { isAuthenticated } = useAuth();
   const { firePointsGeoJSON, firePolysGeoJSON } = useFireData();
@@ -107,7 +109,8 @@ const OLMap: React.FC<OLMapProps> = ({
             // else if (burnSeverity === 'Medium') fillColor = 'rgba(230,152,0,0.7)';
             // else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.7)';
             // else if (burnSeverity === 'Unburned') fillColor = 'rgba(152,230,0,0.7)'
-            return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
+            return new Style({ fill: new Fill({ color: fillColor }) });
+            // return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
           }
         });
 
@@ -310,7 +313,7 @@ const OLMap: React.FC<OLMapProps> = ({
         setShowSummary(false);
       }
     }
-  }, [selectedDbFire, selectedDbYear, fetchAndDisplayBurnGeometry]);
+  }, [selectedDbFire, selectedDbYear, refreshTrigger, fetchAndDisplayBurnGeometry]);
 
 
   useEffect(() => {
