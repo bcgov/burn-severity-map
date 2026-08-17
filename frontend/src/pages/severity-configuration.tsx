@@ -43,11 +43,12 @@ const ConfigurationApp: React.FC = () => {
   const [selectedFire, setSelectedFire] = useState<FireOption | null>(null);
   // const [fires, setFires] = useState<Fire[]>([]);
   const [analysisFire, setAnalysisFire] = useState<string | null>(null);
-  const resultsLayerRef = useRef<VectorLayer | null>(null);
-  const [resultsFeatureCollection, setResultsFeatureCollection] = useState<any | null>(null);
+  // const resultsLayerRef = useRef<VectorLayer | null>(null);
+  // const [resultsFeatureCollection, setResultsFeatureCollection] = useState<any | null>(null);
   const currentYear = String(new Date().getFullYear());
   const [visibleFireNumbers, setVisibleFireNumbers] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
 
   const availableYears = useMemo(() => {
@@ -149,61 +150,64 @@ const ConfigurationApp: React.FC = () => {
   // };
 
 
-  const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
-    if (!mapInstance) return;
-    try {
-      const featureCollection = await getFireData(selectedYear, fireNumber);
+  // const fetchAndDisplayBurnGeometry = useCallback(async (fireNumber: string) => {
+  //   if (!mapInstance) return;
+  //   try {
+  //     const featureCollection = await getFireData(selectedYear, fireNumber);
       
-      setResultsFeatureCollection(featureCollection);
+  //     setResultsFeatureCollection(featureCollection);
 
-      if (resultsLayerRef.current) {
-        mapInstance.removeLayer(resultsLayerRef.current);
-      }
+  //     if (resultsLayerRef.current) {
+  //       mapInstance.removeLayer(resultsLayerRef.current);
+  //     }
 
-      const vectorSource = new VectorSource({
-        features: new GeoJSON().readFeatures(featureCollection, {
-          featureProjection: 'EPSG:3857',
-          dataProjection: 'EPSG:4326'
-        })
-      });
+  //     const vectorSource = new VectorSource({
+  //       features: new GeoJSON().readFeatures(featureCollection, {
+  //         featureProjection: 'EPSG:3857',
+  //         dataProjection: 'EPSG:4326'
+  //       })
+  //     });
 
-      const newLayer = new VectorLayer({
-        source: vectorSource,
-        opacity: 0.6,
-        style: (feature) => {
-          const burnSeverity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
-          let fillColor = BURN_SEVERITY_COLOURS[burnSeverity.toLowerCase() as keyof typeof BURN_SEVERITY_COLOURS];
-          // if (burnSeverity === 'High') fillColor = 'rgba(214,26,29,0.7)';
-          // else if (burnSeverity === 'Medium') fillColor = 'rgba(230,152,0,0.7)';
-          // else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.7)';
-          // else if (burnSeverity === 'Unburned') fillColor = 'rgba(152,230,0,0.7)'
-          return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
-        }
-      });
-      newLayer.setOpacity(0.6);
-      mapInstance.addLayer(newLayer);
-      resultsLayerRef.current = newLayer;
+  //     const newLayer = new VectorLayer({
+  //       source: vectorSource,
+  //       opacity: 0.6,
+  //       style: (feature) => {
+  //         const burnSeverity = feature.get('BURN_SEVERITY_RATING') || feature.get('severity_class') || 'Unknown';
+  //         let fillColor = BURN_SEVERITY_COLOURS[burnSeverity.toLowerCase() as keyof typeof BURN_SEVERITY_COLOURS];
+  //         // if (burnSeverity === 'High') fillColor = 'rgba(214,26,29,0.7)';
+  //         // else if (burnSeverity === 'Medium') fillColor = 'rgba(230,152,0,0.7)';
+  //         // else if (burnSeverity === 'Low') fillColor = 'rgba(255,255,0,0.7)';
+  //         // else if (burnSeverity === 'Unburned') fillColor = 'rgba(152,230,0,0.7)'
+  //         return new Style({ fill: new Fill({ color: fillColor })});
+  //         // return new Style({ fill: new Fill({ color: fillColor }), stroke: new Stroke({ color: '#333', width: 1 }) });
+  //       }
+  //     });
+  //     newLayer.setOpacity(0.6);
+  //     mapInstance.addLayer(newLayer);
+  //     resultsLayerRef.current = newLayer;
 
-      if (vectorSource.getFeatures().length > 0) {
-        const extent = vectorSource.getExtent();
-        //fitMapToExtent(extent);
-      }
-    } catch (error) {
-      console.error('Failed to fetch or display burn geometry:', error);
-      if (resultsLayerRef.current) {
-        mapInstance.removeLayer(resultsLayerRef.current);
-        resultsLayerRef.current = null;
-      }
-    }
-  }, [mapInstance, selectedYear]);
+  //     if (vectorSource.getFeatures().length > 0) {
+  //       const extent = vectorSource.getExtent();
+  //       //fitMapToExtent(extent);
+  //     }
+  //   } catch (error) {
+  //     console.error('Failed to fetch or display burn geometry:', error);
+  //     if (resultsLayerRef.current) {
+  //       mapInstance.removeLayer(resultsLayerRef.current);
+  //       resultsLayerRef.current = null;
+  //     }
+  //   }
+  // }, [mapInstance, selectedYear]);
 
   const addAnalysisLayer = useCallback(() => {
-    if (!mapInstance) return;
+    console.log('Analysis complete. triggering map results')
+    setRefreshTrigger(prev => prev + 1);
+    // if (!mapInstance) return;
 
-    if (selectedFire && selectedFire.fireNumber) {
-      fetchAndDisplayBurnGeometry(selectedFire.fireNumber);
-    }
-  }, [mapInstance, selectedFire, fetchAndDisplayBurnGeometry]);
+    // if (selectedFire && selectedFire.fireNumber) {
+    //   fetchAndDisplayBurnGeometry(selectedFire.fireNumber);
+    // }
+  }, []);
 
   //useEffect for init of map
   useEffect(() => {
@@ -289,21 +293,21 @@ const ConfigurationApp: React.FC = () => {
   }, [center, zoom, mapInstance]);
 
   // useEffect to update map with analysis results
-  useEffect(() => {
-    if (!mapInstance) return;
+  // useEffect(() => {
+  //   if (!mapInstance) return;
 
-    // This effect runs when a new fire is selected, or when an analysis is triggered.
-    console.log('selectedFire', selectedFire)
-    if (selectedFire && selectedFire.fireNumber) {
-      fetchAndDisplayBurnGeometry(selectedFire.fireNumber);
-    } else {
-      // If no fire is selected, clear the results layer.
-      if (resultsLayerRef.current) {
-        mapInstance.removeLayer(resultsLayerRef.current);
-        resultsLayerRef.current = null;
-      }
-    }
-  }, [selectedFire,analysisFire, fetchAndDisplayBurnGeometry, mapInstance]);
+  //   // This effect runs when a new fire is selected, or when an analysis is triggered.
+  //   console.log('selectedFire', selectedFire)
+  //   if (selectedFire && selectedFire.fireNumber) {
+  //     fetchAndDisplayBurnGeometry(selectedFire.fireNumber);
+  //   } else {
+  //     // If no fire is selected, clear the results layer.
+  //     if (resultsLayerRef.current) {
+  //       mapInstance.removeLayer(resultsLayerRef.current);
+  //       resultsLayerRef.current = null;
+  //     }
+  //   }
+  // }, [selectedFire,analysisFire, fetchAndDisplayBurnGeometry, mapInstance]);
   return (
       <MapContext.Provider value={{ 
         map: mapInstance, 
@@ -351,6 +355,7 @@ const ConfigurationApp: React.FC = () => {
                 onVisibleFiresChange={setVisibleFireNumbers}
                 selectedDbFire={selectedDbFire}
                 selectedDbYear={selectedYear}
+                refreshTrigger={refreshTrigger}
               />
             </div>
             <div className="bcgov-basemap-selector">
