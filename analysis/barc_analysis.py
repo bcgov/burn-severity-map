@@ -41,7 +41,7 @@ def run_app():
             barc, meta = burn_sev.calculate_severity()
             burn_sev.conversion(barc=barc, meta=meta)
         except Exception as e:
-            logger.error(f'Could not complete the burn severity analysis: {e}')
+            logger.error(f'Could not complete the burn severity analysis: {e} \n Traceback: {traceback.print_exc()}')
         del burn_sev
 
 
@@ -189,25 +189,30 @@ class InterimBurnSeverity:
         pass
 
     def get_fire(self, ds_poly: str, ds_point:str, fire_sql: str, poly_fields: list, point_fields) -> tuple:
-        fires = WFS.get_data(dataset=ds_poly, query=fire_sql, fields=poly_fields)
-        if not fires:
-            return None, 0
-        gdf_fires = gpd.GeoDataFrame.from_features(features=fires, crs=3005)
-        gdf_fires.drop(columns=gdf_fires.columns.difference(poly_fields + ['geometry']), inplace=True)
-        
-        int_fire_count = gdf_fires.shape[0]
-        if int_fire_count != 0:
+        try:
+            self.logger.info(f'Pulling polygons from {ds_poly}')
+            fires = WFS.get_data(dataset=ds_poly, query=fire_sql, fields=poly_fields)
+            if not fires:
+                return None, 0
+            gdf_fires = gpd.GeoDataFrame.from_features(features=fires, crs=3005)
+            gdf_fires.drop(columns=gdf_fires.columns.difference(poly_fields + ['geometry']), inplace=True)
+            int_fire_count = gdf_fires.shape[0]
+            if int_fire_count != 0:
+                self.logger.info(f'Pulling points from {ds_point}')
+                fire_points = WFS.get_data(dataset=ds_point, query=fire_sql, fields=point_fields)
+                gdf_points = gpd.GeoDataFrame.from_features(features=fire_points, crs=3005)
+                gdf_points.drop(columns=gdf_points.columns.difference(self.lst_fire_point_fields), inplace=True)
+                gdf_points[self.fld_fire_ign_date] = pd.to_datetime(gdf_points[self.fld_fire_ign_date], format='%Y-%m-%dZ')
+                gdf_points[self.fld_fire_out_date] = pd.to_datetime(gdf_points[self.fld_fire_out_date], format='%Y-%m-%dZ')
+                gdf_fires = gdf_fires.merge(gdf_points, on=self.fld_fire_num)
+                print('Merging points to polygons')
 
-            fire_points = WFS.get_data(dataset=ds_point, query=fire_sql, fields=point_fields)
-            gdf_points = gpd.GeoDataFrame.from_features(features=fire_points, crs=3005)
-            gdf_points.drop(columns=gdf_points.columns.difference(self.lst_fire_point_fields), inplace=True)
-            gdf_points[self.fld_fire_ign_date] = pd.to_datetime(gdf_points[self.fld_fire_ign_date], format='%Y-%m-%dZ')
-            gdf_points[self.fld_fire_out_date] = pd.to_datetime(gdf_points[self.fld_fire_out_date], format='%Y-%m-%dZ')
-            gdf_fires = gdf_fires.merge(gdf_points, on=self.fld_fire_num)
-
-            if int_fire_count > 1:
-                gdf_fires = gdf_fires.dissolve()
-                int_fire_count = gdf_fires.shape[0]
+                if int_fire_count > 1:
+                    gdf_fires = gdf_fires.dissolve()
+                    int_fire_count = gdf_fires.shape[0]
+        except Exception as e:
+            self.logger.error(f'Error in gathering fires: {e} \n Traceback: {traceback.print_exc()}')
+            return
         return gdf_fires, int_fire_count
 
     def gather_spatial(self) -> None:
@@ -247,7 +252,6 @@ class InterimBurnSeverity:
                 ign_date = self.start_date
                 self.gdf_fires.at[i, self.fld_fire_ign_date] = self.start_date
 
-            self.logger.info(self.gdf_fires.at[i, self.fld_fire_status])
             if not self.bl_historical:
                 self.fire_status = self.gdf_fires.at[i, self.fld_fire_status]
             
