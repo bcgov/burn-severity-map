@@ -11,6 +11,7 @@ from rasterio import merge
 from shapely.geometry import shape, box
 from datetime import timedelta
 import logging
+import planetary_computer
 
 class STAC:
     s2_stac_url = 'https://earth-search.aws.element84.com/v1'
@@ -54,6 +55,8 @@ class STAC:
                 )
 
                 for item in search.items():
+                    if sensor == 'LS':
+                        item = planetary_computer.sign(item)
                     self.logger.info(f'    - Found specified tile: {item.id}')
                     selected_items.append(item)
                     searched_item_ids.add(item.id)
@@ -105,6 +108,8 @@ class STAC:
                             break # Found the best available candidate for this iteration
                         
                     if best_item_found:
+                        if sensor == 'LS':
+                            best_item_found = planetary_computer.sign(best_item_found)
                         item_id = best_item_found.id
                         item_date = best_item_found.datetime.date()
                         cloud_cover = best_item_found.properties.get('eo:cloud_cover', 'N/A')
@@ -259,6 +264,12 @@ class STAC:
         elif 'B08' in item.assets and 'B12' in item.assets:
             nir_asset_key = 'B08'
             swir_asset_key = 'B12'
+        elif 'SR_B5' in item.assets and 'SR_B7' in item.assets:
+            nir_asset_key = 'SR_B5'
+            swir_asset_key = 'SR_B7'
+        elif 'SR_B4' in item.assets and 'SR_B7' in item.assets:
+            nir_asset_key = 'SR_B4'
+            swir_asset_key = 'SR_B7'
         else:
             available_keys = list(item.assets.keys())
             self.logger.info(f'Error: Could not find required NIR (B8) or SWIR (B12) band assets in STAC item \'{item.id}\'.')
@@ -396,7 +407,13 @@ class STAC:
         Internal helper to create a 3-band RGB array for one STAC item, clipped to the perimeter's BOUNDING BOX.
         If target_crs is provided, the tile is reprojected.
         """
-        band_keys = {'red': ('B04', 'red'), 'green': ('B03', 'green'), 'blue': ('B02', 'blue')}
+        platform = item.properties.get('platform', '').lower()
+        if platform in ['landsat-4', 'landsat-5', 'landsat-7']: # landsat 4/5/7
+            band_keys = {'red': ('SR_B3',), 'green': ('SR_B2',), 'blue': ('SR_B1',)}
+        elif 'landsat' in platform: # landsat 8/9
+            band_keys = {'red': ('SR_B4',), 'green': ('SR_B3',), 'blue': ('SR_B2',)}
+        else: # sentinel
+            band_keys = {'red': ('B04', 'red'), 'green': ('B03', 'green'), 'blue': ('B02', 'blue')}
         assets = {}
         for band, keys in band_keys.items():
             found_key = next((k for k in keys if k in item.assets), None)

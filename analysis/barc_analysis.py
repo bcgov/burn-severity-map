@@ -71,8 +71,8 @@ def get_input_parameters():
         if not args.output_folder and not args.object_storage:
             raise ValueError('An output folder and/or and the object storage folder must be indicated.  Use the -f and -o flags')
         
-        if str(args.sensor) != 'S2':
-            raise AttributeError('The analysis can only use Sentinel 2 imagery at this time.  Please change the parameter to \'S2\'')
+        # if str(args.sensor) != 'S2':
+        #     raise AttributeError('The analysis can only use Sentinel 2 imagery at this time.  Please change the parameter to \'S2\'')
 
         logger = Environment.setup_logger(args)
 
