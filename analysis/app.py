@@ -110,7 +110,7 @@ def run_analysis_endpoint():
     # Extract parameters from the JSON payload
     fire = data.get('fire') # fire number in the format like N51605 where the fire number allways is a alphabetical character followed by 5 numbers
     year = data.get('year') # fire year ranging from 2020 to current year
-    sensor = data.get('sensor') # must be from a list of  ['S2'] may be expanded to include Landsat
+    sensor = data.get('sensor') # must be from a list of  ['S2', 'LS'] may be expanded to include Landsat
     s_date = data.get('s_date') # date in format "2025-08-04"
     e_date = data.get('e_date') # date in format "2025-08-04"
     cloud = data.get('cloud', '10') # number in range 0:100
@@ -122,11 +122,11 @@ def run_analysis_endpoint():
 
     # Validate year
     current_year = datetime.now().year
-    if not isinstance(year, int) or not (2020 <= year <= current_year):
+    if not isinstance(year, int) or not (1984 <= year <= current_year):
         return jsonify({"error": f"Invalid year. Must be between 2020 and {current_year}."}), 400
 
     # Validate sensor
-    allowed_sensors = ['S2']  # Expand this list as needed
+    allowed_sensors = ['S2', 'LS']  # Expand this list as needed
     if sensor not in allowed_sensors:
         return jsonify({"error": f"Invalid sensor. Allowed values: {allowed_sensors}"}), 400
 
