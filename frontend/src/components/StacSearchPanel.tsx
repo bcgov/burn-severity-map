@@ -10,6 +10,12 @@ import { PuffLoader } from 'react-spinners';
 import { syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
 import { runBurnSeverityAnalysis, AnalysisRequest } from '../utils/apiService';
+import SensorSelector, { SensorOption } from './ol-maps/SensorSelector';
+
+const SENSOR_OPTIONS: SensorOption[] = [
+  { label: 'Sentinel-2', value: 'S2' },
+  { label: 'Landsat', value: 'LS' },
+];
 
 interface StacSearchCriteria {
   collection: string | null;
@@ -207,6 +213,18 @@ const StacSearchPanel: React.FC = () => {
     }));
   }
 
+  const handleSensorSelection = (sensorValue: string | null) => {
+    setAnalysisConfig(prev => ({ ...prev, sensor: sensorValue }));
+
+    let stacCollection = 'sentinel-2-l2a';
+    if (sensorValue && sensorValue.startsWith('L')) {
+      stacCollection = 'landsat-c2-l2';
+    }
+
+    setSearchCriteria(prev => ({ ...prev, collection: stacCollection}));
+  };
+
+
   const handleSearch = async () => {
     const { bbox, cloudCover, collection } = searchCriteria;
     const { preDate, postDate } = computeDatesFromOffsets();
@@ -233,8 +251,12 @@ const StacSearchPanel: React.FC = () => {
       limit: 100
     };
 
+    const stacApiUrl = collection === 'landsat-c2-l2'
+      ? 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
+      : 'https://earth-search.aws.element84.com/v1/search';
+
     try {
-      const response = await fetch('https://earth-search.aws.element84.com/v1/search', {
+      const response = await fetch(stacApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -274,6 +296,13 @@ const StacSearchPanel: React.FC = () => {
         </div>
       ) : (
         <>
+          <div className='panel-box'>
+            <SensorSelector
+              selectedSensor={analysisConfig.sensor}
+              onSensorSelect={handleSensorSelection}
+              availableSensors={SENSOR_OPTIONS}
+            />
+          </div>
           {analysisConfig.fire_number && (
             <div className="panel-box">
               <h4>Attributes</h4>
@@ -388,7 +417,15 @@ const StacSearchPanel: React.FC = () => {
               <div>
                 <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
                   {preIgnitionResults.map(item => (
-                    <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
+                    <Accordion
+                      id={item.id}
+                      label={(
+                        <div className='accordion-header-content'>
+                          <span>{ new Date(item.properties.datetime).toLocaleDateString('en-CA') }</span>
+                          <span className={`sensor-badge ${item.properties.platform}`}>{ item.properties.platform.replace('-', ' ') }</span>
+                        </div>
+                      ) as unknown as string}
+                    >
                       <div>
                         <strong>ID: </strong> {item.id} <br />
                         <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -421,7 +458,13 @@ const StacSearchPanel: React.FC = () => {
                                 removePreviewLayer();
                                 setPreviewLayerId(null);
                               } else {
-                                addPreviewLayer(item.assets.visual.href);
+                                const isLandsat = item.collection === 'landsat-c2-l2';
+                                const rawFormula = 'gamma RGB 2.72,saturation 1.5,sigmoidal RGB 15 0.55';
+                                const encodedFormula = encodeURIComponent(rawFormula);
+                                const previewUrl = isLandsat
+                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+                                : item.assets.visual.href;
+                                addPreviewLayer(previewUrl);
                                 setPreviewLayerId(item.id);
                               }
                             }}
@@ -435,7 +478,15 @@ const StacSearchPanel: React.FC = () => {
                 </AccordionGroup>
                 <AccordionGroup title='Post ignition images' allowsMultipleExpanded>
                   {postIgnitionResults.map(item => (
-                    <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
+                    <Accordion
+                      id={item.id}
+                      label={(
+                        <div className='accordion-header-content'>
+                          <span>{ new Date(item.properties.datetime).toLocaleDateString('en-CA') }</span>
+                          <span className={`sensor-badge ${item.properties.platform}`}>{ item.properties.platform.replace('-', ' ') }</span>
+                        </div>
+                      ) as unknown as string}
+                    >
                       <div>
                         <strong>ID: </strong> {item.id} <br />
                         <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -468,7 +519,13 @@ const StacSearchPanel: React.FC = () => {
                               removePreviewLayer();
                               setPreviewLayerId(null);
                             } else {
-                              addPreviewLayer(item.assets.visual.href);
+                              const isLandsat = item.collection === 'landsat-c2-l2';
+                              const rawFormula = 'gamma RGB 2.72,saturation 1.5,sigmoidal RGB 15 0.55';
+                                const encodedFormula = encodeURIComponent(rawFormula);
+                                const previewUrl = isLandsat
+                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+                                : item.assets.visual.href;
+                              addPreviewLayer(previewUrl);
                               setPreviewLayerId(item.id);
                             }
                           }}

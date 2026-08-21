@@ -77,3 +77,51 @@
   z-index: auto;           /* ensure no forced stacking over buttons */
 }
 
+.accordion-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding-right: 1rem;
+}
+
+
+.sensor-badge {
+  font-size: 0.8em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  text-transform: capitalize;
+
+  &.sentinel-2a,
+  &.sentinel-2b,
+  &.sentinel-2c {
+    background-color: #e3f2fd;
+    color: #0d47a1;
+  }
+
+  &.landsat-9 {
+    background-color: #e0f2f1;
+    color: #004d40;
+  }
+
+  &.landsat-8 {
+    background-color: #e8f5e9;
+    color: #1b5e20
+  }
+
+  &.landsat-7 {
+    background-color: #fff3e0;
+    color: #e65100;
+  }
+
+  &.landsat-5 {
+    background-color: #ede7f6;
+    color: #4a148c;
+  }
+
+  &.default {
+    background-color: #f5f5f5;
+    color: #424242;
+  }
+}
