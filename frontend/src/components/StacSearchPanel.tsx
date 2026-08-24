@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, CSSProperties } from 'react';
+import React, { useState, useContext, useEffect, useMemo, CSSProperties } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { MapContext } from './MapContext';
 import { Extent } from 'ol/extent';
@@ -11,11 +11,17 @@ import { syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
 import { runBurnSeverityAnalysis, AnalysisRequest } from '../utils/apiService';
 import SensorSelector, { SensorOption } from './ol-maps/SensorSelector';
+import { SessionMonitor } from 'oidc-client-ts';
 
 const SENSOR_OPTIONS: SensorOption[] = [
   { label: 'Sentinel-2', value: 'S2' },
   { label: 'Landsat', value: 'LS' },
 ];
+
+const SENSOR_YEARS: Record<string, number> = {
+  S2: 2015,
+  LS: 1984,
+};
 
 interface StacSearchCriteria {
   collection: string | null;
@@ -73,6 +79,18 @@ const StacSearchPanel: React.FC = () => {
   const [analysisReady, setAnalysisReady] = useState<boolean>(false);
   const [analysisRunning, setAnalysisRunning] = useState<boolean>(false);
 
+
+  const availableSensors = useMemo(() => {
+    if (!selectedFire?.year) return SENSOR_OPTIONS;
+    return SENSOR_OPTIONS.filter((sensor) => {
+      const minYear = SENSOR_YEARS[sensor.value] ?? 1900;
+      return selectedFire.year >= minYear;
+    });
+  }, [selectedFire])
+
+
+
+
   useEffect(() => {
     if (!bounds) return;
     setSearchCriteria(prev => ({ ...prev, bbox: bounds }));
@@ -120,6 +138,19 @@ const StacSearchPanel: React.FC = () => {
     setAnalysisReady(isReady);
   }, [analysisConfig]);
 
+  useEffect(() => {
+    if (availableSensors.length > 0) {
+      const isCurrentSensorAvailable = availableSensors.some(
+        (s) => s.value === analysisConfig.sensor
+      );
+      if (!isCurrentSensorAvailable) {
+        handleSensorSelection(availableSensors[0].value);
+      }
+    }
+  }, [availableSensors, analysisConfig.sensor])
+
+
+
 
   const computeDatesFromOffsets = () => {
     if (!selectedFire) return { preDate: null, postDate: null };
@@ -146,7 +177,7 @@ const StacSearchPanel: React.FC = () => {
     const payload: AnalysisRequest = {
       fire: analysisConfig.fire_number,
       year: thisYear,
-      sensor: "S2",
+      sensor: analysisConfig.sensor,
       cloud: cloud,
       object_storage: true,
       s_date: analysisConfig.preImageDate || undefined,
@@ -155,6 +186,7 @@ const StacSearchPanel: React.FC = () => {
     };
 
     try {
+      console.log('Payload:', payload)
       const result = await runBurnSeverityAnalysis(payload);
 
       console.log("Analysis result:", result);
@@ -212,6 +244,8 @@ const StacSearchPanel: React.FC = () => {
       postImageCloud: cloud_cover,
     }));
   }
+
+
 
   const handleSensorSelection = (sensorValue: string | null) => {
     setAnalysisConfig(prev => ({ ...prev, sensor: sensorValue }));
@@ -300,7 +334,7 @@ const StacSearchPanel: React.FC = () => {
             <SensorSelector
               selectedSensor={analysisConfig.sensor}
               onSensorSelect={handleSensorSelection}
-              availableSensors={SENSOR_OPTIONS}
+              availableSensors={availableSensors}
             />
           </div>
           {analysisConfig.fire_number && (

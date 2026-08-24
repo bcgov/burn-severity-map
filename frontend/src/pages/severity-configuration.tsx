@@ -56,7 +56,7 @@ const ConfigurationApp: React.FC = () => {
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const years = [];
-    for (let y = currentYear; y >= 2000; y--) {
+    for (let y = currentYear; y >= 1984; y--) {
       years.push(y.toString());
     }
     return years;
