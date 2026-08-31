@@ -23,11 +23,27 @@ class ObjectStorage:
             )
 
     
-    def write_image(self, file_path: str, raster):
+    def write_image(self, file_path: str, raster, delete: bool=False):
         raster.seek(0)
         hasher = hashlib.sha256()
         raster.seek(0)
         local_sha256 = hasher.hexdigest()
+
+        if delete:
+            pattern = file_path.split('_')[-1]
+            prefix = f'{self.S3_MAIN_DIR}/{os.path.dirname(file_path)}'
+
+            response = self.s3_client.list_objects_v2(Bucket=self.S3_BUCKET, Prefix=prefix)
+            objects = response.get('Contents', [])
+            files_to_delete = [{'Key': obj['Key']} for obj in objects if pattern in obj['Key']]
+
+            if files_to_delete:
+                for i in range(0, len(files_to_delete), 1000):
+                    chunk = files_to_delete[i : i + 1000]
+                    self.s3_client.delete_objects(
+                        Bucket=self.S3_BUCKET, Delete={'Objects': chunk}
+                    )
+
         self.s3_client.put_object(Bucket=self.S3_BUCKET,
                                   Key=f'{self.S3_MAIN_DIR}/{file_path}',
                                   Body=raster,
