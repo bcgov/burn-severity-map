@@ -252,7 +252,7 @@ const StacSearchPanel: React.FC = () => {
 
     let stacCollection = 'sentinel-2-l2a';
     if (sensorValue && sensorValue.startsWith('L')) {
-      stacCollection = 'landsat-c2-l2';
+      stacCollection = 'hls2-l30';
     }
 
     setSearchCriteria(prev => ({ ...prev, collection: stacCollection}));
@@ -285,9 +285,9 @@ const StacSearchPanel: React.FC = () => {
       limit: 100
     };
 
-    const stacApiUrl = collection === 'landsat-c2-l2'
-      ? 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
-      : 'https://earth-search.aws.element84.com/v1/search';
+    const stacApiUrl = collection === 'sentinel-2-l2a'
+      ? 'https://earth-search.aws.element84.com/v1/search'
+      : 'https://planetarycomputer.microsoft.com/api/stac/v1/search';
 
     try {
       const response = await fetch(stacApiUrl, {
@@ -492,11 +492,12 @@ const StacSearchPanel: React.FC = () => {
                                 removePreviewLayer();
                                 setPreviewLayerId(null);
                               } else {
-                                const isLandsat = item.collection === 'landsat-c2-l2';
+                                const isLandsat = item.collection === 'hls2-l30';
                                 const rawFormula = 'gamma RGB 2.72,saturation 1.5,sigmoidal RGB 15 0.55';
                                 const encodedFormula = encodeURIComponent(rawFormula);
                                 const previewUrl = isLandsat
-                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+                                // ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=B04&assets=B03&assets=B02&rescale=0,3000`
                                 : item.assets.visual.href;
                                 addPreviewLayer(previewUrl);
                                 setPreviewLayerId(item.id);
@@ -553,11 +554,10 @@ const StacSearchPanel: React.FC = () => {
                               removePreviewLayer();
                               setPreviewLayerId(null);
                             } else {
-                              const isLandsat = item.collection === 'landsat-c2-l2';
-                              const rawFormula = 'gamma RGB 2.72,saturation 1.5,sigmoidal RGB 15 0.55';
-                                const encodedFormula = encodeURIComponent(rawFormula);
+                              const isLandsat = item.collection === 'hls2-l30';
                                 const previewUrl = isLandsat
-                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+                                // ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=B04&assets=B03&assets=B02&rescale=0,3000`
                                 : item.assets.visual.href;
                               addPreviewLayer(previewUrl);
                               setPreviewLayerId(item.id);
