@@ -14,7 +14,7 @@ from io import BytesIO
 from pathlib import Path
 import zipfile
 import tempfile
-import glob
+import gc
 
 from util.environment import Environment
 from util.classes import ImageMetadata, Fire
@@ -374,6 +374,9 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing pre-fire rgb to file')
                 self.write_raster(data=pre_rgb, meta=pre_meta, folder_path=output_pre_rgb_path, os_path=os_pre_rgb_path)
+
+                del pre_rgb
+                gc.collect()
                 
                 self.logger.info(f'Creating POST-FIRE RGB')
                 post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='post')
@@ -384,6 +387,9 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing post-fire rgb to file')
                 self.write_raster(data=post_rgb, meta=post_meta, folder_path=output_post_rgb_path, os_path=os_post_rgb_path)
+
+                del post_rgb
+                gc.collect()
 
                 self.logger.info(f'Calculating PRE-FIRE NBR')
                 pre_nbr, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')
@@ -464,13 +470,30 @@ class InterimBurnSeverity:
                 self.logger.info('Writing scaled dnbr to file')
                 self.write_raster(data=scaled_dnbr, meta=s_dnbr_meta, folder_path=output_scaled_dnbr_path, os_path=os_scaled_dnbr_path)
 
+                # Clean up files to free memory
+                self.logger.info('Cleaning up rasters')
+                del pre_nbr, post_nbr, dnbr
+                gc.collect()
 
-                high_sev = np.where(scaled_dnbr >= 187, 4, 0)
-                med_sev = np.where((scaled_dnbr >= 110) & (scaled_dnbr < 187), 3, 0)
-                low_sev = np.where((scaled_dnbr >= 76) & (scaled_dnbr < 110), 2, 0)
-                no_sev = np.where(scaled_dnbr < 76, 1, 0)
 
-                barc = no_sev + low_sev + med_sev + high_sev
+                # high_sev = np.where(scaled_dnbr >= 187, 4, 0)
+                # med_sev = np.where((scaled_dnbr >= 110) & (scaled_dnbr < 187), 3, 0)
+                # low_sev = np.where((scaled_dnbr >= 76) & (scaled_dnbr < 110), 2, 0)
+                # no_sev = np.where(scaled_dnbr < 76, 1, 0)
+                # barc = no_sev + low_sev + med_sev + high_sev
+
+                self.logger.info('Classifying barc')
+                barc = np.zeros(scaled_dnbr.shape, dtype=np.uint8)
+                barc[scaled_dnbr < 76] = 1 # unburned
+                barc[(scaled_dnbr >= 76) & (scaled_dnbr < 110)] = 2 # low severity
+                barc[(scaled_dnbr >= 110) & (scaled_dnbr < 187)] = 3 # medium severity
+                barc[(scaled_dnbr >= 187)] = 4 # high severity
+
+                barc[np.isnan(scaled_dnbr)] = 0
+
+                # clean up scaled dnbr
+                del scaled_dnbr
+                gc.collect()
 
                 s_class_meta = post_meta.copy() # post_meta already reflects the aligned grid
                 s_class_meta.update({
@@ -697,16 +720,20 @@ class InterimBurnSeverity:
                             with open(folder_path, 'wb') as local_file:
                                 local_file.write(cog_bytes)
                             self.logger.info(f'    - File written to local at {folder_path}')
+                            del cog_bytes
                     except Exception as e:
+                        del cog_bytes
                         self.logger.error(f'Error writing local file {folder_path}: {e}')
 
                     try:
                         if self.use_storage and os_path:
                             mem_dst_cog.seek(0)
-                            self.obj_storage.write_image(file_path=os_path, raster=mem_dst_cog, delete=delete)
+                            self.obj_storage.write_image(file_path=os_path, raster=mem_dst_cog)
+                            mem_dst_cog.close()
                             self.logger.info(f'    - File written to object storage at {os_path}')
                     except Exception as e:
-                        self.logger.error(f'Error writing object storage file {os_path}: {e} \n Traceback: {traceback.print_exc()}')
+                        mem_dst_cog.close()
+                        self.logger.error(f'Error writing object storage file {os_path}: {e}')
 
         except Exception as e:
             self.logger.error(f'An unexpected error occured during COG creation: {e}')
