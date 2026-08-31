@@ -375,6 +375,9 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing pre-fire rgb to file')
                 self.write_raster(data=pre_rgb, meta=pre_meta, folder_path=output_pre_rgb_path, os_path=os_pre_rgb_path)
+
+                del pre_rgb
+                gc.collect()
                 
                 self.logger.info(f'Creating POST-FIRE RGB')
                 post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='post')
@@ -385,6 +388,9 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing post-fire rgb to file')
                 self.write_raster(data=post_rgb, meta=post_meta, folder_path=output_post_rgb_path, os_path=os_post_rgb_path)
+
+                del post_rgb
+                gc.collect()
 
                 self.logger.info(f'Calculating PRE-FIRE NBR')
                 pre_nbr, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')
@@ -467,7 +473,7 @@ class InterimBurnSeverity:
 
                 # Clean up files to free memory
                 self.logger.info('Cleaning up rasters')
-                del pre_rgb, post_rgb, pre_nbr, post_nbr, dnbr
+                del pre_nbr, post_nbr, dnbr
                 gc.collect()
 
 
