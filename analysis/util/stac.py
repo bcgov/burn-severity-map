@@ -11,6 +11,7 @@ from rasterio import merge
 from shapely.geometry import shape, box
 from datetime import timedelta
 import logging
+import gc
 
 class STAC:
     s2_stac_url = 'https://earth-search.aws.element84.com/v1'
@@ -150,17 +151,24 @@ class STAC:
                           aws_requester_pays: bool = False,
                           run_type: str='pre'):
         datasets_to_merge = []
+        memfiles_to_close = []
         self.logger.info(f'    - Processing {len(stac_items)} tiles to create an NBR mosaic')
 
         for item in stac_items:
             nbr_array, meta = self.__calculate_nbr_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
             if nbr_array is not None and nbr_array.size > 0:
                 memfile = rasterio.io.MemoryFile()
+                memfiles_to_close.append(memfile)
                 with memfile.open(**meta) as dataset:
                     dataset.write(nbr_array)
                 datasets_to_merge.append(memfile.open())
+
+                del nbr_array
+                gc.collect()
             else:
                 self.logger.info(f'    - Skipping empty or invalid NBR result for item {item.id}')
+            
+
         if not datasets_to_merge:
             self.logger.warning('    - No valid datasets could be processed for the NBR mosaic')
             return None, None, None
@@ -176,6 +184,8 @@ class STAC:
         finally:
             for ds in datasets_to_merge:
                 ds.close()
+            for mf in memfiles_to_close:
+                mf.close()
         self.logger.info('    - NBR Mosaic created successfully')
         return mosaic, out_meta, out_trans
 
@@ -188,15 +198,21 @@ class STAC:
                           aws_requester_pays: bool = False,
                           run_type: str='pre'):
         datasets_to_merge = []
+        memfiles_to_close = []
         self.logger.info(f'    - Processing {len(stac_items)} tiles to create an RGB mosaic')
 
         for item in stac_items:
             rgb_array, meta = self.__calculate_rgb_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
             if rgb_array is not None and rgb_array.size > 0:
                 memfile = rasterio.io.MemoryFile()
+                memfiles_to_close.append(memfile)
                 with memfile.open(**meta) as dataset:
                     dataset.write(rgb_array)
                 datasets_to_merge.append(memfile.open())
+
+                del rgb_array
+                gc.collect()
+
             else:
                 self.logger.info(f'    - Skipping empty or invalid RGB result for item {item.id}')
         if not datasets_to_merge:
@@ -214,6 +230,8 @@ class STAC:
         finally:
             for ds in datasets_to_merge:
                 ds.close()
+            for mf in memfiles_to_close:
+                mf.close()
         self.logger.info('    - RGB Mosaic created successfully')
         return mosaic, out_meta, out_trans
 
@@ -353,6 +371,9 @@ class STAC:
         nbr[valid_mask] = numerator[valid_mask] / denominator[valid_mask]
         nbr = np.clip(nbr, -1.0, 1.0)
 
+        del nir_data, swir_data, numerator, denominator, valid_mask
+        gc.collect()
+
         clip_geom = [geom.__geo_interface__ for geom in perimeter_gdf_proj.geometry]
 
         # Create a temporary in-memory dataset to apply the mask
@@ -430,6 +451,10 @@ class STAC:
                 return None, None
 
         rgb_array = np.stack(rgb_bands_data, axis=0)
+
+        del rgb_bands_data
+        gc.collect()
+
         meta.update({"driver": "GTiff", "dtype": "uint16", "count": 3, "nodata": 0, "transform": final_transform, "width": rgb_array.shape[2], "height": rgb_array.shape[1]})
 
         if not target_crs:
@@ -454,6 +479,10 @@ class STAC:
                 resampling=Resampling.bilinear,
                 dst_nodata=0
             )
+
+            del rgb_array
+            gc.collect()
+
             return destination, dst_meta
         except Exception as e:
             self.logger.error(f'Error: Failed to reproject tile {item.id}. Skipping. Error: {e}')
