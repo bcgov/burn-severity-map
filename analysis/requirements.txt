@@ -83,6 +83,9 @@ packaging==26.1
     #   topojson
 pandas==3.0.2
     # via geopandas
+planetary-computer===1.0.0
+    # via
+    #    analysis (pyproject.toml)
 pycparser==3.0
     # via cffi
 pydantic==2.13.1
