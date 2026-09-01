@@ -13,7 +13,7 @@ const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading..."
 interface ProtectedRouteProps {
   children: JSX.Element;
   requiredRole?: string;
-  fallbackMessage?: string | null;
+  fallbackMessage?: JSX.Element | null;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole, fallbackMessage}) => {
