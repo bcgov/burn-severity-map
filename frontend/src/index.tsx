@@ -28,6 +28,9 @@ const AppContent: React.FC = () => {
   const location = useLocation();
   const isLanding = location.pathname === "/";
 
+  const hostname = window.location.hostname;
+  const isProd = hostname.includes('-prod-');
+
   return (
     <div className={isLanding ? "layout landing-layout" : "layout fixed-layout"}>
       <PageHeader />
@@ -39,7 +42,13 @@ const AppContent: React.FC = () => {
 
         {/* Protected routes */}
         {/* <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} /> */}
-        <Route path="/burn-severity" element={<BurnSeverity />} />
+        <Route path="/burn-severity" element={
+          isProd ? (
+            <BurnSeverity />
+          ) : (
+            <ProtectedRoute requiredRole="viewer">
+              <BurnSeverity />
+            </ProtectedRoute>)} />
         {/* Role-Protected routes */}
         <Route path="/severity-configuration" element={
           <ProtectedRoute requiredRole="editor">
