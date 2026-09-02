@@ -30,21 +30,28 @@ const LoginLogoutButton: React.FC = () => {
   }
 
   const hostname = window.location.hostname;
-  const env = hostname.includes('-prod-') ? 'prod' : hostname.includes('-test-') ? 'test' : 'dev'
+  const isProd = hostname.includes('-prod-');
+  const env = isProd ? 'prod' : hostname.includes('-test-') ? 'test' : 'dev';
+
+  const hasViewer = roles?.includes('viewer') ?? false;
+  const hasEditor = roles?.includes('editor') ?? false;
+
+  const isRestrictedEnv = env !== 'prod';
+  const hasNoAccess = !hasViewer && !hasEditor;
 
 
   return (
     <>
       {isAuthenticated ? ( // Or simply 'user' if you prefer checking for user object directly
         <>
-        {(env === 'prod' || roles.includes('viewer') ) && (
+        {(isProd || hasViewer ) && (
           <HeaderLink
             url="/burn-severity"
             title="View Burn Severity Analysis"
             displayText="View"
           />
         )}
-        {roles.includes('editor') && (
+        {hasEditor && (
           <HeaderLink
             url="/severity-configuration"
             title="Configure Burn Severity Analysis"

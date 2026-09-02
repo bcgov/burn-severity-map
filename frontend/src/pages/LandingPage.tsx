@@ -10,14 +10,22 @@ const LandingPage = () => {
   const { isAuthenticated, roles, isLoadingAuth, login } = useAuth();
 
   const hostname = window.location.hostname;
-  const env = hostname.includes('-prod-') ? 'prod' : hostname.includes('-test-') ? 'test' : 'dev'
+  const isProd = hostname.includes('-prod-');
+  const env = isProd ? 'prod' : hostname.includes('-test-') ? 'test' : 'dev';
+
+  const hasViewer = roles?.includes('viewer') ?? false;
+  const hasEditor = roles?.includes('editor') ?? false;
+
+  const isRestrictedEnv = env !== 'prod';
+  const hasNoAccess = !hasViewer && !hasEditor;
+
 
   return (
     // Container div styled with the "home-container" class
     <div className="home-container">
       <div className="banner">
         <div className="banner-container">
-          <h1> Welcome to the { (env !== 'prod') && env.toUpperCase() } bs application!</h1>
+          <h1> Welcome to the { (!isProd) && env.toUpperCase() + ' '}bs application!</h1>
           
           <div className="button-container">
             {isLoadingAuth ? ( // Show a loading message while authentication status is being determined
@@ -26,18 +34,18 @@ const LandingPage = () => {
               <>
                 {isAuthenticated ? ( // Render the link only if the user is authenticated
                   <div className='link-container'>
-                    {(env !== 'prod' && (!roles.includes('editor') && !roles.includes('viewer'))) ? (
+                    {isRestrictedEnv && hasNoAccess ? (
                       <Link to='https://burn-severity-map-prod-frontend.apps.silver.devops.gov.bc.ca/'>Go to Production Site</Link>
                     ) : (
                       <>
-                        <Link to="/burn-severity">View BS Analysis</Link>
-                        {/* Only show config link to editors */}
-                        {roles.includes('editor') && (
+                        {(isProd || hasViewer || hasEditor) && (
+                          <Link to="/burn-severity">View BS Analysis</Link>
+                        )}
+                        {hasEditor && (
                           <Link to="/severity-configuration">Configure BS Analysis</Link>
                         )}
                       </>
                     )}
-                    
                   </div>
                 ) : (
                   // Optionally, you can show a login button or a message for unauthenticated users

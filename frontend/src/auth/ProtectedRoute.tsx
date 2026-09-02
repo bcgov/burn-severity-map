@@ -1,6 +1,6 @@
 // ProtectedRoute.tsx (Assuming located in src/auth/)
 import React, { JSX } from 'react';
-import { Navigate } from 'react-router-dom'; 
+import { Navigate, Link } from 'react-router-dom'; 
 import { useAuth } from './AuthContext'; 
 
 // Simple Loading component
@@ -34,13 +34,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole,
     return <Navigate to="/" replace />;
   }
   // 3. Check for role if one is required
-  if (requiredRole && !roles.includes(requiredRole)) {
+  if (requiredRole && (!roles || !roles.includes(requiredRole))) {
     return (
       fallbackMessage ? (fallbackMessage) : (
         <div style={{ padding: '20px', textAlign: 'center' }}>
           <h2>Access Denied</h2>
           <p>You do not have the '{requiredRole}' permissions required to view this page.</p>
-          <Navigate to="/" replace /> 
+          <Link to="/">Return to Home</Link>
         </div>
       )
     );
