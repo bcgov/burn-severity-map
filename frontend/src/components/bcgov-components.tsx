@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from '../auth/AuthContext'
 import { Header, Footer, Button } from "@bcgov/design-system-react-components";
-import { useMatch } from "react-router-dom";
+import { useMatch, Link } from "react-router-dom";
 import geobcLogo from '../assets/geobc_logo.png';
 import bcgovLogo from '../assets/BCID_H_rgb_rev.png';
 import HealthStatus from "./HealthStatus";
@@ -16,33 +16,46 @@ interface HeaderLinkProps {
 
 const HeaderLink: React.FC<HeaderLinkProps> = ({url, title, displayText}) => {
   return (
-    <a className="header-link" href={url} title={title}
-    >{displayText}</a>
+    <Link className="header-link" to={url} title={title}
+    >{displayText}</Link>
   );
 };
 
 const LoginLogoutButton: React.FC = () => {
-  const { user, login, logout, isAuthenticated, isLoadingAuth } = useAuth(); // Added isAuthenticated and isLoadingAuth for clarity
+  const { user, login, logout, isAuthenticated, isLoadingAuth, roles } = useAuth(); // Added isAuthenticated and isLoadingAuth for clarity
 
   // Optionally, show nothing or a disabled button if auth status is still loading
   if (isLoadingAuth) {
     return (null); // Or a placeholder, or null
   }
 
+  const hostname = window.location.hostname;
+  const isProd = hostname.includes('-prod-');
+  const env = isProd ? 'prod' : hostname.includes('-test-') ? 'test' : 'dev';
+
+  const hasViewer = roles?.includes('viewer') ?? false;
+  const hasEditor = roles?.includes('editor') ?? false;
+  const isRestrictedEnv = env !== 'prod';
+  const hasNoAccess = !hasViewer && !hasEditor;
+
   return (
     <>
       {isAuthenticated ? ( // Or simply 'user' if you prefer checking for user object directly
         <>
-        <HeaderLink
-          url="/burn-severity"
-          title="View Burn Severity Analysis"
-          displayText="View"
-        />
-        <HeaderLink
-          url="/severity-configuration"
-          title="Configure Burn Severity Analysis"
-          displayText="Configure"
-        />
+        {(isProd || hasViewer ) && (
+          <HeaderLink
+            url="/burn-severity"
+            title="View Burn Severity Analysis"
+            displayText="View"
+          />
+        )}
+        {hasEditor && (
+          <HeaderLink
+            url="/severity-configuration"
+            title="Configure Burn Severity Analysis"
+            displayText="Configure"
+          />
+        )}
         <Button
           onPress={logout}
           variant="secondary"
