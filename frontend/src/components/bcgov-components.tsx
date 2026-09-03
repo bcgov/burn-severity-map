@@ -35,14 +35,8 @@ const LoginLogoutButton: React.FC = () => {
 
   const hasViewer = roles?.includes('viewer') ?? false;
   const hasEditor = roles?.includes('editor') ?? false;
-
-  console.log('Current Environment (components): ', env);
-  console.log('Raw Roles Payload from Keycloak', roles);
-  console.log('Is Editor?:', roles?.includes('editor'));
-
   const isRestrictedEnv = env !== 'prod';
   const hasNoAccess = !hasViewer && !hasEditor;
-
 
   return (
     <>

@@ -13,11 +13,6 @@ const LandingPage = () => {
   const isProd = hostname.includes('-prod-');
   const env = isProd ? 'prod' : hostname.includes('-test-') ? 'test' : 'dev';
 
-  console.log('Current Environment (landing): ', env);
-  console.log('Raw Roles Payload from Keycloak', roles);
-  console.log('Is Editor?:', roles?.includes('editor'));
-
-
   const hasViewer = roles?.includes('viewer') ?? false;
   const hasEditor = roles?.includes('editor') ?? false;
 
