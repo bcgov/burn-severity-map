@@ -1,6 +1,6 @@
 // ProtectedRoute.tsx (Assuming located in src/auth/)
 import React, { JSX } from 'react';
-import { Navigate } from 'react-router-dom'; 
+import { Navigate, Link } from 'react-router-dom'; 
 import { useAuth } from './AuthContext'; 
 
 // Simple Loading component
@@ -13,9 +13,10 @@ const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading..."
 interface ProtectedRouteProps {
   children: JSX.Element;
   requiredRole?: string;
+  fallbackMessage?: JSX.Element | null;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole, fallbackMessage}) => {
   const { isAuthenticated, isLoadingAuth, roles } = useAuth(); // Destructure new states
 
   // 1. Show loading state if auth status is still being determined
@@ -33,13 +34,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <Navigate to="/" replace />;
   }
   // 3. Check for role if one is required
-  if (requiredRole && !roles.includes(requiredRole)) {
+  if (requiredRole && (!roles || !roles.includes(requiredRole))) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Access Denied</h2>
-        <p>You do not have the '{requiredRole}' permissions required to view this page.</p>
-        <Navigate to="/" replace /> 
-      </div>
+      fallbackMessage ? (fallbackMessage) : (
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h2>Access Denied</h2>
+          <p>You do not have the '{requiredRole}' permissions required to view this page.</p>
+          <Link to="/">Return to Home</Link>
+        </div>
+      )
     );
   }
 
