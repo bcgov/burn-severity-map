@@ -102,7 +102,7 @@ async function authedFetch(endpoint: string, options: RequestInit = {}): Promise
 export interface AnalysisRequest {
   fire: string | null;
   year: number;
-  sensor: 'S2';
+  sensor: string | null;
   s_date?: string;
   e_date?: string;
   cloud?: number;
@@ -183,8 +183,8 @@ export const runBurnSeverityAnalysis = async (params: AnalysisRequest) => {
     if (response.status === 403) {
       throw new Error("Access Denied: You do not have the required 'editor' permissions.");
     }
-    
-    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    console.log(errorData);
+    throw new Error(errorData.error + '\n' + errorData.details.stderr || `HTTP error! status: ${response.status}`);
   }
 
   return response.json();

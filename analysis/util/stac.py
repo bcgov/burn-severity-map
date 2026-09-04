@@ -11,6 +11,7 @@ from rasterio import merge
 from shapely.geometry import shape, box
 from datetime import timedelta
 import logging
+import planetary_computer
 import gc
 
 class STAC:
@@ -19,12 +20,24 @@ class STAC:
 
 
     s2_collection_id = 'sentinel-2-l2a'
-    ls_collection_id = 'landsat-c2-l2'
+    ls89_collection_id = 'hls2-l30'
+    ls57_collection_id = 'landsat-c2-l2'
+
+    
 
     def __init__(self, date_offset: int, logger: logging.Logger):
         self.logger = logger
         self.date_offset = date_offset
 
+        self.dict_sensors = {
+            'sentinel-2a': 'S2',
+            'sentinel-2b': 'S2',
+            'sentinel-2c': 'S2',
+            'landsat-5': 'L5',
+            'landsat-7': 'L7',
+            'landsat-8': 'L8',
+            'landsat-9': 'L9'
+        }
 
     def search_stac(self, sensor: str, 
                     perimeter_gdf: gpd.GeoDataFrame, 
@@ -35,9 +48,12 @@ class STAC:
         if sensor == 'S2':
             stac_api_url = STAC.s2_stac_url
             collection_id = STAC.s2_collection_id
-        elif sensor == 'LS':
+        elif sensor in ['LS_5_7']:
             stac_api_url = STAC.ls_stac_url
-            collection_id = STAC.ls_collection_id
+            collection_id = STAC.ls57_collection_id
+        elif sensor in ['LS_8_9']:
+            stac_api_url = STAC.ls_stac_url
+            collection_id = STAC.ls89_collection_id
 
 
         try:
@@ -55,6 +71,8 @@ class STAC:
                 )
 
                 for item in search.items():
+                    if sensor in ['LS_5_7', 'LS_8_9']:
+                        item = planetary_computer.sign(item)
                     self.logger.info(f'    - Found specified tile: {item.id}')
                     selected_items.append(item)
                     searched_item_ids.add(item.id)
@@ -106,6 +124,8 @@ class STAC:
                             break # Found the best available candidate for this iteration
                         
                     if best_item_found:
+                        if sensor == 'LS':
+                            best_item_found = planetary_computer.sign(best_item_found)
                         item_id = best_item_found.id
                         item_date = best_item_found.datetime.date()
                         cloud_cover = best_item_found.properties.get('eo:cloud_cover', 'N/A')
@@ -264,6 +284,8 @@ class STAC:
         nir_asset_key = None
         swir_asset_key = None
 
+        sensor = self.dict_sensors[item.properties['platform']]
+
         # Determine asset keys for NIR (B8) and SWIR (B12)
         # Common keys for Sentinel-2 L2A:
         # Element84 STAC: 'nir', 'swir22'
@@ -277,6 +299,15 @@ class STAC:
         elif 'B08' in item.assets and 'B12' in item.assets:
             nir_asset_key = 'B08'
             swir_asset_key = 'B12'
+        elif 'SR_B5' in item.assets and 'SR_B7' in item.assets:
+            nir_asset_key = 'SR_B5'
+            swir_asset_key = 'SR_B7'
+        elif 'SR_B4' in item.assets and 'SR_B7' in item.assets:
+            nir_asset_key = 'SR_B4'
+            swir_asset_key = 'SR_B7'
+        elif 'B05' in item.assets and 'B07' in item.assets:
+            nir_asset_key = 'B05'
+            swir_asset_key = 'B07'
         else:
             available_keys = list(item.assets.keys())
             self.logger.info(f'Error: Could not find required NIR (B8) or SWIR (B12) band assets in STAC item \'{item.id}\'.')
@@ -298,12 +329,15 @@ class STAC:
 
         with env_settings:
             try:
+                resolution = 10
                 # Open NIR band to get its CRS for reprojecting the perimeter
                 with rasterio.open(nir_href) as src_nir_meta_check:
                     raster_crs = src_nir_meta_check.crs
                     if not raster_crs:
                         self.logger.error(f'Error: NIR COG {nir_href} has no CRS defined.')
                         return None, None
+
+                    resolution = src_nir_meta_check.res[0]
                     # Ensure perimeter_gdf has a CRS, if not, assume WGS84
                     if perimeter_gdf.crs != target_crs:
                         self.logger.warning('Perimeter GeoJSON has no CRS. Assuming EPSG:4326 (WGS84).')
@@ -313,7 +347,6 @@ class STAC:
 
                 bounds = perimeter_gdf_proj.total_bounds
                 left, bottom, right, top = bounds
-                resolution = 10
                 out_width = int((right - left) / resolution)
                 out_height = int((top - bottom) / resolution)
 
@@ -336,7 +369,7 @@ class STAC:
                     )
                     nir_data = nir_reprojected[0]
                     nodata_mask_nir = (nir_data == src_nir.nodata) | (nir_data == 0) # Consider 0 as nodata for S2 L2A before scaling
-                    nir_data /= 10000.0
+                    nir_data = self.process_reflectance(data=nir_data, band='NIR', sensor=sensor)
                     nir_data[nodata_mask_nir] = np.nan # Set actual nodata to NaN after scaling
 
 
@@ -357,7 +390,7 @@ class STAC:
                     )
                     swir_data = swir_reprojected[0] # remove band dimension
                     nodata_mask_swir = np.isnan(swir_data) | (swir_data == 0) # account for potential 0 values as nodata
-                    swir_data /= 10000.0
+                    swir_data = self.process_reflectance(data=swir_data, band='SWIR2', sensor=sensor)
                     swir_data[nodata_mask_swir] = np.nan
             except Exception as e:
                 self.logger.error(f'Error reading/reprojecting COG data for item {item.id}: {e}')
@@ -417,8 +450,15 @@ class STAC:
         Internal helper to create a 3-band RGB array for one STAC item, clipped to the perimeter's BOUNDING BOX.
         If target_crs is provided, the tile is reprojected.
         """
-        band_keys = {'red': ('B04', 'red'), 'green': ('B03', 'green'), 'blue': ('B02', 'blue')}
+        platform = item.properties.get('platform', '').lower()
+        if platform in ['landsat-4', 'landsat-5', 'landsat-7']: # landsat 4/5/7
+            band_keys = {'red': ('SR_B3', 'red'), 'green': ('SR_B2', 'green'), 'blue': ('SR_B1', 'blue')}
+        elif 'landsat' in platform: # landsat 8/9
+            band_keys = {'red': ('SR_B4', 'B04', 'red'), 'green': ('SR_B3', 'B03', 'green'), 'blue': ('SR_B2', 'B02', 'blue')}
+        else: # sentinel
+            band_keys = {'red': ('B04', 'red'), 'green': ('B03', 'green'), 'blue': ('B02', 'blue')}
         assets = {}
+        self.logger.info(list(item.assets.keys()))
         for band, keys in band_keys.items():
             found_key = next((k for k in keys if k in item.assets), None)
             if not found_key:
@@ -530,3 +570,28 @@ class STAC:
                         resampling=Resampling.nearest  # Or another resampling method
                     )
             return swir_align
+
+    @staticmethod
+    def process_reflectance(data: np.ndarray, band: str, sensor: str) -> np.ndarray:
+
+        if sensor in ['S2', 'L8', 'L9']:
+            refl = data / 10000.0
+        elif sensor in ['L5', 'L7']: #, 'L8', 'L9']:
+            refl = (data * 0.0000275) - 0.2
+        else:
+            return data
+
+        # Harmonize L5/L7 to the L8/L9 OLI baseline
+        if sensor in ['L5', 'L7']:
+            if band == 'NIR':
+                refl = (refl * 0.8462) + 0.0412
+            elif band == 'SWIR2':
+                refl = (refl * 0.9071) + 0.0172
+
+        if sensor in ['L5', 'L7']: #, 'L8', 'L9']:
+            if band == 'NIR':
+                refl = (refl * 0.9983) - 0.0001
+            elif band == 'SWIR2':
+                refl = (refl * 1.0030) - 0.0012
+
+        return refl

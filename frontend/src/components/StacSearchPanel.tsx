@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, CSSProperties } from 'react';
+import React, { useState, useContext, useEffect, useMemo, CSSProperties } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { MapContext } from './MapContext';
 import { Extent } from 'ol/extent';
@@ -10,6 +10,15 @@ import { PuffLoader } from 'react-spinners';
 import { syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
 import { runBurnSeverityAnalysis, AnalysisRequest } from '../utils/apiService';
+import SensorSelector, { SensorOption } from './ol-maps/SensorSelector';
+import { SessionMonitor } from 'oidc-client-ts';
+
+const SENSOR_OPTIONS: Record<string, SensorOption> = {
+  'S2': { label: 'Sentinel-2', value: 'S2', platform: ['sentinel-2a','sentinel-2b','sentinel-2c'], years: [2015,], collection: 'sentinel-2-l2a' },
+  'LS_8_9': { label: 'Landsat 8/9', value: 'LS_8_9', platform: ['landsat-8', 'landsat-9'], years: [2013,], collection: 'hls2-l30' },
+  'LS_5_7': { label: 'Landsat 5/7', value: 'LS_5_7', platform: ['landsat-5', 'landsat-7'], years: [1984, 2024 ], collection: 'landsat-c2-l2' }
+};
+
 
 interface StacSearchCriteria {
   collection: string | null;
@@ -66,6 +75,28 @@ const StacSearchPanel: React.FC = () => {
   const [selectedPostImageId, setSelectedPostImageId] = useState<string | null>(null);
   const [analysisReady, setAnalysisReady] = useState<boolean>(false);
   const [analysisRunning, setAnalysisRunning] = useState<boolean>(false);
+  const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
+
+
+  const availableSensors = useMemo(() => {
+
+    const sensorArray = Object.values(SENSOR_OPTIONS);
+
+    if (!selectedFire?.year) return sensorArray;
+    return sensorArray.filter((sensor) => {
+      const minYear = sensor.years[0] ?? 1900;
+      const maxYear = sensor.years[1] ?? null;
+      if (!maxYear) {
+        return selectedFire.year >= minYear;
+      } else {
+        return selectedFire.year >= minYear && selectedFire.year <= maxYear;
+      }
+      
+    });
+  }, [selectedFire])
+
+
+
 
   useEffect(() => {
     if (!bounds) return;
@@ -114,6 +145,19 @@ const StacSearchPanel: React.FC = () => {
     setAnalysisReady(isReady);
   }, [analysisConfig]);
 
+  useEffect(() => {
+    if (availableSensors.length > 0) {
+      const isCurrentSensorAvailable = availableSensors.some(
+        (s) => s.value === analysisConfig.sensor
+      );
+      if (!isCurrentSensorAvailable) {
+        handleSensorSelection(availableSensors[0].value);
+      }
+    }
+  }, [availableSensors, analysisConfig.sensor])
+
+
+
 
   const computeDatesFromOffsets = () => {
     if (!selectedFire) return { preDate: null, postDate: null };
@@ -140,7 +184,7 @@ const StacSearchPanel: React.FC = () => {
     const payload: AnalysisRequest = {
       fire: analysisConfig.fire_number,
       year: thisYear,
-      sensor: "S2",
+      sensor: analysisConfig.sensor,
       cloud: cloud,
       object_storage: true,
       s_date: analysisConfig.preImageDate || undefined,
@@ -149,6 +193,7 @@ const StacSearchPanel: React.FC = () => {
     };
 
     try {
+      console.log('Payload:', payload)
       const result = await runBurnSeverityAnalysis(payload);
 
       console.log("Analysis result:", result);
@@ -207,6 +252,22 @@ const StacSearchPanel: React.FC = () => {
     }));
   }
 
+
+
+  const handleSensorSelection = (sensorValue: string | null) => {
+    if (!sensorValue) {
+      setSelectedSensor(null)
+      return
+    }
+    setSelectedSensor(sensorValue)
+    setAnalysisConfig(prev => ({ ...prev, sensor: sensorValue }));
+
+    const stacCollection = SENSOR_OPTIONS[sensorValue].collection
+
+    setSearchCriteria(prev => ({ ...prev, collection: stacCollection}));
+  };
+
+
   const handleSearch = async () => {
     const { bbox, cloudCover, collection } = searchCriteria;
     const { preDate, postDate } = computeDatesFromOffsets();
@@ -233,8 +294,12 @@ const StacSearchPanel: React.FC = () => {
       limit: 100
     };
 
+    const stacApiUrl = collection === 'sentinel-2-l2a'
+      ? 'https://earth-search.aws.element84.com/v1/search'
+      : 'https://planetarycomputer.microsoft.com/api/stac/v1/search';
+
     try {
-      const response = await fetch('https://earth-search.aws.element84.com/v1/search', {
+      const response = await fetch(stacApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -258,12 +323,27 @@ const StacSearchPanel: React.FC = () => {
     addPreviewLayer(url);
   };
 
+  const getImageUrl = (item: any) => {
+
+    if(selectedSensor === 'LS_8_9') {
+      return `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=B04&assets=B03&assets=B02&rescale=0,3000`;
+    }
+
+    if(selectedSensor === 'LS_5_7') {
+      return `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+    }
+
+    return item.assets.visual.href;
+  };
+
+
   const ignitionDate = selectedFire ? new Date(selectedFire.ignitionDate) : null;
-  const preIgnitionResults = ignitionDate
-    ? searchResults.filter(item => new Date(item.properties.datetime) < ignitionDate)
+  
+  const preIgnitionResults = ignitionDate && selectedSensor
+    ? searchResults.filter(item => (new Date(item.properties.datetime) < ignitionDate && SENSOR_OPTIONS[selectedSensor].platform.includes(item.properties.platform)))
     : [];
-  const postIgnitionResults = ignitionDate
-    ? searchResults.filter(item => new Date(item.properties.datetime) >= ignitionDate)
+  const postIgnitionResults = ignitionDate && selectedSensor
+    ? searchResults.filter(item => (new Date(item.properties.datetime) >= ignitionDate && SENSOR_OPTIONS[selectedSensor].platform.includes(item.properties.platform)))
     : [];
   return (
     <div className="StacSearchPanel">
@@ -274,6 +354,13 @@ const StacSearchPanel: React.FC = () => {
         </div>
       ) : (
         <>
+          <div className='panel-box'>
+            <SensorSelector
+              selectedSensor={analysisConfig.sensor}
+              onSensorSelect={handleSensorSelection}
+              availableSensors={availableSensors}
+            />
+          </div>
           {analysisConfig.fire_number && (
             <div className="panel-box">
               <h4>Attributes</h4>
@@ -388,7 +475,15 @@ const StacSearchPanel: React.FC = () => {
               <div>
                 <AccordionGroup title='Pre ignition images' allowsMultipleExpanded>
                   {preIgnitionResults.map(item => (
-                    <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
+                    <Accordion
+                      id={item.id}
+                      label={(
+                        <div className='accordion-header-content'>
+                          <span>{ new Date(item.properties.datetime).toLocaleDateString('en-CA') }</span>
+                          <span className={`sensor-badge ${item.properties.platform}`}>{ item.properties.platform.replace('-', ' ') }</span>
+                        </div>
+                      ) as unknown as string}
+                    >
                       <div>
                         <strong>ID: </strong> {item.id} <br />
                         <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -421,7 +516,8 @@ const StacSearchPanel: React.FC = () => {
                                 removePreviewLayer();
                                 setPreviewLayerId(null);
                               } else {
-                                addPreviewLayer(item.assets.visual.href);
+                                const previewUrl = getImageUrl(item);
+                                addPreviewLayer(previewUrl);
                                 setPreviewLayerId(item.id);
                               }
                             }}
@@ -435,7 +531,15 @@ const StacSearchPanel: React.FC = () => {
                 </AccordionGroup>
                 <AccordionGroup title='Post ignition images' allowsMultipleExpanded>
                   {postIgnitionResults.map(item => (
-                    <Accordion id={item.id} label={new Date(item.properties.datetime).toLocaleDateString('en-CA')}>
+                    <Accordion
+                      id={item.id}
+                      label={(
+                        <div className='accordion-header-content'>
+                          <span>{ new Date(item.properties.datetime).toLocaleDateString('en-CA') }</span>
+                          <span className={`sensor-badge ${item.properties.platform}`}>{ item.properties.platform.replace('-', ' ') }</span>
+                        </div>
+                      ) as unknown as string}
+                    >
                       <div>
                         <strong>ID: </strong> {item.id} <br />
                         <strong>Cloud: </strong>{item.properties["eo:cloud_cover"].toFixed(0)}%<br />
@@ -468,7 +572,8 @@ const StacSearchPanel: React.FC = () => {
                               removePreviewLayer();
                               setPreviewLayerId(null);
                             } else {
-                              addPreviewLayer(item.assets.visual.href);
+                              const previewUrl = getImageUrl(item);
+                              addPreviewLayer(previewUrl);
                               setPreviewLayerId(item.id);
                             }
                           }}

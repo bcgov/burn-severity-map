@@ -16,6 +16,8 @@ import {all} from 'ol/loadingstrategy';
 import VectorSource from 'ol/source/Vector';
 import GeoTIFF from 'ol/source/GeoTIFF';
 import WebGLTileLayer from 'ol/layer/WebGLTile';
+import TileLayer from 'ol/layer/Tile';
+import XYZ from 'ol/source/XYZ';
 import MapOL from 'ol/Map';
 
 // import FireSelector from '../components/FireSelector';
@@ -33,7 +35,7 @@ const ConfigurationApp: React.FC = () => {
   const [selectedDbFire, setSelectedDbFire] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<MapOL | null>(null);
   const [bounds, setBounds] = useState<any>(null); // OpenLayers doesn't use LngLatBounds
-  const previewLayerRef = useRef<WebGLTileLayer | null>(null);
+  const previewLayerRef = useRef<any>(null);
   // const perimeterLayerRef = useRef<VectorLayer | null>(null);
   const [previewLayerUrl, setPreviewLayerUrl] = useState<string | null>(null);
   // const [perimeterLayerUrl, setPerimeterLayerUrl] = useState<string | null>(null);
@@ -54,7 +56,7 @@ const ConfigurationApp: React.FC = () => {
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const years = [];
-    for (let y = currentYear; y >= 2000; y--) {
+    for (let y = currentYear; y >= 1984; y--) {
       years.push(y.toString());
     }
     return years;
@@ -133,6 +135,7 @@ const ConfigurationApp: React.FC = () => {
   }, [mapInstance]);
 
   const addPreviewLayer = (url: string) => {
+    console.log(url);
     setPreviewLayerUrl(url);
   };
 
@@ -237,15 +240,27 @@ const ConfigurationApp: React.FC = () => {
 
     // Add new layer if a URL is provided
     if (previewLayerUrl) {
-      const geoTiffLayer = new WebGLTileLayer({
-        zIndex: 0,
-        source: new GeoTIFF({
-          sources: [{ url: previewLayerUrl }],
+      const isXYZ = previewLayerUrl.includes('{z}/{x}/{y}');
+      let layerToAdd;
+      if (isXYZ) {
+        layerToAdd = new TileLayer({
+          zIndex: 0,
+          source: new XYZ({
+            url: previewLayerUrl,
+            crossOrigin: 'anonymous'
+          })
+        });
+      } else {
+        layerToAdd = new WebGLTileLayer({
+          zIndex: 0,
+          source: new GeoTIFF({
+            sources: [{ url: previewLayerUrl }],
+          })
         })
-      });
+      }
 
-      mapInstance.addLayer(geoTiffLayer);
-      previewLayerRef.current = geoTiffLayer;
+      mapInstance.addLayer(layerToAdd);
+      previewLayerRef.current = layerToAdd;
     }
 
   }, [previewLayerUrl, mapInstance]); 

@@ -72,8 +72,8 @@ def get_input_parameters():
         if not args.output_folder and not args.object_storage:
             raise ValueError('An output folder and/or and the object storage folder must be indicated.  Use the -f and -o flags')
         
-        if str(args.sensor) != 'S2':
-            raise AttributeError('The analysis can only use Sentinel 2 imagery at this time.  Please change the parameter to \'S2\'')
+        # if str(args.sensor) != 'S2':
+        #     raise AttributeError('The analysis can only use Sentinel 2 imagery at this time.  Please change the parameter to \'S2\'')
 
         logger = Environment.setup_logger(args)
 
@@ -206,7 +206,6 @@ class InterimBurnSeverity:
                 gdf_points[self.fld_fire_ign_date] = pd.to_datetime(gdf_points[self.fld_fire_ign_date], format='%Y-%m-%dZ')
                 gdf_points[self.fld_fire_out_date] = pd.to_datetime(gdf_points[self.fld_fire_out_date], format='%Y-%m-%dZ')
                 gdf_fires = gdf_fires.merge(gdf_points, on=self.fld_fire_num)
-                print('Merging points to polygons')
 
                 if int_fire_count > 1:
                     gdf_fires = gdf_fires.dissolve()
@@ -506,7 +505,7 @@ class InterimBurnSeverity:
 
                 # try:
                 self.logger.info('Writing barc to file')
-                self.write_raster(data=barc.astype(np.uint8), meta=s_class_meta, folder_path=output_barc_path, os_path=os_barc_path)
+                self.write_raster(data=barc.astype(np.uint8), meta=s_class_meta, folder_path=output_barc_path, os_path=os_barc_path, delete=True)
 
                 self.logger.info('Filtering barc to remove fragments less than 10 m2')
                 barc_filter = sieve(source=barc.astype(np.uint8), size=10)
@@ -520,7 +519,7 @@ class InterimBurnSeverity:
 
 
                 self.logger.info('Writing filtered barc to file')
-                self.write_raster(data=barc_filter.astype(np.uint8), meta=filter_meta, folder_path=output_filtered_path, os_path=os_filtered_path)
+                self.write_raster(data=barc_filter.astype(np.uint8), meta=filter_meta, folder_path=output_filtered_path, os_path=os_filtered_path, delete=True)
 
                 return barc_filter, s_class_meta
 
@@ -530,6 +529,7 @@ class InterimBurnSeverity:
                 traceback.print_exc()
                 err = ''.join(traceback.format_exc())
                 params = os.path.join(self.output_folder,'errors.txt')
+                self.logger.error(e + '\nTraceback: ' + err)
                 with open(params, 'w') as f:
                      f.write(f'\n{err}')
 
@@ -640,7 +640,7 @@ class InterimBurnSeverity:
             self.logger.error(f'Error in conversion: {e} \n Traceback: {traceback.print_exc()}')
             return
 
-        self.logger.info('Processing complete')
+        self.logger.info('Processing complete')        
 
     def write_json(self, data: gpd.geodataframe, folder_path: str=None, os_path: str=None, file_name: str=None):
         self.logger.info('Writing GeoJSON')
@@ -648,7 +648,7 @@ class InterimBurnSeverity:
             try:
                 data.to_file(os.path.join(folder_path, file_name), 'GeoJSON')
             except Exception as e:
-                self.logger.error(f'Error writing local json file {os.path.join(folder_path, file_name)}: {e}')
+                self.logger.error(f'Error writing local json file {os.path.join(folder_path, file_name)}: {e} \n Traceback: {traceback.print_exc()}')
 
        
         if self.use_storage and os_path:
@@ -657,7 +657,7 @@ class InterimBurnSeverity:
                 geojson_bytes = geojson_string.encode('utf-8')
                 self.obj_storage.write_json(file_path=f'{os_path}/{file_name}', geo_json=geojson_bytes)
             except Exception as e:
-                self.logger.error(f'Error writing object storage file {os_path}: {e}')    
+                self.logger.error(f'Error writing object storage file {os_path}: {e} \n Traceback: {traceback.print_exc()}')    
 
     def write_shapefile(self, data: gpd.GeoDataFrame, folder_path: str=None, os_path: str=None, file_name: str=None):
         self.logger.info('Writing shapefile')
@@ -687,11 +687,11 @@ class InterimBurnSeverity:
                 self.obj_storage.write_shape(file_path=f'{os_path}/{file_name.replace(".shp", ".zip")}', zip_buffer=zip_buffer)
 
             except Exception as e:
-                self.logger.error(f'Error writing object storage file {os_path}: {e}')
+                self.logger.error(f'Error writing object storage file {os_path}: {e} \n Traceback: {traceback.print_exc()}')
         if temp_dir:
             temp_dir.cleanup()
 
-    def write_raster(self, data: np.ndarray, meta, folder_path: str=None, os_path: str=None):
+    def write_raster(self, data: np.ndarray, meta, folder_path: str=None, os_path: str=None, delete: bool=False):
 
         cog_profile = cog_profiles.get('deflate')
         try:
@@ -711,6 +711,12 @@ class InterimBurnSeverity:
 
                     try:
                         if self.use_folder and folder_path:
+                            if delete:
+                                dir_path = Path(os.path.dirname(folder_path))
+                                pattern = f'*{os.path.basename((folder_path)).split('_')[-1]}'
+                                for file_path in dir_path.glob(pattern):
+                                    if file_path.is_file():
+                                        file_path.unlink()
                             with open(folder_path, 'wb') as local_file:
                                 local_file.write(cog_bytes)
                             self.logger.info(f'    - File written to local at {folder_path}')
