@@ -126,7 +126,7 @@ def run_analysis_endpoint():
         return jsonify({"error": f"Invalid year. Must be between 2020 and {current_year}."}), 400
 
     # Validate sensor
-    allowed_sensors = ['S2', 'LS']  # Expand this list as needed
+    allowed_sensors = ['S2', 'LS_8_9', 'LS_5_7']  # Expand this list as needed
     if sensor not in allowed_sensors:
         return jsonify({"error": f"Invalid sensor. Allowed values: {allowed_sensors}"}), 400
 

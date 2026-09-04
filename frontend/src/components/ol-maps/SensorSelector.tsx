@@ -4,6 +4,9 @@ import './Selectors.scss';
 export interface SensorOption {
     label: string;
     value: string;
+    platform: string[];
+    years: number[];
+    collection: string;
 }
 
 interface SensorSelectorProps {

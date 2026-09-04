@@ -13,15 +13,12 @@ import { runBurnSeverityAnalysis, AnalysisRequest } from '../utils/apiService';
 import SensorSelector, { SensorOption } from './ol-maps/SensorSelector';
 import { SessionMonitor } from 'oidc-client-ts';
 
-const SENSOR_OPTIONS: SensorOption[] = [
-  { label: 'Sentinel-2', value: 'S2' },
-  { label: 'Landsat', value: 'LS' },
-];
-
-const SENSOR_YEARS: Record<string, number> = {
-  S2: 2015,
-  LS: 1984,
+const SENSOR_OPTIONS: Record<string, SensorOption> = {
+  'S2': { label: 'Sentinel-2', value: 'S2', platform: ['sentinel-2a','sentinel-2b','sentinel-2c'], years: [2015,], collection: 'sentinel-2-l2a' },
+  'LS_8_9': { label: 'Landsat 8/9', value: 'LS_8_9', platform: ['landsat-8', 'landsat-9'], years: [2013,], collection: 'hls2-l30' },
+  'LS_5_7': { label: 'Landsat 5/7', value: 'LS_5_7', platform: ['landsat-5', 'landsat-7'], years: [1984, 2024 ], collection: 'landsat-c2-l2' }
 };
+
 
 interface StacSearchCriteria {
   collection: string | null;
@@ -78,13 +75,23 @@ const StacSearchPanel: React.FC = () => {
   const [selectedPostImageId, setSelectedPostImageId] = useState<string | null>(null);
   const [analysisReady, setAnalysisReady] = useState<boolean>(false);
   const [analysisRunning, setAnalysisRunning] = useState<boolean>(false);
+  const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
 
 
   const availableSensors = useMemo(() => {
-    if (!selectedFire?.year) return SENSOR_OPTIONS;
-    return SENSOR_OPTIONS.filter((sensor) => {
-      const minYear = SENSOR_YEARS[sensor.value] ?? 1900;
-      return selectedFire.year >= minYear;
+
+    const sensorArray = Object.values(SENSOR_OPTIONS);
+
+    if (!selectedFire?.year) return sensorArray;
+    return sensorArray.filter((sensor) => {
+      const minYear = sensor.years[0] ?? 1900;
+      const maxYear = sensor.years[1] ?? null;
+      if (!maxYear) {
+        return selectedFire.year >= minYear;
+      } else {
+        return selectedFire.year >= minYear && selectedFire.year <= maxYear;
+      }
+      
     });
   }, [selectedFire])
 
@@ -248,12 +255,14 @@ const StacSearchPanel: React.FC = () => {
 
 
   const handleSensorSelection = (sensorValue: string | null) => {
+    if (!sensorValue) {
+      setSelectedSensor(null)
+      return
+    }
+    setSelectedSensor(sensorValue)
     setAnalysisConfig(prev => ({ ...prev, sensor: sensorValue }));
 
-    let stacCollection = 'sentinel-2-l2a';
-    if (sensorValue && sensorValue.startsWith('L')) {
-      stacCollection = 'hls2-l30';
-    }
+    const stacCollection = SENSOR_OPTIONS[sensorValue].collection
 
     setSearchCriteria(prev => ({ ...prev, collection: stacCollection}));
   };
@@ -314,12 +323,27 @@ const StacSearchPanel: React.FC = () => {
     addPreviewLayer(url);
   };
 
+  const getImageUrl = (item: any) => {
+
+    if(selectedSensor === 'LS_8_9') {
+      return `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=B04&assets=B03&assets=B02&rescale=0,3000`;
+    }
+
+    if(selectedSensor === 'LS_5_7') {
+      return `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
+    }
+
+    return item.assets.visual.href;
+  };
+
+
   const ignitionDate = selectedFire ? new Date(selectedFire.ignitionDate) : null;
-  const preIgnitionResults = ignitionDate
-    ? searchResults.filter(item => new Date(item.properties.datetime) < ignitionDate)
+  
+  const preIgnitionResults = ignitionDate && selectedSensor
+    ? searchResults.filter(item => (new Date(item.properties.datetime) < ignitionDate && SENSOR_OPTIONS[selectedSensor].platform.includes(item.properties.platform)))
     : [];
-  const postIgnitionResults = ignitionDate
-    ? searchResults.filter(item => new Date(item.properties.datetime) >= ignitionDate)
+  const postIgnitionResults = ignitionDate && selectedSensor
+    ? searchResults.filter(item => (new Date(item.properties.datetime) >= ignitionDate && SENSOR_OPTIONS[selectedSensor].platform.includes(item.properties.platform)))
     : [];
   return (
     <div className="StacSearchPanel">
@@ -492,13 +516,7 @@ const StacSearchPanel: React.FC = () => {
                                 removePreviewLayer();
                                 setPreviewLayerId(null);
                               } else {
-                                const isLandsat = item.collection === 'hls2-l30';
-                                const rawFormula = 'gamma RGB 2.72,saturation 1.5,sigmoidal RGB 15 0.55';
-                                const encodedFormula = encodeURIComponent(rawFormula);
-                                const previewUrl = isLandsat
-                                // ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
-                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=B04&assets=B03&assets=B02&rescale=0,3000`
-                                : item.assets.visual.href;
+                                const previewUrl = getImageUrl(item);
                                 addPreviewLayer(previewUrl);
                                 setPreviewLayerId(item.id);
                               }
@@ -554,11 +572,7 @@ const StacSearchPanel: React.FC = () => {
                               removePreviewLayer();
                               setPreviewLayerId(null);
                             } else {
-                              const isLandsat = item.collection === 'hls2-l30';
-                                const previewUrl = isLandsat
-                                // ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
-                                ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=B04&assets=B03&assets=B02&rescale=0,3000`
-                                : item.assets.visual.href;
+                              const previewUrl = getImageUrl(item);
                               addPreviewLayer(previewUrl);
                               setPreviewLayerId(item.id);
                             }
