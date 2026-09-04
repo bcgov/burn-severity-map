@@ -62,7 +62,7 @@ def get_input_parameters():
         parser.add_argument('-o', '--object_storage', action='store_true', help='Write to object storage')
         parser.add_argument('-s', '--s_date', type=str, nargs='?', help='Optional start date for fire')
         parser.add_argument('-e', '--e_date', type=str, nargs='?', help='Optional end date for fire')
-        parser.add_argument('-c', '--cloud', type=str, default='10', help='Cloud cover')
+        parser.add_argument('-c', '--cloud', type=float, default=10.0, help='Cloud cover')
         parser.add_argument('-i', '--image_ids', type=str, nargs='?', help='Optional image ids to use for processing. Image ids should be comma separated values with pre and post values separated by a semi-colon (ie. pre_id1,pre_id2:post_id1,post_id2)')
         parser.add_argument('--log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                             help='Log level')
@@ -93,7 +93,7 @@ def get_input_parameters():
 
 class InterimBurnSeverity:
     def __init__(self, fire: str, year: str, sensor: str='S2', output_folder: str=None, object_storage: bool=False, start_date:str=None, end_date: str=None, 
-                 cloud_cover: str='10', image_ids:str=None, logger:logging.Logger=None) -> None:
+                 cloud_cover: float=10.0, image_ids:str=None, logger:logging.Logger=None) -> None:
         self.fire_number = fire
         self.fire_year = int(year)
         self.use_storage = object_storage
@@ -116,7 +116,7 @@ class InterimBurnSeverity:
             else:
                 self.pre_image_ids = self.str_image_ids.split(',')
 
-        self.cloud_cover = float(cloud_cover)
+        self.cloud_cover = cloud_cover
         self.logger = logger
         self.fire_status = ''
         self.sensor = sensor
