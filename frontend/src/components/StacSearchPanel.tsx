@@ -25,7 +25,7 @@ interface StacSearchCriteria {
   bbox: Extent | null;
   preOffset: number;
   postOffset: number;
-  cloudCover: number | null;
+  cloudCover: number;
 }
 
 interface AnalysisConfig {
@@ -39,7 +39,7 @@ interface AnalysisConfig {
   imageIDs: string | null;
   preImageCloud: number | null;
   postImageCloud: number | null;
-  cloudCover: number | null;
+  cloudCover: number;
 }
 
 const StacSearchPanel: React.FC = () => {
@@ -65,7 +65,7 @@ const StacSearchPanel: React.FC = () => {
     imageIDs: null,
     preImageCloud: 0,
     postImageCloud: 0,
-    cloudCover: 0,
+    cloudCover: 30,
   });
 
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -75,7 +75,7 @@ const StacSearchPanel: React.FC = () => {
   const [selectedPostImageId, setSelectedPostImageId] = useState<string | null>(null);
   const [analysisReady, setAnalysisReady] = useState<boolean>(false);
   const [analysisRunning, setAnalysisRunning] = useState<boolean>(false);
-  const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
+  const [selectedCloudCover, setSelectedCloudCover] = useState<number>(30)
 
 
   const availableSensors = useMemo(() => {
@@ -116,7 +116,7 @@ const StacSearchPanel: React.FC = () => {
         imageIDs: null,
         preImageCloud: 0,
         postImageCloud: 0,
-        cloudCover: 0,
+        cloudCover: selectedCloudCover,
       });
       setSearchResults([]);
       setSelectedPreImageId(null);
@@ -128,7 +128,7 @@ const StacSearchPanel: React.FC = () => {
       return;
     }
     setAnalysisConfig(prev => ({ ...prev,fire_number:selectedFire.fireNumber,year:selectedFire.year}));
-  }, [selectedFire]);
+  }, [selectedFire, selectedCloudCover]);
 
 
   // is analysis config ready
@@ -171,14 +171,13 @@ const StacSearchPanel: React.FC = () => {
 
   const handleStartAnalysis = async () => {
     const url = "/analysis/run-analysis";
-    const defaultCloud = "10";
+    const defaultCloud = 30;
     const currentYear = new Date().getFullYear();
     const thisYear = analysisConfig.year ?? new Date().getFullYear();
     const sCloud = analysisConfig.preImageCloud ?? defaultCloud;
     const eCloud = analysisConfig.postImageCloud ?? defaultCloud;
-    const cloud =  Math.max(Number(sCloud)+1, Number(eCloud)+1);
+    const cloud =  selectedCloudCover;
     const imageIDs = analysisConfig.preImageID + ':' + analysisConfig.postImageID;
-    console.log('Year', thisYear);
     setAnalysisRunning(true);
 
     const payload: AnalysisRequest = {
@@ -224,12 +223,18 @@ const StacSearchPanel: React.FC = () => {
   };
 
   const handleCloudCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = Number(e.target.value);
+    setSelectedCloudCover(value)
     setSearchCriteria(prev => ({
       ...prev,
-      cloudCover: value === '' ? null : Number(value),
+      cloudCover: value,
     }));
+    setAnalysisConfig(prev => ({
+      ...prev,
+      cloudCover:value,
+    }))
   };
+
   const handlePreImageSelection = (cloud_cover: number, preImageDate: string, id:string) => {
     console.log("Changing preimage to: ",preImageDate);
     setSelectedPreImageId(id); // <-- Track selected image
@@ -240,6 +245,7 @@ const StacSearchPanel: React.FC = () => {
       preImageCloud: cloud_cover,
     }));
   }
+
   const handlePostImageSelection = (cloud_cover: number, postImageDate: string, id: string) => {
     console.log("Changing postimage to: ",postImageDate);
 
@@ -256,10 +262,8 @@ const StacSearchPanel: React.FC = () => {
 
   const handleSensorSelection = (sensorValue: string | null) => {
     if (!sensorValue) {
-      setSelectedSensor(null)
       return
     }
-    setSelectedSensor(sensorValue)
     setAnalysisConfig(prev => ({ ...prev, sensor: sensorValue }));
 
     const stacCollection = SENSOR_OPTIONS[sensorValue].collection
@@ -325,11 +329,11 @@ const StacSearchPanel: React.FC = () => {
 
   const getImageUrl = (item: any) => {
 
-    if(selectedSensor === 'LS_8_9') {
+    if(analysisConfig.sensor === 'LS_8_9') {
       return `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=B04&assets=B03&assets=B02&rescale=0,3000`;
     }
 
-    if(selectedSensor === 'LS_5_7') {
+    if(analysisConfig.sensor === 'LS_5_7') {
       return `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}?collection=${item.collection}&item=${item.id}&assets=red&assets=green&assets=blue&rescale=7273,15000`
     }
 
@@ -339,11 +343,11 @@ const StacSearchPanel: React.FC = () => {
 
   const ignitionDate = selectedFire ? new Date(selectedFire.ignitionDate) : null;
   
-  const preIgnitionResults = ignitionDate && selectedSensor
-    ? searchResults.filter(item => (new Date(item.properties.datetime) < ignitionDate && SENSOR_OPTIONS[selectedSensor].platform.includes(item.properties.platform)))
+  const preIgnitionResults = ignitionDate && analysisConfig.sensor
+    ? searchResults.filter(item => (new Date(item.properties.datetime) < ignitionDate && SENSOR_OPTIONS[analysisConfig.sensor!].platform.includes(item.properties.platform)))
     : [];
-  const postIgnitionResults = ignitionDate && selectedSensor
-    ? searchResults.filter(item => (new Date(item.properties.datetime) >= ignitionDate && SENSOR_OPTIONS[selectedSensor].platform.includes(item.properties.platform)))
+  const postIgnitionResults = ignitionDate && analysisConfig.sensor
+    ? searchResults.filter(item => (new Date(item.properties.datetime) >= ignitionDate && SENSOR_OPTIONS[analysisConfig.sensor!].platform.includes(item.properties.platform)))
     : [];
   return (
     <div className="StacSearchPanel">
@@ -439,7 +443,7 @@ const StacSearchPanel: React.FC = () => {
           <label> Max allowed cloud (%) :
           <input
             type="number"
-            value={searchCriteria.cloudCover !== null ? searchCriteria.cloudCover : ''}
+            value={searchCriteria.cloudCover !== null ? searchCriteria.cloudCover : 0}
             onChange={handleCloudCoverChange}
             min="0"
             max="100"
