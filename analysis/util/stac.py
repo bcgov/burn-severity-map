@@ -71,7 +71,7 @@ class STAC:
                 )
 
                 for item in search.items():
-                    if sensor in ['LS_5_7', 'LS_8_9']:
+                    if sensor.startswith('LS'):
                         item = planetary_computer.sign(item)
                     self.logger.info(f'    - Found specified tile: {item.id}')
                     selected_items.append(item)
@@ -124,7 +124,7 @@ class STAC:
                             break # Found the best available candidate for this iteration
                         
                     if best_item_found:
-                        if sensor == 'LS':
+                        if sensor.startswith('LS'):
                             best_item_found = planetary_computer.sign(best_item_found)
                         item_id = best_item_found.id
                         item_date = best_item_found.datetime.date()
