@@ -170,6 +170,7 @@ class InterimBurnSeverity:
         self.__current_points ='WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_PNTS_SP'
         self.__historic_perimeters = 'WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_FIRE_POLYS_SP'
         self.__historic_points = 'WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_INCIDENTS_SP'
+        self.__fwa_lakes = 'WHSE_BASEMAPPING.FWA_LAKES_POLY'
         
 
         self.dict_pre_fire = defaultdict(ImageMetadata)
@@ -185,6 +186,7 @@ class InterimBurnSeverity:
 
         self.gdf_fires = None
         self.fire_boundary = None
+        self.gdf_lakes = None
 
     def __del__(self) -> None:
         pass
@@ -243,7 +245,13 @@ class InterimBurnSeverity:
         
 
         # self.lst_delete_datasets.extend([self.fc_fire_point, self.fc_fire_perimeter])
-
+        self.logger.info('Gathering intersecting lakes')
+        fire_bounds = self.gdf_fires.total_bounds
+        fire_bounds = f'{fire_bounds[0]},{fire_bounds[1]},{fire_bounds[2]},{fire_bounds[3]},urn:ogc:def:crs:EPSG::3005'
+        self.logger.info(fire_bounds)
+        lakes = WFS.get_data(dataset=self.__fwa_lakes, bbox=fire_bounds)
+        self.gdf_lakes = gpd.GeoDataFrame.from_features(features=lakes, crs=3005)
+        self.logger.info(f'Found {self.gdf_lakes.shape[0]} intersecting lakes')
 
         for i, row in self.gdf_fires.iterrows():
             if not self.start_date:
@@ -343,7 +351,11 @@ class InterimBurnSeverity:
                 output_post = f'{self.fire_year}-{fire_number}_post_nbr.tif'
                 output_pre_rgb = f'{self.fire_year}-{fire_number}_pre_rgb.tif'
                 output_post_rgb = f'{self.fire_year}-{fire_number}_post_rgb.tif'
+                output_pre_cloud = f'{self.fire_year}-{fire_number}_pre_cloud.tif'
+                output_post_cloud = f'{self.fire_year}-{fire_number}_post_cloud.tif'
+                output_water = f'{self.fire_year}-{fire_number}_water.tif'
                 output_dnbr = f'{self.fire_year}-{fire_number}_dnbr.tif'
+                output_dnbr_mask = f'{self.fire_year}-{fire_number}_dnbr_masked.tif'
                 output_scaled = f'{self.fire_year}-{fire_number}_scaled_dnbr.tif'
                 output_barc = f'{self.fire_year}-{fire_number}_{pre_fire_date}_{post_fire_date}_{self.sensor}_barc.tif'
                 output_filtered = f'{self.fire_year}-{fire_number}_{pre_fire_date}_{post_fire_date}_{self.sensor}_barc_filtered.tif'
@@ -352,21 +364,32 @@ class InterimBurnSeverity:
                 output_post_nbr_path = os.path.join(self.output_folder, output_post) if self.use_folder else None
                 output_pre_rgb_path = os.path.join(self.export_folder, output_pre_rgb) if self.use_folder else None
                 output_post_rgb_path = os.path.join(self.export_folder, output_post_rgb) if self.use_folder else None
+                output_pre_cloud_path = os.path.join(self.output_folder, output_pre_cloud) if self.use_folder else None
+                output_post_cloud_path = os.path.join(self.output_folder, output_post_cloud) if self.use_folder else None
+                output_water_path = os.path.join(self.output_folder, output_water) if self.use_folder else None
                 output_dnbr_path = os.path.join(self.output_folder, output_dnbr) if self.use_folder else None
+                output_dnbr_mask_path = os.path.join(self.output_folder, output_dnbr_mask) if self.use_folder else None
                 output_scaled_dnbr_path = os.path.join(self.output_folder, output_scaled) if self.use_folder else None
                 output_barc_path = os.path.join(self.output_folder, output_barc) if self.use_folder else None
                 output_filtered_path = os.path.join(self.export_folder, output_filtered) if self.use_folder else None
+
                 os_pre_nbr_path = f'{self.os_output_folder}/{output_pre}' if self.use_storage else None
                 os_post_nbr_path = f'{self.os_output_folder}/{output_post}' if self.use_storage else None
                 os_pre_rgb_path = f'{self.os_export_folder}/{output_pre_rgb}' if self.use_storage else None
                 os_post_rgb_path = f'{self.os_export_folder}/{output_post_rgb}' if self.use_storage else None
+                os_pre_cloud_path = f'{self.os_output_folder}/{output_pre_cloud}' if self.use_storage else None
+                os_post_cloud_path = f'{self.os_output_folder}/{output_post_cloud}' if self.use_storage else None
+                os_water_path = f'{self.os_output_folder}/{output_water}' if self.use_storage else None
                 os_dnbr_path = f'{self.os_output_folder}/{output_dnbr}' if self.use_storage else None
+                os_dnbr_mask_path = f'{self.os_output_folder}/{output_dnbr_mask}' if self.use_storage else None
                 os_scaled_dnbr_path = f'{self.os_output_folder}/{output_scaled}' if self.use_storage else None
                 os_barc_path = f'{self.os_output_folder}/{output_barc}' if self.use_storage else None
                 os_filtered_path = f'{self.os_export_folder}/{output_filtered}' if self.use_storage else None
 
+                
+
                 self.logger.info(f'Creating PRE-FIRE RGB')
-                pre_rgb, pre_meta, pre_transform = stac.create_rgb_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')
+                pre_rgb, pre_meta, pre_transform = stac.create_rgb_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_rgb is None:
                     self.logger.error('Failed to create pre-fire RGB.')
                     return None
@@ -379,7 +402,7 @@ class InterimBurnSeverity:
                 gc.collect()
                 
                 self.logger.info(f'Creating POST-FIRE RGB')
-                post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='post')
+                post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if post_rgb is None:
                     self.logger.error('Failed to create post-fire RGB.')
                     return None
@@ -392,7 +415,7 @@ class InterimBurnSeverity:
                 gc.collect()
 
                 self.logger.info(f'Calculating PRE-FIRE NBR')
-                pre_nbr, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs, run_type='pre')
+                pre_nbr, pre_cloud, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_nbr is None:
                     self.logger.error('Failed to calculate pre-fire NBR.')
                     return None
@@ -400,7 +423,7 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing pre-fire nbr to file')
                 self.write_raster(data=pre_nbr, meta=pre_meta, folder_path=output_pre_nbr_path, os_path=os_pre_nbr_path)
-
+                self.write_raster(data=pre_cloud, meta=pre_meta, folder_path=output_pre_cloud_path, os_path=os_pre_cloud_path)
 
                 # 6. Calculate Post-fire NBR, aligning to the pre-fire grid
                 self.logger.info(f'Calculating POST-FIRE NBR')
@@ -408,14 +431,13 @@ class InterimBurnSeverity:
                 target_crs_for_post = pre_meta['crs']
                 target_transform_for_post = pre_transform
 
-                post_nbr, post_meta, _ = stac.create_nbr_mosaic(
+                post_nbr, post_cloud, post_meta, _ = stac.create_nbr_mosaic(
                     post_fire_items, 
                     perimeter_gdf,
                     target_transform=target_transform_for_post,
                     target_crs=target_crs_for_post,
                     target_shape=target_shape_for_post,
-                    aws_requester_pays=False,
-                    run_type='post'
+                    aws_requester_pays=False
                 )
                 if post_nbr is None:
                     self.logger.error('Failed to calculate post-fire NBR.')
@@ -424,12 +446,14 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing post-fire nbr to file')
                 self.write_raster(data=post_nbr, meta=post_meta, folder_path=output_post_nbr_path, os_path=os_post_nbr_path)
+                self.write_raster(data=post_cloud, meta=post_meta, folder_path=output_post_cloud_path, os_path=os_post_cloud_path)
 
                 # Ensure alignment before dNBR (should be guaranteed by calculate_nbr_for_item logic)
                 if pre_nbr.shape != post_nbr.shape:
                     self.logger.error(f'CRITICAL ERROR: Pre-fire NBR shape {pre_nbr.shape} and Post-fire NBR shape {post_nbr.shape} '
                           'do not match despite alignment efforts. Cannot proceed with dNBR calculation.')
                     return None
+
 
                 # 7. Calculate dNBR
                 self.logger.info('Calculating dNBR (Pre-NBR - Post-NBR)')
@@ -448,9 +472,22 @@ class InterimBurnSeverity:
                     "nodata": np.nan # Ensure nodata is consistent
                 })
 
+
                 self.logger.info('Writing dnbr to file')
                 self.write_raster(data=dnbr, meta=dnbr_meta, folder_path=output_dnbr_path, os_path=os_dnbr_path)
 
+                self.logger.info('Creating water mask')
+                water_mask = stac.rasterize_water(water=self.gdf_lakes, out_height=pre_nbr.shape[1], out_width=pre_nbr.shape[2], out_transform=pre_transform)
+
+                self.logger.info('Writing water mask to file')
+                self.write_raster(data=water_mask, meta=pre_meta, folder_path=output_water_path, os_path=os_water_path)
+
+
+                self.logger.info('Masking out water')
+                dnbr[0, water_mask] = np.nan
+
+                self.logger.info('Writing masked dnbr to file')
+                self.write_raster(data=dnbr, meta=dnbr_meta, folder_path=output_dnbr_mask_path, os_path=os_dnbr_mask_path)
                 
                 # 8. Calculate scaled dNBR
                 self.logger.info('Calculating scaled dNBR ((dNBR * 1000 + 275)/5)')
@@ -472,7 +509,7 @@ class InterimBurnSeverity:
 
                 # Clean up files to free memory
                 self.logger.info('Cleaning up rasters')
-                del pre_nbr, post_nbr, dnbr
+                del pre_nbr, post_nbr, dnbr, water_mask
                 gc.collect()
 
 
@@ -483,13 +520,14 @@ class InterimBurnSeverity:
                 # barc = no_sev + low_sev + med_sev + high_sev
 
                 self.logger.info('Classifying barc')
-                barc = np.zeros(scaled_dnbr.shape, dtype=np.uint8)
+                # barc = np.zeros(scaled_dnbr.shape, dtype=np.uint8)
+                barc = np.full(scaled_dnbr.shape, 255, dtype=np.uint8)
                 barc[scaled_dnbr < 76] = 1 # unburned
                 barc[(scaled_dnbr >= 76) & (scaled_dnbr < 110)] = 2 # low severity
                 barc[(scaled_dnbr >= 110) & (scaled_dnbr < 187)] = 3 # medium severity
                 barc[(scaled_dnbr >= 187)] = 4 # high severity
 
-                barc[np.isnan(scaled_dnbr)] = 0
+                # barc[np.isnan(scaled_dnbr)] = 0
 
                 # clean up scaled dnbr
                 del scaled_dnbr
@@ -500,7 +538,7 @@ class InterimBurnSeverity:
                     "driver": "GTiff",
                     "dtype": "uint8", # dNBR is float
                     "count": 1,
-                    "nodata": 0 # Ensure nodata is consistent
+                    "nodata": 255 # Ensure nodata is consistent
                 })
 
                 # try:
@@ -508,7 +546,10 @@ class InterimBurnSeverity:
                 self.write_raster(data=barc.astype(np.uint8), meta=s_class_meta, folder_path=output_barc_path, os_path=os_barc_path, delete=True)
 
                 self.logger.info('Filtering barc to remove fragments less than 10 m2')
-                barc_filter = sieve(source=barc.astype(np.uint8), size=10)
+                barc_2d = barc[0].astype(np.uint8)
+                valid_mask = (barc_2d != 255)
+                barc_filtered_2d = sieve(source=barc_2d, size=10, mask=valid_mask)
+                barc_filter = np.expand_dims(barc_filtered_2d, axis=0)
 
                 filter_meta = s_class_meta.copy()
                 filter_meta.update(
@@ -540,8 +581,10 @@ class InterimBurnSeverity:
             # barc_name = os.path.basename(barc_tif)
             self.logger.info('Converting to polygon')
 
+            valid_mask = (barc != 255)
+
             results = ({'properties': {'raster_val': v}, 'geometry': s}
-                        for i, (s, v) in enumerate(shapes(barc, mask=None, transform=meta['transform'])))
+                        for i, (s, v) in enumerate(shapes(barc, mask=valid_mask, transform=meta['transform'])))
 
             geoms = list(results)
             gdf = gpd.GeoDataFrame.from_features(geoms, crs=meta['crs'])
