@@ -15,4 +15,5 @@ dependencies = [
     "rasterio>=1.5.0",
     "rio-cogeo>=5.4.2",
     "topojson>=1.10",
+    "scipy==1.15.0",
 ]

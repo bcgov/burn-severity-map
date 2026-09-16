@@ -11,6 +11,7 @@ import rasterio
 from rasterio import merge
 from shapely.geometry import shape, box
 from datetime import timedelta
+from scipy.ndimage import binary_dilation
 import logging
 import planetary_computer
 import gc
@@ -593,11 +594,15 @@ class STAC:
                     # Sentinel-2 cloud values
                     # 3: Cloud Shadow, 8: Cloud Medium Probability, 9: Cloud High Probability, 10: Thin Cirrus
                     is_cloud = np.isin(qa_data, [3, 8, 9, 10])
+                    int_iterations = 3
 
                 else:
                     # Landsat bitmask checks
                     # 2: Dilated Cloud, 3: Cloud, 4: Cloud Shadow
                     is_cloud = ((qa_data & (1 << 1)) != 0) | ((qa_data & (1 << 2)) != 0) | ((qa_data & (1 << 3)) != 0) | ((qa_data & (1 << 4)) != 0)
+                    int_iterations = 1
+
+                is_cloud = binary_dilation(is_cloud, iterations=int_iterations)
         
         except Exception as e:
             self.logger.warning(f' Could not process qa mask for item {item.id}: {e}')
