@@ -354,8 +354,8 @@ class InterimBurnSeverity:
                 output_post = f'{self.fire_year}-{fire_number}_post_nbr.tif'
                 output_pre_rgb = f'{self.fire_year}-{fire_number}_pre_rgb.tif'
                 output_post_rgb = f'{self.fire_year}-{fire_number}_post_rgb.tif'
-                output_pre_cloud = f'{self.fire_year}-{fire_number}_pre_cloud.tif'
-                output_post_cloud = f'{self.fire_year}-{fire_number}_post_cloud.tif'
+                output_pre_mask = f'{self.fire_year}-{fire_number}_pre_mask.tif'
+                output_post_mask = f'{self.fire_year}-{fire_number}_post_mask.tif'
                 output_water = f'{self.fire_year}-{fire_number}_water.tif'
                 output_dnbr = f'{self.fire_year}-{fire_number}_dnbr.tif'
                 output_dnbr_mask = f'{self.fire_year}-{fire_number}_dnbr_masked.tif'
@@ -367,8 +367,8 @@ class InterimBurnSeverity:
                 output_post_nbr_path = os.path.join(self.output_folder, output_post) if self.use_folder else None
                 output_pre_rgb_path = os.path.join(self.export_folder, output_pre_rgb) if self.use_folder else None
                 output_post_rgb_path = os.path.join(self.export_folder, output_post_rgb) if self.use_folder else None
-                output_pre_cloud_path = os.path.join(self.output_folder, output_pre_cloud) if self.use_folder else None
-                output_post_cloud_path = os.path.join(self.output_folder, output_post_cloud) if self.use_folder else None
+                output_pre_mask_path = os.path.join(self.output_folder, output_pre_mask) if self.use_folder else None
+                output_post_mask_path = os.path.join(self.output_folder, output_post_mask) if self.use_folder else None
                 output_water_path = os.path.join(self.output_folder, output_water) if self.use_folder else None
                 output_dnbr_path = os.path.join(self.output_folder, output_dnbr) if self.use_folder else None
                 output_dnbr_mask_path = os.path.join(self.output_folder, output_dnbr_mask) if self.use_folder else None
@@ -380,8 +380,8 @@ class InterimBurnSeverity:
                 os_post_nbr_path = f'{self.os_output_folder}/{output_post}' if self.use_storage else None
                 os_pre_rgb_path = f'{self.os_export_folder}/{output_pre_rgb}' if self.use_storage else None
                 os_post_rgb_path = f'{self.os_export_folder}/{output_post_rgb}' if self.use_storage else None
-                os_pre_cloud_path = f'{self.os_output_folder}/{output_pre_cloud}' if self.use_storage else None
-                os_post_cloud_path = f'{self.os_output_folder}/{output_post_cloud}' if self.use_storage else None
+                os_pre_mask_path = f'{self.os_output_folder}/{output_pre_mask}' if self.use_storage else None
+                os_post_mask_path = f'{self.os_output_folder}/{output_post_mask}' if self.use_storage else None
                 os_water_path = f'{self.os_output_folder}/{output_water}' if self.use_storage else None
                 os_dnbr_path = f'{self.os_output_folder}/{output_dnbr}' if self.use_storage else None
                 os_dnbr_mask_path = f'{self.os_output_folder}/{output_dnbr_mask}' if self.use_storage else None
@@ -418,7 +418,7 @@ class InterimBurnSeverity:
                 gc.collect()
 
                 self.logger.info(f'Calculating PRE-FIRE NBR')
-                pre_nbr, pre_cloud, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
+                pre_nbr, pre_mask, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_nbr is None:
                     self.logger.error('Failed to calculate pre-fire NBR.')
                     return None
@@ -426,7 +426,7 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing pre-fire nbr to file')
                 self.write_raster(data=pre_nbr, meta=pre_meta, folder_path=output_pre_nbr_path, os_path=os_pre_nbr_path)
-                self.write_raster(data=pre_cloud, meta=pre_meta, folder_path=output_pre_cloud_path, os_path=os_pre_cloud_path)
+                self.write_raster(data=pre_mask, meta=pre_meta, folder_path=output_pre_mask_path, os_path=os_pre_mask_path)
 
                 # 6. Calculate Post-fire NBR, aligning to the pre-fire grid
                 self.logger.info(f'Calculating POST-FIRE NBR')
@@ -434,7 +434,7 @@ class InterimBurnSeverity:
                 target_crs_for_post = pre_meta['crs']
                 target_transform_for_post = pre_transform
 
-                post_nbr, post_cloud, post_meta, _ = stac.create_nbr_mosaic(
+                post_nbr, post_mask, post_meta, _ = stac.create_nbr_mosaic(
                     post_fire_items, 
                     perimeter_gdf,
                     target_transform=target_transform_for_post,
@@ -449,7 +449,7 @@ class InterimBurnSeverity:
 
                 self.logger.info('Writing post-fire nbr to file')
                 self.write_raster(data=post_nbr, meta=post_meta, folder_path=output_post_nbr_path, os_path=os_post_nbr_path)
-                self.write_raster(data=post_cloud, meta=post_meta, folder_path=output_post_cloud_path, os_path=os_post_cloud_path)
+                self.write_raster(data=post_mask, meta=post_meta, folder_path=output_post_mask_path, os_path=os_post_mask_path)
 
                 # Ensure alignment before dNBR (should be guaranteed by calculate_nbr_for_item logic)
                 if pre_nbr.shape != post_nbr.shape:
@@ -482,12 +482,16 @@ class InterimBurnSeverity:
                 self.logger.info('Creating water mask')
                 water_mask = stac.rasterize_water(water=self.gdf_lakes, out_height=pre_nbr.shape[1], out_width=pre_nbr.shape[2], out_transform=pre_transform)
 
+                self.logger.info('Creating mask for cloud, shadow, snow')
+                all_mask = (pre_mask > 0) | (post_mask > 0)
+
                 self.logger.info('Writing water mask to file')
                 self.write_raster(data=water_mask, meta=pre_meta, folder_path=output_water_path, os_path=os_water_path)
 
 
-                self.logger.info('Masking out water')
+                self.logger.info('Masking out water, cloud, shadow, and snow')
                 dnbr[0, water_mask] = np.nan
+                dnbr[all_mask] = np.nan
 
                 self.logger.info('Writing masked dnbr to file')
                 self.write_raster(data=dnbr, meta=dnbr_meta, folder_path=output_dnbr_mask_path, os_path=os_dnbr_mask_path)
@@ -512,7 +516,7 @@ class InterimBurnSeverity:
 
                 # Clean up files to free memory
                 self.logger.info('Cleaning up rasters')
-                del pre_nbr, post_nbr, dnbr, water_mask
+                del pre_nbr, post_nbr, dnbr, water_mask, pre_mask, post_mask
                 gc.collect()
 
 
@@ -530,10 +534,10 @@ class InterimBurnSeverity:
                 barc[(scaled_dnbr >= 110) & (scaled_dnbr < 187)] = 3 # medium severity
                 barc[(scaled_dnbr >= 187)] = 4 # high severity
 
-                # barc[np.isnan(scaled_dnbr)] = 0
+                barc[all_mask] = 0
 
                 # clean up scaled dnbr
-                del scaled_dnbr
+                del scaled_dnbr, all_mask
                 gc.collect()
 
                 s_class_meta = post_meta.copy() # post_meta already reflects the aligned grid
@@ -774,7 +778,7 @@ class InterimBurnSeverity:
                     try:
                         if self.use_storage and os_path:
                             mem_dst_cog.seek(0)
-                            self.obj_storage.write_image(file_path=os_path, raster=mem_dst_cog)
+                            self.obj_storage.write_image(file_path=os_path, raster=mem_dst_cog, delete=delete)
                             mem_dst_cog.close()
                             self.logger.info(f'    - File written to object storage at {os_path}')
                     except Exception as e:

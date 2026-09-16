@@ -173,14 +173,14 @@ class STAC:
                           target_shape=None,
                           aws_requester_pays: bool = False):
         nbr_datasets = []
-        cloud_datasets = []
+        mask_datasets = []
         memfiles_to_close = []
         self.logger.info(f'    - Processing {len(stac_items)} tiles to create an NBR mosaic')
 
         
 
         for item in stac_items:
-            nbr_array, cloud, meta = self.__calculate_nbr_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
+            nbr_array, mask, meta = self.__calculate_nbr_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
             if nbr_array is not None and nbr_array.size > 0:
                 mf_nbr = rasterio.io.MemoryFile()
                 memfiles_to_close.append(mf_nbr)
@@ -188,14 +188,15 @@ class STAC:
                     ds.write(nbr_array)
                 nbr_datasets.append(mf_nbr.open())
 
-                if cloud is not None and cloud.size > 0:
-                    mf_cloud = rasterio.io.MemoryFile()
-                    memfiles_to_close.append(mf_cloud)
-                    with mf_cloud.open(**meta) as ds:
-                        ds.write(cloud)
-                    cloud_datasets.append(mf_cloud.open())
+                if mask is not None and mask.size > 0:
+                    mf_mask = rasterio.io.MemoryFile()
+                    memfiles_to_close.append(mf_mask)
+                    with mf_mask.open(**meta) as ds:
+                        ds.write(mask)
+                    mask_datasets.append(mf_mask.open())
 
-                del nbr_array, cloud
+
+                del nbr_array, mask
                 gc.collect()
             else:
                 self.logger.info(f'    - Skipping empty or invalid NBR result for item {item.id}')
@@ -203,26 +204,26 @@ class STAC:
 
         if not nbr_datasets:
             self.logger.warning('    - No valid datasets could be processed for the NBR mosaic')
-            return None, None, None
+            return None, None, None, None
 
         self.logger.info(f'    - Merging {len(nbr_datasets)} processed tiles into a single NBR mosaic')
         try:
             mosaic_nbr, out_trans = merge.merge(nbr_datasets)
-            mosaic_cloud, _ = merge.merge(cloud_datasets)
+            mosaic_mask, _ = merge.merge(mask_datasets)
 
             out_meta = nbr_datasets[0].meta.copy()
             out_meta.update({'height': mosaic_nbr.shape[1], 'width': mosaic_nbr.shape[2], 'transform': out_trans, 'crs': target_crs})
         except Exception as e:
             self.logger.error(f'    - Error during rasterio.merge for NBR mosaic: {e}')
-            return None, None, None, None, None
+            return None, None, None, None
         finally:
-            all_datasets = nbr_datasets + cloud_datasets
+            all_datasets = nbr_datasets + mask_datasets
             for ds in all_datasets:
                 ds.close()
             for mf in memfiles_to_close:
                 mf.close()
         self.logger.info('    - NBR Mosaic created successfully')
-        return mosaic_nbr, mosaic_cloud, out_meta, out_trans
+        return mosaic_nbr, mosaic_mask, out_meta, out_trans
 
 
     def create_rgb_mosaic(self, stac_items: list,
@@ -432,13 +433,12 @@ class STAC:
         nbr[valid_mask] = numerator[valid_mask] / denominator[valid_mask]
         nbr = np.clip(nbr, -1.0, 1.0)
 
-        is_cloud = self.__extract_masks_for_item(item, out_transform=out_transform, out_height=out_height, out_width=out_width, target_crs=target_crs)
+        is_cloud, is_shadow, is_snow = self.__extract_masks_for_item(item, out_transform=out_transform, out_height=out_height, out_width=out_width, target_crs=target_crs, nir_data=nir_data)
 
-        cloud_band = np.zeros(nbr.shape, dtype=np.float32)
-        cloud_band[is_cloud] = 1.0
+        all_masks = np.zeros(nbr.shape, dtype=np.float32)
+        all_masks[is_cloud | is_shadow | is_snow] = 1.0
 
-
-        del nir_data, swir_data, numerator, denominator, valid_mask, is_cloud
+        del nir_data, swir_data, numerator, denominator, valid_mask, is_cloud, is_shadow, is_snow
         gc.collect()
 
         clip_geom = [geom.__geo_interface__ for geom in perimeter_gdf_proj.geometry]
@@ -463,8 +463,8 @@ class STAC:
 
         with rasterio.io.MemoryFile() as memfile:
             with memfile.open(**temp_meta) as temp_dataset:
-                temp_dataset.write(cloud_band, 1) # Write the NBR array to the temporary dataset
-                clipped_cloud, clipped_transform = rasterio.mask.mask(temp_dataset, clip_geom, crop=True, nodata=np.nan)
+                temp_dataset.write(all_masks, 1) # Write the cloud array to the temporary dataset
+                clipped_mask, clipped_transform = rasterio.mask.mask(temp_dataset, clip_geom, crop=True, nodata=np.nan)
 
         # Update metadata for the final clipped output
         meta = temp_meta.copy()
@@ -475,7 +475,7 @@ class STAC:
             "crs": target_crs # Ensure CRS is explicitly set here as well
         })
 
-        return clipped_nbr_array, clipped_cloud, meta
+        return clipped_nbr_array, clipped_mask, meta
     
 
     def __calculate_rgb_for_item(self, item: 'pystac.Item', 
@@ -567,10 +567,10 @@ class STAC:
             self.logger.error(f'Error: Failed to reproject tile {item.id}. Skipping. Error: {e}')
             return None, None
 
-    def __extract_masks_for_item(self, item: 'pystac.Item', out_transform, out_height, out_width, target_crs):
+    def __extract_masks_for_item(self, item: 'pystac.Item', out_transform, out_height, out_width, target_crs, nir_data=None):
         is_cloud = np.zeros((out_height, out_width), dtype=bool)
 
-        qa_key = next((k for k in ['scl', 'SCL', 'qa_pixel', 'QA_PIXEL'] if k in item.assets), None)
+        qa_key = next((k for k in ['scl', 'SCL', 'qa_pixel', 'QA_PIXEL', 'fmask', 'Fmask', 'FMASK'] if k in item.assets), None)
         if not qa_key:
             return is_cloud
 
@@ -593,21 +593,35 @@ class STAC:
                 if qa_key.lower() == 'scl':
                     # Sentinel-2 cloud values
                     # 3: Cloud Shadow, 8: Cloud Medium Probability, 9: Cloud High Probability, 10: Thin Cirrus
-                    is_cloud = np.isin(qa_data, [3, 8, 9, 10])
+                    is_shadow = (qa_data == 3 )
+                    is_cloud = np.isin(qa_data, [8, 9, 10])
+                    is_snow = (qa_data == 11)
                     int_iterations = 3
-
-                else:
-                    # Landsat bitmask checks
-                    # 2: Dilated Cloud, 3: Cloud, 4: Cloud Shadow
-                    is_cloud = ((qa_data & (1 << 1)) != 0) | ((qa_data & (1 << 2)) != 0) | ((qa_data & (1 << 3)) != 0) | ((qa_data & (1 << 4)) != 0)
+                elif qa_key.lower() == 'fmask':
+                    # Landsat 8/9 bitmask checks
+                    # 0: Cirrus, 1: Cloud, 2: Adj Cloud Shadow, 3: Cloud Shadow
+                    is_shadow = ((qa_data & (1 << 3)) != 0)
+                    is_cloud = ((qa_data & (1 << 1)) != 0)
+                    is_snow = ((qa_data & (1 << 4)) != 0)
                     int_iterations = 1
+                else:
+                    # Landsat 5/7 bitmask checks
+                    # 2: Dilated Cloud, 3: Cloud, 4: Cloud Shadow
+                    is_shadow = ((qa_data & (1 << 4)) != 0)
+                    is_cloud = ((qa_data & (1 << 3)) != 0)
+                    is_snow = ((qa_data & (1 << 5)) != 0)
+                    int_iterations = 1
+
+                if nir_data is not None:
+                    nir_shadow_threshold = 0.08
+                    is_shadow = is_shadow & (nir_data < nir_shadow_threshold)
 
                 is_cloud = binary_dilation(is_cloud, iterations=int_iterations)
         
         except Exception as e:
             self.logger.warning(f' Could not process qa mask for item {item.id}: {e}')
 
-        return is_cloud
+        return is_cloud, is_shadow, is_snow
 
 
     @staticmethod
