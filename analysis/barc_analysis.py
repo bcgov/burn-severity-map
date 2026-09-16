@@ -250,7 +250,10 @@ class InterimBurnSeverity:
         fire_bounds = f'{fire_bounds[0]},{fire_bounds[1]},{fire_bounds[2]},{fire_bounds[3]},urn:ogc:def:crs:EPSG::3005'
         self.logger.info(fire_bounds)
         lakes = WFS.get_data(dataset=self.__fwa_lakes, bbox=fire_bounds)
-        self.gdf_lakes = gpd.GeoDataFrame.from_features(features=lakes, crs=3005)
+        if lakes:
+            self.gdf_lakes = gpd.GeoDataFrame.from_features(features=lakes, crs=3005)
+        else:
+            self.gdf_lakes = gpd.GeoDataFrame(columns=['id', 'geometry'], crs=3005)
         self.logger.info(f'Found {self.gdf_lakes.shape[0]} intersecting lakes')
 
         for i, row in self.gdf_fires.iterrows():
