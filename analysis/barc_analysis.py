@@ -21,7 +21,7 @@ from util.classes import ImageMetadata, Fire
 from util.wfs import WFS
 from util.stac import STAC
 from util.object_storage import ObjectStorage
-from util.qgis_map_robot import bs_map_exporter
+from util.qgis import QGIS
 
 import geopandas as gpd
 import pandas as pd
@@ -851,10 +851,19 @@ class InterimBurnSeverity:
 
         perim_data.to_file(output_perim, 'GeoJSON')
         assert os.path.exists(output_perim), f'Failed to find exported fire perimeter geojson: {output_perim}'
+
+        qgis = QGIS(logger=self.logger)
+        if not qgis:
+            return False
+        
      
         # create pdf map using qgis template
-        result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson), fire_perimeter_geojson=str(output_perim), 
+        result = qgis.export_map(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson), fire_perimeter_geojson=str(output_perim), 
                                  output=str(temp_pdf),layer_name='Burn Severity',layout_name='burnmap')
+        if result is None:
+            return False
+
+        del qgis
         
         # write bs pdf to objectstore
         if self.use_storage:
