@@ -6,7 +6,7 @@ import os, sys, shutil, traceback
 import numpy as np
 from collections import defaultdict
 import rasterio
-from rasterio.features import shapes, sieve
+from rasterio.features import shapes, sieve, rasterize
 from rasterio.io import MemoryFile
 from rio_cogeo.profiles import cog_profiles
 from rio_cogeo.cogeo import cog_translate
@@ -171,6 +171,8 @@ class InterimBurnSeverity:
         self.__historic_perimeters = 'WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_FIRE_POLYS_SP'
         self.__historic_points = 'WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_INCIDENTS_SP'
         self.__fwa_lakes = 'WHSE_BASEMAPPING.FWA_LAKES_POLY'
+        self.__fwa_rivers = 'WHSE_BASEMAPPING.FWA_RIVERS_POLY'
+        self.__fwa_ocean = 'WHSE_BASEMAPPING.TRIM_EBM_OCEAN'
         
 
         self.dict_pre_fire = defaultdict(ImageMetadata)
@@ -187,6 +189,8 @@ class InterimBurnSeverity:
         self.gdf_fires = None
         self.fire_boundary = None
         self.gdf_lakes = None
+        self.gdf_rivers = None
+        self.gdf_ocean = None
 
     def __del__(self) -> None:
         pass
@@ -217,6 +221,24 @@ class InterimBurnSeverity:
             return
         return gdf_fires, int_fire_count
 
+    def rasterize_polygons(self, polys: list, out_height, out_width, out_transform):
+        geoms = []
+        for df in polys:
+            if not df.empty:
+                geoms += [geom for geom in df.geometry]
+        if geoms:
+            is_poly = rasterize(
+                shapes=geoms,
+                out_shape=(out_height, out_width),
+                transform=out_transform,
+                fill=0,
+                default_value=1,
+                dtype=np.uint8
+            ) == 1
+        else:
+            is_poly = np.zeros((out_height, out_width), dtype=bool)
+        return is_poly
+
     def gather_spatial(self) -> None:
         self.logger.info(f'Extracting {self.fire_number} from current fire layer')
 
@@ -245,16 +267,29 @@ class InterimBurnSeverity:
         
 
         # self.lst_delete_datasets.extend([self.fc_fire_point, self.fc_fire_perimeter])
-        self.logger.info('Gathering intersecting lakes')
+        self.logger.info('Gathering intersecting lakes, rivers, and ocean')
         fire_bounds = self.gdf_fires.total_bounds
         fire_bounds = f'{fire_bounds[0]},{fire_bounds[1]},{fire_bounds[2]},{fire_bounds[3]},urn:ogc:def:crs:EPSG::3005'
         self.logger.info(fire_bounds)
         lakes = WFS.get_data(dataset=self.__fwa_lakes, bbox=fire_bounds)
+        rivers = WFS.get_data(dataset=self.__fwa_rivers, bbox=fire_bounds)
+        ocean = WFS.get_data(dataset=self.__fwa_ocean, bbox=fire_bounds)
         if lakes:
             self.gdf_lakes = gpd.GeoDataFrame.from_features(features=lakes, crs=3005)
         else:
             self.gdf_lakes = gpd.GeoDataFrame(columns=['id', 'geometry'], crs=3005)
-        self.logger.info(f'Found {self.gdf_lakes.shape[0]} intersecting lakes')
+
+        if rivers:
+            self.gdf_rivers = gpd.GeoDataFrame.from_features(features=rivers, crs=3005)
+        else:
+            self.gdf_rivers = gpd.GeoDataFrame(columns=['id', 'geometry'], crs=3005)
+
+        if ocean:
+            self.gdf_ocean = gpd.GeoDataFrame.from_features(features=ocean, crs=3005)
+        else:
+            self.gdf_ocean = gpd.GeoDataFrame(columns=['id', 'geometry'], crs=3005)
+        
+        self.logger.info(f'Found {self.gdf_lakes.shape[0]} lakes, {self.gdf_rivers.shape[0]} rivers, and {self.gdf_ocean.shape[0]} ocean')
 
         for i, row in self.gdf_fires.iterrows():
             if not self.start_date:
@@ -480,7 +515,7 @@ class InterimBurnSeverity:
                 self.write_raster(data=dnbr, meta=dnbr_meta, folder_path=output_dnbr_path, os_path=os_dnbr_path)
 
                 self.logger.info('Creating water mask')
-                water_mask = stac.rasterize_water(water=self.gdf_lakes, out_height=pre_nbr.shape[1], out_width=pre_nbr.shape[2], out_transform=pre_transform)
+                water_mask = self.rasterize_polygons(polys=[self.gdf_lakes, self.gdf_rivers, self.gdf_ocean], out_height=pre_nbr.shape[1], out_width=pre_nbr.shape[2], out_transform=pre_transform)
 
                 self.logger.info('Creating mask for cloud, shadow, snow')
                 all_mask = (pre_mask > 0) | (post_mask > 0)

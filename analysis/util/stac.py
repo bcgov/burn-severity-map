@@ -3,7 +3,6 @@ from rasterio.session import AWSSession
 from rasterio.warp import reproject, Resampling, calculate_default_transform
 from rasterio.io import MemoryFile
 from rasterio.transform import array_bounds
-from rasterio.features import rasterize
 from rasterio import mask
 import geopandas as gpd
 import numpy as np
@@ -269,21 +268,6 @@ class STAC:
                 mf.close()
         self.logger.info('    - RGB Mosaic created successfully')
         return mosaic, out_meta, out_trans
-
-    def rasterize_water(self, water: gpd.geodataframe, out_height, out_width, out_transform):
-        if not water.empty:
-            water_geoms = [geom for geom in water.geometry]
-            is_water = rasterize(
-                shapes=water_geoms,
-                out_shape=(out_height, out_width),
-                transform=out_transform,
-                fill=0,
-                default_value=1,
-                dtype=np.uint8
-            ) == 1
-        else:
-            is_water = np.zeros((out_height, out_width), dtype=bool)
-        return is_water
 
 
     def __calculate_nbr_for_item(self, item: 'pystac.Item', 
