@@ -21,7 +21,7 @@ from util.classes import ImageMetadata, Fire
 from util.wfs import WFS
 from util.stac import STAC
 from util.object_storage import ObjectStorage
-from util.qgis_map_robot import bs_map_exporter
+from util.qgis import QGIS
 
 import geopandas as gpd
 import pandas as pd
@@ -360,7 +360,7 @@ class InterimBurnSeverity:
                 pre_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_pre_date_range(), cloud_cover_threshold=self.cloud_cover, image_ids=self.pre_image_ids)
                 if not pre_fire_items:
                     self.logger.error('Could not find suitable pre-fire imagery. Try adjusting date range or cloud cover threshold.')
-                    return None
+                    return None, None
                 for item in pre_fire_items:
                     self.dict_fires[self.fire_number].lst_pre_image.append(item.id)
                     self.dict_fires[self.fire_number].lst_pre_dates.append(item.datetime.strftime('%Y-%m-%d'))
@@ -430,7 +430,7 @@ class InterimBurnSeverity:
                 pre_rgb, pre_meta, pre_transform = stac.create_rgb_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_rgb is None:
                     self.logger.error('Failed to create pre-fire RGB.')
-                    return None
+                    return None, None
                 self.logger.info('Pre-fire RGB creation successful.')
 
                 self.logger.info('Writing pre-fire rgb to file')
@@ -443,7 +443,7 @@ class InterimBurnSeverity:
                 post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if post_rgb is None:
                     self.logger.error('Failed to create post-fire RGB.')
-                    return None
+                    return None, None
                 self.logger.info('Post-fire RGB creation successful.')
 
                 self.logger.info('Writing post-fire rgb to file')
@@ -456,7 +456,7 @@ class InterimBurnSeverity:
                 pre_nbr, pre_mask, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_nbr is None:
                     self.logger.error('Failed to calculate pre-fire NBR.')
-                    return None
+                    return None, None
                 self.logger.info('Pre-fire NBR calculation successful.')
 
                 self.logger.info('Writing pre-fire nbr to file')
@@ -479,7 +479,7 @@ class InterimBurnSeverity:
                 )
                 if post_nbr is None:
                     self.logger.error('Failed to calculate post-fire NBR.')
-                    return None
+                    return None, None
                 self.logger.info('Post-fire NBR calculation successful.')
 
                 self.logger.info('Writing post-fire nbr to file')
@@ -490,7 +490,7 @@ class InterimBurnSeverity:
                 if pre_nbr.shape != post_nbr.shape:
                     self.logger.error(f'CRITICAL ERROR: Pre-fire NBR shape {pre_nbr.shape} and Post-fire NBR shape {post_nbr.shape} '
                           'do not match despite alignment efforts. Cannot proceed with dNBR calculation.')
-                    return None
+                    return None, None
 
 
                 # 7. Calculate dNBR
@@ -851,10 +851,19 @@ class InterimBurnSeverity:
 
         perim_data.to_file(output_perim, 'GeoJSON')
         assert os.path.exists(output_perim), f'Failed to find exported fire perimeter geojson: {output_perim}'
+
+        qgis = QGIS(logger=self.logger)
+        if not qgis:
+            return False
+        
      
         # create pdf map using qgis template
-        result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson), fire_perimeter_geojson=str(output_perim), 
+        result = qgis.export_map(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson), fire_perimeter_geojson=str(output_perim), 
                                  output=str(temp_pdf),layer_name='Burn Severity',layout_name='burnmap')
+        if result is None:
+            return False
+
+        del qgis
         
         # write bs pdf to objectstore
         if self.use_storage:

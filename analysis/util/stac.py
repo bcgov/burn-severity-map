@@ -4,6 +4,7 @@ from rasterio.warp import reproject, Resampling, calculate_default_transform
 from rasterio.io import MemoryFile
 from rasterio.transform import array_bounds
 from rasterio import mask
+from rasterio.windows import from_bounds
 import geopandas as gpd
 import numpy as np
 import rasterio
@@ -14,6 +15,8 @@ from scipy.ndimage import binary_dilation
 import logging
 import planetary_computer
 import gc
+import tempfile
+import os, traceback
 
 class STAC:
     s2_stac_url = 'https://earth-search.aws.element84.com/v1'
@@ -171,9 +174,11 @@ class STAC:
                           target_crs=None, 
                           target_shape=None,
                           aws_requester_pays: bool = False):
-        nbr_datasets = []
-        mask_datasets = []
-        memfiles_to_close = []
+        # nbr_datasets = []
+        # mask_datasets = []
+        # memfiles_to_close = []
+        nbr_filepaths = []
+        mask_filepaths = []
         self.logger.info(f'    - Processing {len(stac_items)} tiles to create an NBR mosaic')
 
         
@@ -181,18 +186,18 @@ class STAC:
         for item in stac_items:
             nbr_array, mask, meta = self.__calculate_nbr_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
             if nbr_array is not None and nbr_array.size > 0:
-                mf_nbr = rasterio.io.MemoryFile()
-                memfiles_to_close.append(mf_nbr)
-                with mf_nbr.open(**meta) as ds:
+                fd_nbr, path_nbr = tempfile.mkstemp(suffix='.tif')
+                os.close(fd_nbr)
+                with rasterio.open(path_nbr, 'w', **meta) as ds:
                     ds.write(nbr_array)
-                nbr_datasets.append(mf_nbr.open())
+                nbr_filepaths.append(path_nbr)
 
                 if mask is not None and mask.size > 0:
-                    mf_mask = rasterio.io.MemoryFile()
-                    memfiles_to_close.append(mf_mask)
-                    with mf_mask.open(**meta) as ds:
+                    fd_mask, path_mask = tempfile.mkstemp(suffix='.tif')
+                    os.close(fd_mask)
+                    with rasterio.open(path_mask, 'w', **meta) as ds:
                         ds.write(mask)
-                    mask_datasets.append(mf_mask.open())
+                    mask_filepaths.append(path_mask)
 
 
                 del nbr_array, mask
@@ -201,26 +206,32 @@ class STAC:
                 self.logger.info(f'    - Skipping empty or invalid NBR result for item {item.id}')
             
 
-        if not nbr_datasets:
+        if not nbr_filepaths:
             self.logger.warning('    - No valid datasets could be processed for the NBR mosaic')
             return None, None, None, None
 
-        self.logger.info(f'    - Merging {len(nbr_datasets)} processed tiles into a single NBR mosaic')
-        try:
-            mosaic_nbr, out_trans = merge.merge(nbr_datasets)
-            mosaic_mask, _ = merge.merge(mask_datasets)
+        self.logger.info(f'    - Merging {len(nbr_filepaths)} processed tiles into a single NBR mosaic')
 
-            out_meta = nbr_datasets[0].meta.copy()
+        datasets_to_merge = [rasterio.open(path) for path in nbr_filepaths]
+        mask_datasets_to_merge = [rasterio.open(path) for path in mask_filepaths]
+
+        try:
+            mosaic_nbr, out_trans = merge.merge(datasets_to_merge)
+            mosaic_mask, _ = merge.merge(mask_datasets_to_merge)
+
+            out_meta = datasets_to_merge[0].meta.copy()
             out_meta.update({'height': mosaic_nbr.shape[1], 'width': mosaic_nbr.shape[2], 'transform': out_trans, 'crs': target_crs})
         except Exception as e:
             self.logger.error(f'    - Error during rasterio.merge for NBR mosaic: {e}')
             return None, None, None, None
         finally:
-            all_datasets = nbr_datasets + mask_datasets
-            for ds in all_datasets:
+            for ds in datasets_to_merge + mask_datasets_to_merge:
                 ds.close()
-            for mf in memfiles_to_close:
-                mf.close()
+
+            for path in nbr_filepaths + mask_filepaths:
+                if os.path.exists(path):
+                    os.remove(path)
+
         self.logger.info('    - NBR Mosaic created successfully')
         return mosaic_nbr, mosaic_mask, out_meta, out_trans
 
@@ -231,29 +242,33 @@ class STAC:
                           target_crs=None, 
                           target_shape=None,
                           aws_requester_pays: bool = False):
-        datasets_to_merge = []
-        memfiles_to_close = []
+        rgb_filepaths = []
         self.logger.info(f'    - Processing {len(stac_items)} tiles to create an RGB mosaic')
 
         for item in stac_items:
             rgb_array, meta = self.__calculate_rgb_for_item(item=item, perimeter_gdf=perimeter_gdf, aws_requester_pays=aws_requester_pays, target_transform=target_transform, target_crs=target_crs, target_shape=target_shape)
             if rgb_array is not None and rgb_array.size > 0:
-                memfile = rasterio.io.MemoryFile()
-                memfiles_to_close.append(memfile)
-                with memfile.open(**meta) as dataset:
-                    dataset.write(rgb_array)
-                datasets_to_merge.append(memfile.open())
+
+                fd_rgb, path_rgb = tempfile.mkstemp(suffix='.tif')
+                os.close(fd_rgb)
+
+                with rasterio.open(path_rgb, 'w', **meta) as ds:
+                    ds.write(rgb_array)
+                rgb_filepaths.append(path_rgb)
 
                 del rgb_array
                 gc.collect()
 
             else:
                 self.logger.info(f'    - Skipping empty or invalid RGB result for item {item.id}')
-        if not datasets_to_merge:
+        if not rgb_filepaths:
             self.logger.warning('    - No valid datasets could be processed for the RGB mosaic')
             return None, None, None
 
-        self.logger.info(f'    - Merging {len(datasets_to_merge)} processed tiles into a single RGB mosaic')
+        self.logger.info(f'    - Merging {len(rgb_filepaths)} processed tiles into a single RGB mosaic')
+
+        datasets_to_merge = [rasterio.open(path) for path in rgb_filepaths]
+
         try:
             mosaic, out_trans = merge.merge(datasets_to_merge)
             out_meta = datasets_to_merge[0].meta.copy()
@@ -264,8 +279,12 @@ class STAC:
         finally:
             for ds in datasets_to_merge:
                 ds.close()
-            for mf in memfiles_to_close:
-                mf.close()
+
+            for path in rgb_filepaths:
+                if os.path.exists(path):
+                    os.remove(path)
+
+
         self.logger.info('    - RGB Mosaic created successfully')
         return mosaic, out_meta, out_trans
 
@@ -339,75 +358,74 @@ class STAC:
         aws_session = AWSSession(requester_pays=aws_requester_pays)
         env_settings = rasterio.Env(session=aws_session, GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_DIR', CPL_VSIL_CURL_ALLOWED_EXTENSIONS='.tif')
 
-
         with env_settings:
             try:
-                resolution = 10
-                # Open NIR band to get its CRS for reprojecting the perimeter
-                with rasterio.open(nir_href) as src_nir_meta_check:
-                    raster_crs = src_nir_meta_check.crs
-                    if not raster_crs:
-                        self.logger.error(f'Error: NIR COG {nir_href} has no CRS defined.')
-                        return None, None
-
-                    resolution = src_nir_meta_check.res[0]
-                    # Ensure perimeter_gdf has a CRS, if not, assume WGS84
-                    if perimeter_gdf.crs != target_crs:
-                        self.logger.warning('Perimeter GeoJSON has no CRS. Assuming EPSG:4326 (WGS84).')
-                        perimeter_gdf_proj = perimeter_gdf.to_crs(target_crs)
-                    else:
-                        perimeter_gdf_proj = perimeter_gdf
-
-                bounds = perimeter_gdf_proj.total_bounds
-                left, bottom, right, top = bounds
-                out_width = int((right - left) / resolution)
-                out_height = int((top - bottom) / resolution)
-
-                out_transform = rasterio.transform.from_bounds(left, bottom, right, top, out_width, out_height)
-
-
-
                 with rasterio.open(nir_href) as src_nir:
-                    nir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
-                    reproject(
-                        source=rasterio.band(src_nir,1),
-                        destination=nir_reprojected,
-                        src_transform=src_nir.transform,
-                        src_crs=src_nir.crs,
-                        dst_transform=out_transform,
-                        dst_crs=target_crs,
-                        resampling=Resampling.bilinear,
-                        src_nodata=src_nir.nodata,
-                        dst_nodata=np.nan
-                    )
-                    nir_data = nir_reprojected[0]
-                    nodata_mask_nir = (nir_data == src_nir.nodata) | (nir_data == 0) # Consider 0 as nodata for S2 L2A before scaling
-                    nir_data = self.process_reflectance(data=nir_data, band='NIR', sensor=sensor)
-                    nir_data[nodata_mask_nir] = np.nan # Set actual nodata to NaN after scaling
+                    src_crs = src_nir.crs
+                    nodata_val_nir = src_nir.nodata or 0
 
+                    if perimeter_gdf.crs is None:
+                        perimeter_src_crs = perimeter_gdf.set_crs('EPSG:4326', allow_override=True).to_crs(src_crs)
+                    else:
+                        perimeter_src_crs = perimeter_gdf.to_crs(src_crs)
 
-                # Process SWIR band
+                    src_window_nir = from_bounds(*perimeter_src_crs.total_bounds, transform=src_nir.transform)
+                    src_window_nir = src_window_nir.round_offsets().round_lengths()
+                    window_transform_nir = src_nir.window_transform(src_window_nir)
+                    src_bounds_nir = rasterio.windows.bounds(src_window_nir, src_nir.transform)
+
+                    nir_subset = src_nir.read(1, window=src_window_nir).astype(np.float32)
+
                 with rasterio.open(swir_href) as src_swir:
-                    # Reproject SWIR data to the target_crs
-                    swir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
-                    reproject(
-                        source=rasterio.band(src_swir, 1), # Assuming single band for SWIR, adjust if multiple
-                        destination=swir_reprojected,
-                        src_transform=src_swir.transform,
-                        src_crs=src_swir.crs,
-                        dst_transform=out_transform,
-                        dst_crs=target_crs,
-                        resampling=Resampling.bilinear,
-                        src_nodata=src_swir.nodata,
-                        dst_nodata=np.nan
-                    )
-                    swir_data = swir_reprojected[0] # remove band dimension
-                    nodata_mask_swir = np.isnan(swir_data) | (swir_data == 0) # account for potential 0 values as nodata
-                    swir_data = self.process_reflectance(data=swir_data, band='SWIR2', sensor=sensor)
-                    swir_data[nodata_mask_swir] = np.nan
+                    nodata_val_swir = src_swir.nodata or 0
+
+                    src_window_swir = from_bounds(*perimeter_src_crs.total_bounds, transform=src_swir.transform)
+                    src_window_swir = src_window_swir.round_offsets().round_lengths()
+                    window_transform_swir = src_swir.window_transform(src_window_swir)
+
+                    swir_subset = src_swir.read(1, window=src_window_swir).astype(np.float32)
+
+                dst_crs = target_crs if target_crs else src_crs
+                out_transform, out_width, out_height = calculate_default_transform(src_crs, dst_crs, src_window_nir.width, src_window_nir.height, *src_bounds_nir)
+
+                nir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
+                reproject(
+                    source=nir_subset,
+                    destination=nir_reprojected,
+                    src_transform=window_transform_nir,
+                    src_crs=src_crs,
+                    dst_transform=out_transform,
+                    dst_crs=dst_crs,
+                    resampling=Resampling.bilinear,
+                    src_nodata=nodata_val_nir,
+                    dst_nodata=np.nan
+                )
+                nir_data = nir_reprojected[0]
+                nodata_mask_nir = (nir_data == nodata_val_nir) | (nir_data == 0)
+                nir_data = self.process_reflectance(data=nir_data, band='NIR', sensor=sensor)
+                nir_data[nodata_mask_nir] = np.nan
+
+                swir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
+                reproject(
+                    source=swir_subset,
+                    destination=swir_reprojected,
+                    src_transform=window_transform_swir,
+                    src_crs=src_crs,
+                    dst_transform=out_transform,
+                    dst_crs=dst_crs,
+                    resampling=Resampling.bilinear,
+                    src_nodata=nodata_val_swir,
+                    dst_nodata=np.nan
+                )
+
+                swir_data = swir_reprojected[0]
+                nodata_mask_swir = np.isnan(swir_data) | (swir_data == 0)
+                swir_data = self.process_reflectance(data=swir_data, band='SWIR2', sensor=sensor)
+                swir_data[nodata_mask_swir] = np.nan
+
             except Exception as e:
-                self.logger.error(f'Error reading/reprojecting COG data for item {item.id}: {e}')
-                return None, None
+                self.logger.error(f'Error reading/reprojecting COG data for item {item.id}: {e}\n Traceback: {traceback.print_exc()}')
+                return None, None, None
 
         # Calculate NBR on the reprojected and aligned data
         numerator = nir_data - swir_data
@@ -425,6 +443,7 @@ class STAC:
         del nir_data, swir_data, numerator, denominator, valid_mask, is_cloud, is_shadow, is_snow
         gc.collect()
 
+        perimeter_gdf_proj = perimeter_gdf.to_crs(dst_crs)
         clip_geom = [geom.__geo_interface__ for geom in perimeter_gdf_proj.geometry]
 
         # Create a temporary in-memory dataset to apply the mask
@@ -494,21 +513,34 @@ class STAC:
         with env_settings:
             try:
                 with rasterio.open(assets['red']) as src_meta_check:
-                    raster_crs = src_meta_check.crs
-                    meta = src_meta_check.meta.copy()
-                    if perimeter_gdf.crs is None:
-                        perimeter_gdf_proj = perimeter_gdf.set_crs("EPSG:4326", allow_override=True).to_crs(raster_crs)
-                    else:
-                        perimeter_gdf_proj = perimeter_gdf.to_crs(raster_crs)
+                    src_crs = src_meta_check.crs
+                    nodata_val = src_meta_check.nodata or 0
+                    resolution = src_meta_check.res[0]
 
-                bbox = perimeter_gdf_proj.total_bounds
-                clip_geom = [box(*bbox)]
+                    if perimeter_gdf.crs is None:
+                        perimeter_src_crs = perimeter_gdf.set_crs("EPSG:4326", allow_override=True).to_crs(src_crs)
+                    else:
+                        perimeter_src_crs = perimeter_gdf.to_crs(src_crs)
+
+                    src_window = from_bounds(*perimeter_src_crs.total_bounds, transform=src_meta_check.transform)
+                    src_window = src_window.round_offsets().round_lengths()
+                    window_transform = src_meta_check.window_transform(src_window)
 
                 for band_name in ['red', 'green', 'blue']:
                     with rasterio.open(assets[band_name]) as src:
-                        band_data, transform = rasterio.mask.mask(src, clip_geom, crop=True, nodata=0)
-                        rgb_bands_data.append(band_data[0])
-                final_transform = transform
+                        band_subset = src.read(1, window=src_window).astype(np.uint16)
+                        rgb_bands_data.append(band_subset)
+
+                if perimeter_gdf.crs is None:
+                    perimeter_target_crs = perimeter_gdf.set_crs("EPSG:4326", allow_override=True).to_crs(target_crs)
+                else:
+                    perimeter_target_crs = perimeter_gdf.to_crs(target_crs)
+
+                left, bottom, right, top = perimeter_target_crs.total_bounds
+                out_width = int((right - left) / resolution)
+                out_height = int((top - bottom) / resolution)
+                out_transform = rasterio.transform.from_bounds(left, bottom, right, top, out_width, out_height)
+                
             except Exception as e:
                 self.logger.warning(f'Warning: Error reading/clipping RGB COG for item {item.id}. Skipping. Error: {e}')
                 return None, None
@@ -518,45 +550,61 @@ class STAC:
         del rgb_bands_data
         gc.collect()
 
-        meta.update({"driver": "GTiff", "dtype": "uint16", "count": 3, "nodata": 0, "transform": final_transform, "width": rgb_array.shape[2], "height": rgb_array.shape[1]})
 
-        if not target_crs:
+        if target_crs:
+            try:
+                destination = np.empty((3, out_height, out_width), dtype=np.uint16)
+
+                reproject(
+                    source=rgb_array,
+                    destination=destination,
+                    src_transform=window_transform,
+                    src_crs=src_crs,
+                    dst_transform=out_transform,
+                    dst_crs=target_crs,
+                    resampling=Resampling.bilinear,
+                    src_nodata=nodata_val,
+                    dst_nodata=0
+                )
+
+                del rgb_array
+                gc.collect()
+
+                dst_meta = {
+                    "driver": "GTiff", 
+                    "dtype": "uint16", 
+                    "count": 3, 
+                    "nodata": 0, 
+                    "crs": target_crs,
+                    "transform": out_transform,
+                    "width": out_width, 
+                    "height": out_height
+                }
+                return destination, dst_meta
+            except Exception as e:
+                self.logger.error(f'Error: Failed to reproject tile {item.id}. Skipping. Error: {e}')
+                return None, None
+        else:
+            meta = {
+                "driver": "GTiff", 
+                "dtype": "uint16", 
+                "count": 3, 
+                "nodata": nodata_val, 
+                "crs": src_crs,
+                "transform": window_transform, 
+                "width": src_window.width, 
+                "height": src_window.height
+            }
             return rgb_array, meta
-
-        try:
-            src_bounds = array_bounds(meta['height'], meta['width'], meta['transform'])
-            dst_transform, dst_width, dst_height = calculate_default_transform(
-                meta['crs'], target_crs, meta['width'], meta['height'], *src_bounds
-            )
-            dst_meta = meta.copy()
-            dst_meta.update({'crs': target_crs, 'transform': dst_transform, 'width': dst_width, 'height': dst_height})
-            destination = np.empty((meta['count'], dst_height, dst_width), dtype=meta['dtype'])
-
-            reproject(
-                source=rgb_array,
-                destination=destination,
-                src_transform=meta['transform'],
-                src_crs=meta['crs'],
-                dst_transform=dst_transform,
-                dst_crs=target_crs,
-                resampling=Resampling.bilinear,
-                dst_nodata=0
-            )
-
-            del rgb_array
-            gc.collect()
-
-            return destination, dst_meta
-        except Exception as e:
-            self.logger.error(f'Error: Failed to reproject tile {item.id}. Skipping. Error: {e}')
-            return None, None
 
     def __extract_masks_for_item(self, item: 'pystac.Item', out_transform, out_height, out_width, target_crs, nir_data=None):
         is_cloud = np.zeros((out_height, out_width), dtype=bool)
+        is_shadow = np.zeros((out_height, out_width), dtype=bool)
+        is_snow = np.zeros((out_height, out_width), dtype=bool)
 
         qa_key = next((k for k in ['scl', 'SCL', 'qa_pixel', 'QA_PIXEL', 'fmask', 'Fmask', 'FMASK'] if k in item.assets), None)
         if not qa_key:
-            return is_cloud
+            return is_cloud, is_shadow, is_snow
 
         try:
             with rasterio.open(item.assets[qa_key].href) as src_qa:
