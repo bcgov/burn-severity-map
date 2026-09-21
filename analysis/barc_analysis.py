@@ -21,7 +21,7 @@ from util.classes import ImageMetadata, Fire
 from util.wfs import WFS
 from util.stac import STAC
 from util.object_storage import ObjectStorage
-from util.qgis_map_robot import bs_map_exporter
+from util.qgis import QGIS
 
 import geopandas as gpd
 import pandas as pd
@@ -360,7 +360,7 @@ class InterimBurnSeverity:
                 pre_fire_items = stac.search_stac(sensor=self.sensor, perimeter_gdf=perimeter_gdf.to_crs('EPSG:4326'), daterange=self.dict_fires[self.fire_number].get_pre_date_range(), cloud_cover_threshold=self.cloud_cover, image_ids=self.pre_image_ids)
                 if not pre_fire_items:
                     self.logger.error('Could not find suitable pre-fire imagery. Try adjusting date range or cloud cover threshold.')
-                    return None
+                    return None, None
                 for item in pre_fire_items:
                     self.dict_fires[self.fire_number].lst_pre_image.append(item.id)
                     self.dict_fires[self.fire_number].lst_pre_dates.append(item.datetime.strftime('%Y-%m-%d'))
@@ -430,7 +430,7 @@ class InterimBurnSeverity:
                 pre_rgb, pre_meta, pre_transform = stac.create_rgb_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_rgb is None:
                     self.logger.error('Failed to create pre-fire RGB.')
-                    return None
+                    return None, None
                 self.logger.info('Pre-fire RGB creation successful.')
 
                 self.logger.info('Writing pre-fire rgb to file')
@@ -443,7 +443,7 @@ class InterimBurnSeverity:
                 post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if post_rgb is None:
                     self.logger.error('Failed to create post-fire RGB.')
-                    return None
+                    return None, None
                 self.logger.info('Post-fire RGB creation successful.')
 
                 self.logger.info('Writing post-fire rgb to file')
@@ -456,7 +456,7 @@ class InterimBurnSeverity:
                 pre_nbr, pre_mask, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_nbr is None:
                     self.logger.error('Failed to calculate pre-fire NBR.')
-                    return None
+                    return None, None
                 self.logger.info('Pre-fire NBR calculation successful.')
 
                 self.logger.info('Writing pre-fire nbr to file')
@@ -479,7 +479,7 @@ class InterimBurnSeverity:
                 )
                 if post_nbr is None:
                     self.logger.error('Failed to calculate post-fire NBR.')
-                    return None
+                    return None, None
                 self.logger.info('Post-fire NBR calculation successful.')
 
                 self.logger.info('Writing post-fire nbr to file')
@@ -490,7 +490,7 @@ class InterimBurnSeverity:
                 if pre_nbr.shape != post_nbr.shape:
                     self.logger.error(f'CRITICAL ERROR: Pre-fire NBR shape {pre_nbr.shape} and Post-fire NBR shape {post_nbr.shape} '
                           'do not match despite alignment efforts. Cannot proceed with dNBR calculation.')
-                    return None
+                    return None, None
 
 
                 # 7. Calculate dNBR
@@ -632,6 +632,10 @@ class InterimBurnSeverity:
             gdf = gpd.GeoDataFrame.from_features(geoms, crs=meta['crs'])
             gdf = gdf.drop(gdf[gdf.raster_val > 4].index)
             gdf = gdf.rename({'raster_val': 'gridcode'}, axis=1)
+
+            del barc, valid_mask, results, geoms
+            gc.collect()
+
             #FIRE_NUMBER
             f = 'FIRE_NUMBER'
             self.logger.info(f'    - adding {self.fire_number} to {f}')
@@ -688,18 +692,25 @@ class InterimBurnSeverity:
             clip_gdf = gpd.clip(s_gdf, self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number])
 
             self.logger.info('    - Exploding to singlepart')
-            gpdf_singlepoly = clip_gdf.explode()
+            gdf_singlepoly = clip_gdf.explode()
 
-            gpdf_singlepoly['AREA_HA'] = gpdf_singlepoly.geometry.area/10000
-            gpdf_singlepoly['FEATURE_AREA_SQM'] = gpdf_singlepoly.geometry.area
-            gpdf_singlepoly['FEATURE_LENGTH_M'] = gpdf_singlepoly.geometry.length
+            gdf_singlepoly['AREA_HA'] = gdf_singlepoly.geometry.area/10000
+            gdf_singlepoly['FEATURE_AREA_SQM'] = gdf_singlepoly.geometry.area
+            gdf_singlepoly['FEATURE_LENGTH_M'] = gdf_singlepoly.geometry.length
 
             self.logger.info('    - Projecting')
-            gpdf_4326 = gpdf_singlepoly.to_crs(4326)
+            gdf_4326 = gdf_singlepoly.to_crs(4326)
+
+            del f_gdf, s_gdf, clip_gdf, lst_dfs
+            gc.collect()
             # gpdf_4326.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.json'), 'GeoJSON')
-            self.write_json(data=gpdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
-            self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
-            self.write_pdf_map(bs_data=gpdf_singlepoly, perim_data=self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number], folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
+            self.write_json(data=gdf_4326, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.json')
+
+            del gdf_4326
+            gc.collect()
+
+            self.write_shapefile(data=gdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
+            self.write_pdf_map(bs_data=gdf_singlepoly, perim_data=self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number], folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
             # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
             if self.use_folder:
@@ -717,7 +728,7 @@ class InterimBurnSeverity:
                     if (final_gdf == self.fire_number).any().any():
                         self.logger.info(f'{self.fire_number} exists in the database already, removing')
                         final_gdf = final_gdf[final_gdf[self.fld_fire_num] != self.fire_number]
-                    final_gdf = pd.concat([final_gdf, gpdf_singlepoly])
+                    final_gdf = pd.concat([final_gdf, gdf_singlepoly])
                     final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
                 except Exception as e:
                     gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
@@ -851,10 +862,19 @@ class InterimBurnSeverity:
 
         perim_data.to_file(output_perim, 'GeoJSON')
         assert os.path.exists(output_perim), f'Failed to find exported fire perimeter geojson: {output_perim}'
+
+        qgis = QGIS(logger=self.logger)
+        if not qgis:
+            return False
+        
      
         # create pdf map using qgis template
-        result = bs_map_exporter(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson), fire_perimeter_geojson=str(output_perim), 
+        result = qgis.export_map(qgis_project=qgis_project,burn_severity_geojson=str(output_geojson), fire_perimeter_geojson=str(output_perim), 
                                  output=str(temp_pdf),layer_name='Burn Severity',layout_name='burnmap')
+        if result is None:
+            return False
+
+        del qgis
         
         # write bs pdf to objectstore
         if self.use_storage:
