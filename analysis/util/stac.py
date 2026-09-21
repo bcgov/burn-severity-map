@@ -140,9 +140,8 @@ class STAC:
                         searched_item_ids.add(item_id)
 
                         # Update the uncovered area if cloud coverage is cloud free
-                        if cloud_cover < 2.0:
-                            item_geom = shape(best_item_found.geometry)
-                            uncovered_geom = uncovered_geom.difference(item_geom)
+                        item_geom = shape(best_item_found.geometry)
+                        uncovered_geom = uncovered_geom.difference(item_geom)
                     else:
                         self.logger.info('    - No more suitable intersecting tiles found in STAC')
                         if not selected_items:
@@ -400,7 +399,7 @@ class STAC:
                     window_transform_nir = src_nir.window_transform(src_window_nir)
                     src_bounds_nir = rasterio.windows.bounds(src_window_nir, src_nir.transform)
 
-                    nir_subset = src_nir.read(1, window=src_window_nir).astype(np.float32)
+                    nir_subset = src_nir.read(1, window=src_window_nir, boundless=True).astype(np.float32)
 
                 self.logger.info('Opening swir')
                 with rasterio.open(swir_href) as src_swir:
@@ -410,7 +409,7 @@ class STAC:
                     src_window_swir = src_window_swir.round_offsets().round_lengths()
                     window_transform_swir = src_swir.window_transform(src_window_swir)
 
-                    swir_subset = src_swir.read(1, window=src_window_swir).astype(np.float32)
+                    swir_subset = src_swir.read(1, window=src_window_swir, boundless=True).astype(np.float32)
 
                 dst_crs = target_crs if target_crs else src_crs
 
@@ -598,7 +597,7 @@ class STAC:
                 rgb_array = np.empty((3, int(src_window.height), int(src_window.width)), dtype=np.uint16)
                 for idx, band_name in enumerate(['red', 'green', 'blue']):
                     with rasterio.open(assets[band_name]) as src:
-                        src.read(1, window=src_window, out=rgb_array[idx])
+                        src.read(1, window=src_window, out=rgb_array[idx], boundless=True)
 
                 if perimeter_gdf.crs is None:
                     perimeter_target_crs = perimeter_gdf.set_crs("EPSG:4326", allow_override=True).to_crs(target_crs)
