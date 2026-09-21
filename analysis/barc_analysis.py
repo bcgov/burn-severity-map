@@ -708,9 +708,9 @@ class InterimBurnSeverity:
 
             del gdf_4326
             gc.collect()
-            
-            self.write_shapefile(data=gpdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
-            self.write_pdf_map(bs_data=gpdf_singlepoly, perim_data=self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number], folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
+
+            self.write_shapefile(data=gdf_singlepoly, folder_path=self.export_folder, os_path=self.os_export_folder, file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.shp')
+            self.write_pdf_map(bs_data=gdf_singlepoly, perim_data=self.gdf_fires[self.gdf_fires[self.fld_fire_num] == self.fire_number], folder_path=self.export_folder,os_path=self.os_export_folder,file_name=f'{self.fire_year}-{self.fire_number}_interim_burn_severity.pdf')
             # gpdf_singlepoly.to_file(os.path.join(self.export_folder, f'{self.fire_number}_{gdb_name_final}.shp'))
 
             if self.use_folder:
@@ -728,7 +728,7 @@ class InterimBurnSeverity:
                     if (final_gdf == self.fire_number).any().any():
                         self.logger.info(f'{self.fire_number} exists in the database already, removing')
                         final_gdf = final_gdf[final_gdf[self.fld_fire_num] != self.fire_number]
-                    final_gdf = pd.concat([final_gdf, gpdf_singlepoly])
+                    final_gdf = pd.concat([final_gdf, gdf_singlepoly])
                     final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
                 except Exception as e:
                     gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
