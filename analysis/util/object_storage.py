@@ -41,7 +41,7 @@ class ObjectStorage:
                 for i in range(0, len(files_to_delete), 1000):
                     chunk = files_to_delete[i : i + 1000]
                     self.s3_client.delete_objects(
-                        Bucket=self.S3_BUCKET, Delete={'Objects': chunk}
+                        Bucket=self.S3_BUCKET, Delete={'Objects': chunk}, ChecksumAlgorithm='SHA256'
                     )
 
         self.s3_client.put_object(Bucket=self.S3_BUCKET,
