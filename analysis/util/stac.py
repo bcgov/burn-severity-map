@@ -354,12 +354,15 @@ class STAC:
         self.logger.info(f'Using NIR asset: \'{nir_asset_key}\' ({nir_href})')
         self.logger.info(f'Using SWIR asset: \'{swir_asset_key}\' ({swir_href})')
 
+        self.logger.info('Connecting to aws session')
         # Use rasterio's AWS session for S3-hosted COGs
         aws_session = AWSSession(requester_pays=aws_requester_pays)
         env_settings = rasterio.Env(session=aws_session, GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_DIR', CPL_VSIL_CURL_ALLOWED_EXTENSIONS='.tif')
+        self.logger.info('Successfully connected to aws session')
 
         with env_settings:
             try:
+                self.logger.info('Opening nir')
                 with rasterio.open(nir_href) as src_nir:
                     src_crs = src_nir.crs
                     nodata_val_nir = src_nir.nodata or 0
@@ -376,6 +379,7 @@ class STAC:
 
                     nir_subset = src_nir.read(1, window=src_window_nir).astype(np.float32)
 
+                self.logger.info('Opening swir')
                 with rasterio.open(swir_href) as src_swir:
                     nodata_val_swir = src_swir.nodata or 0
 
@@ -388,6 +392,7 @@ class STAC:
                 dst_crs = target_crs if target_crs else src_crs
                 out_transform, out_width, out_height = calculate_default_transform(src_crs, dst_crs, src_window_nir.width, src_window_nir.height, *src_bounds_nir)
 
+                self.logger.info('Reprojecting nir')
                 nir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
                 reproject(
                     source=nir_subset,
@@ -405,6 +410,7 @@ class STAC:
                 nir_data = self.process_reflectance(data=nir_data, band='NIR', sensor=sensor)
                 nir_data[nodata_mask_nir] = np.nan
 
+                self.logger.info('Reprojecting swir')
                 swir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
                 reproject(
                     source=swir_subset,
@@ -427,56 +433,65 @@ class STAC:
                 self.logger.error(f'Error reading/reprojecting COG data for item {item.id}: {e}\n Traceback: {traceback.print_exc()}')
                 return None, None, None
 
-        # Calculate NBR on the reprojected and aligned data
-        numerator = nir_data - swir_data
-        denominator = nir_data + swir_data
-        nbr = np.full(nir_data.shape, np.nan, dtype=np.float32)
-        valid_mask = (denominator != 0) & ~np.isnan(denominator) & ~np.isnan(numerator)
-        nbr[valid_mask] = numerator[valid_mask] / denominator[valid_mask]
-        nbr = np.clip(nbr, -1.0, 1.0)
+        try:
+            self.logger.info('Calculating nbr')
+            # Calculate NBR on the reprojected and aligned data
+            numerator = nir_data - swir_data
+            denominator = nir_data + swir_data
+            nbr = np.full(nir_data.shape, np.nan, dtype=np.float32)
+            valid_mask = (denominator != 0) & ~np.isnan(denominator) & ~np.isnan(numerator)
+            nbr[valid_mask] = numerator[valid_mask] / denominator[valid_mask]
+            nbr = np.clip(nbr, -1.0, 1.0)
 
-        is_cloud, is_shadow, is_snow = self.__extract_masks_for_item(item, out_transform=out_transform, out_height=out_height, out_width=out_width, target_crs=target_crs, nir_data=nir_data)
+            self.logger.info('Getting masks')
+            is_cloud, is_shadow, is_snow = self.__extract_masks_for_item(item, out_transform=out_transform, out_height=out_height, out_width=out_width, target_crs=target_crs, nir_data=nir_data)
 
-        all_masks = np.zeros(nbr.shape, dtype=np.float32)
-        all_masks[is_cloud | is_shadow | is_snow] = 1.0
+            all_masks = np.zeros(nbr.shape, dtype=np.float32)
+            all_masks[is_cloud | is_shadow | is_snow] = 1.0
 
-        del nir_data, swir_data, numerator, denominator, valid_mask, is_cloud, is_shadow, is_snow
-        gc.collect()
+            del nir_data, swir_data, numerator, denominator, valid_mask, is_cloud, is_shadow, is_snow
+            gc.collect()
 
-        perimeter_gdf_proj = perimeter_gdf.to_crs(dst_crs)
-        clip_geom = [geom.__geo_interface__ for geom in perimeter_gdf_proj.geometry]
+            self.logger.info('Gathering clip geometry')
+            perimeter_gdf_proj = perimeter_gdf.to_crs(dst_crs)
+            clip_geom = [geom.__geo_interface__ for geom in perimeter_gdf_proj.geometry]
 
-        # Create a temporary in-memory dataset to apply the mask
-        # This dataset will have the correct CRS and transform of our target
-        temp_meta = {
-            "driver": "GTiff",
-            "height": nbr.shape[0],
-            "width": nbr.shape[1],
-            "count": 1,
-            "dtype": nbr.dtype,
-            "crs": target_crs, # Set the CRS to target_crs
-            "transform": out_transform,
-            "nodata": np.nan
-        }
+            # Create a temporary in-memory dataset to apply the mask
+            # This dataset will have the correct CRS and transform of our target
+            temp_meta = {
+                "driver": "GTiff",
+                "height": nbr.shape[0],
+                "width": nbr.shape[1],
+                "count": 1,
+                "dtype": nbr.dtype,
+                "crs": target_crs, # Set the CRS to target_crs
+                "transform": out_transform,
+                "nodata": np.nan
+            }
 
-        with rasterio.io.MemoryFile() as memfile:
-            with memfile.open(**temp_meta) as temp_dataset:
-                temp_dataset.write(nbr, 1) # Write the NBR array to the temporary dataset
-                clipped_nbr_array, clipped_transform = rasterio.mask.mask(temp_dataset, clip_geom, crop=True, nodata=np.nan)
+            self.logger.info('Clipping nbr')
+            with rasterio.io.MemoryFile() as memfile:
+                with memfile.open(**temp_meta) as temp_dataset:
+                    temp_dataset.write(nbr, 1) # Write the NBR array to the temporary dataset
+                    clipped_nbr_array, clipped_transform = rasterio.mask.mask(temp_dataset, clip_geom, crop=True, nodata=np.nan)
 
-        with rasterio.io.MemoryFile() as memfile:
-            with memfile.open(**temp_meta) as temp_dataset:
-                temp_dataset.write(all_masks, 1) # Write the cloud array to the temporary dataset
-                clipped_mask, clipped_transform = rasterio.mask.mask(temp_dataset, clip_geom, crop=True, nodata=np.nan)
+            self.logger.info('Clipping mask')
+            with rasterio.io.MemoryFile() as memfile:
+                with memfile.open(**temp_meta) as temp_dataset:
+                    temp_dataset.write(all_masks, 1) # Write the cloud array to the temporary dataset
+                    clipped_mask, clipped_transform = rasterio.mask.mask(temp_dataset, clip_geom, crop=True, nodata=np.nan)
 
-        # Update metadata for the final clipped output
-        meta = temp_meta.copy()
-        meta.update({
-            "transform": clipped_transform,
-            "width": clipped_nbr_array.shape[2],
-            "height": clipped_nbr_array.shape[1],
-            "crs": target_crs # Ensure CRS is explicitly set here as well
-        })
+            # Update metadata for the final clipped output
+            meta = temp_meta.copy()
+            meta.update({
+                "transform": clipped_transform,
+                "width": clipped_nbr_array.shape[2],
+                "height": clipped_nbr_array.shape[1],
+                "crs": target_crs # Ensure CRS is explicitly set here as well
+            })
+        except Exception as e:
+            self.logger.error(f'Error in calculating and clipping: {e}\n Traceback {traceback.print_exc()}')
+            return None, None
 
         return clipped_nbr_array, clipped_mask, meta
     
