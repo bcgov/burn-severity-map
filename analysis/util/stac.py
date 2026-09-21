@@ -413,7 +413,11 @@ class STAC:
                     swir_subset = src_swir.read(1, window=src_window_swir).astype(np.float32)
 
                 dst_crs = target_crs if target_crs else src_crs
-                out_transform, out_width, out_height = calculate_default_transform(src_crs, dst_crs, src_window_nir.width, src_window_nir.height, *src_bounds_nir)
+
+                target_res = self.__get_target_resolution(sensor=sensor, perimeter_gdf=perimeter_gdf)
+
+
+                out_transform, out_width, out_height = calculate_default_transform(src_crs, dst_crs, src_window_nir.width, src_window_nir.height, *src_bounds_nir, resolution=target_res)
 
                 self.logger.info('Reprojecting nir')
                 nir_reprojected = np.empty((1, out_height, out_width), dtype=np.float32)
@@ -720,6 +724,21 @@ class STAC:
 
         return is_cloud, is_shadow, is_snow
 
+
+    def __get_target_resolution(self, sensor: str, perimeter_gdf: gpd.GeoDataFrame, threshold_ha: float = 10000.0) -> float:
+        if sensor != 'S2':
+            return 30.0
+
+        if perimeter_gdf.crs is None or perimeter_gdf.crs.is_geographic:
+            gdf_metric = perimeter_gdf.to_crs(epsg=3005)
+        else:
+            gdf_metric = perimeter_gdf
+
+        fire_area_ha = gdf_metric.geometry.area.sum() /10000.0
+
+        if fire_area_ha >= threshold_ha:
+            return 20.0
+        return 10.0
 
     @staticmethod
     def resample_raster_to_match(source_path, ref_transform, ref_crs, ref_width, ref_height) -> MemoryFile:
