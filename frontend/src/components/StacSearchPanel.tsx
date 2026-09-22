@@ -7,7 +7,7 @@ import { getBottomLeft, getTopRight } from 'ol/extent';
 import { Accordion, AccordionGroup, Button, Switch } from '@bcgov/design-system-react-components';
 // import Fire from './FireSelector';
 import { PuffLoader } from 'react-spinners';
-import { syncFireResults } from '../utils/apiService';
+import { proxyStacSearch, syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
 import { runBurnSeverityAnalysis, AnalysisRequest } from '../utils/apiService';
 import SensorSelector, { SensorOption } from './ol-maps/SensorSelector';
@@ -303,17 +303,7 @@ const StacSearchPanel: React.FC = () => {
       : 'https://planetarycomputer.microsoft.com/api/stac/v1/search';
 
     try {
-      const response = await fetch(stacApiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await proxyStacSearch(stacApiUrl, body);
       setSearchResults(data.features || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch STAC items.');
