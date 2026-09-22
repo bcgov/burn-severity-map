@@ -298,12 +298,8 @@ const StacSearchPanel: React.FC = () => {
       limit: 100
     };
 
-    const stacApiUrl = collection === 'sentinel-2-l2a'
-      ? 'https://earth-search.aws.element84.com/v1/search'
-      : 'https://planetarycomputer.microsoft.com/api/stac/v1/search';
-
     try {
-      const data = await proxyStacSearch(stacApiUrl, body);
+      const data = await proxyStacSearch(analysisConfig.sensor, body);
       setSearchResults(data.features || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch STAC items.');
