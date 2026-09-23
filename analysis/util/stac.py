@@ -577,7 +577,7 @@ class STAC:
             try:
                 with rasterio.open(assets['red']) as src_meta_check:
                     src_crs = src_meta_check.crs
-                    nodata_val = src_meta_check.nodata or 0
+                    nodata_val = 0 if not src_meta_check.nodata or src_meta_check.nodata < 0 else src_meta_check.nodata
                     resolution = src_meta_check.res[0]
 
                     if perimeter_gdf.crs is None:
@@ -610,7 +610,7 @@ class STAC:
                 out_transform = rasterio.transform.from_bounds(left, bottom, right, top, out_width, out_height)
                 
             except Exception as e:
-                self.logger.warning(f'Warning: Error reading/clipping RGB COG for item {item.id}. Skipping. Error: {e}')
+                self.logger.warning(f'Warning: Error reading/clipping RGB COG for item {item.id}. Skipping. Error: {e} \n Traceback: {traceback.print_exc()}')
                 return None, None
 
         # rgb_array = np.stack(rgb_bands_data, axis=0)
@@ -622,7 +622,6 @@ class STAC:
         if target_crs:
             try:
                 destination = np.empty((3, out_height, out_width), dtype=np.uint16)
-
                 reproject(
                     source=rgb_array,
                     destination=destination,
@@ -650,7 +649,7 @@ class STAC:
                 }
                 return destination, dst_meta
             except Exception as e:
-                self.logger.error(f'Error: Failed to reproject tile {item.id}. Skipping. Error: {e}')
+                self.logger.error(f'Error: Failed to reproject tile {item.id}. Skipping. Error: {e} \n Traceback: {traceback.print_exc()}')
                 return None, None
         else:
             meta = {
