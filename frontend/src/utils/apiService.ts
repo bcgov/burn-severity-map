@@ -321,3 +321,19 @@ export const getFirePerimeters = async (params?: FirePerimeters): Promise<any> =
   }
   return response.json();
 };
+
+export const proxyStacSearch = async (sensor: string|null, body: any) => {
+  const backendUrl = API_BASE_URL
+
+  const response = await fetch(`${backendUrl}/stac/search?sensor=${sensor}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok){
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+
+  return response.json();
+};
