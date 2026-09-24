@@ -7,7 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     QT_QPA_PLATFORM=offscreen \
     QGIS_PREFIX_PATH=/usr \
-    PYTHONPATH=/usr/share/qgis/python
+    PYTHONPATH=/usr/share/qgis/python \
+    UV_SYSTEM_PYTHON=1 \
+    UV_CACHE_DIR=/tmp/uv
 
 # Home and writable directories
 ENV HOME=/opt/app-root \
@@ -33,29 +35,29 @@ ENV QGIS_AUTH_DB_DIR_PATH=/opt/app-root/.local/share/QGIS/QGIS3/profiles/default
 # Seed font cache
 RUN fc-cache -rv || true
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates python3 && \
+    ln -sf /usr/bin/python3 /usr/bin/python
+
+ADD https://astral.sh/uv/0.7.9/install.sh /uv-installer.sh
+    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    chmod a+rx /usr/local/bin/uv && \
+    rm /uv-installer.sh
+
 # App layer
 WORKDIR /app
 
-# install pip
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    ln -s /usr/bin/python3 /usr/bin/python
+COPY pyproject.toml uv.lock ./
 
+RUN uv pip install --system -r pyproject.toml
 
 # Copy source code requirements
 COPY . .
 
-# Install Python dependencies
-
-RUN pip3 install \
-    --break-system-packages \
-    --ignore-installed \
-    -r requirements.txt
-
-
-# Install debugpy for remote debugging
-RUN pip3 install --break-system-packages debugpy && \
-    pip3 install --break-system-packages gunicorn==23.0.0
+# Change ownership for cache to support random UIDs
+RUN mkdir -p /tmp/uv && \
+    chgrp -R 0 /tmp/uv && \
+    chmod -R g+rw /tmp/uv
 
 # ENV
 ENV TMPDIR=/tmp
