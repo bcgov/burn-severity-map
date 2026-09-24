@@ -1,68 +1,50 @@
-
-# Use the official QGIS image as the base
 FROM qgis/qgis:3.44.9-trixie
 
-# Set environment - root ops
+RUN pip install --break-system-packages uv
+# COPY --from=uv-source /uv /uvx /bin/
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     QT_QPA_PLATFORM=offscreen \
     QGIS_PREFIX_PATH=/usr \
     PYTHONPATH=/usr/share/qgis/python
 
-# Home and writable directories
 ENV HOME=/opt/app-root \
     XDG_CACHE_HOME=/opt/app-root/.cache \
     XDG_CONFIG_HOME=/opt/app-root/.config \
     XDG_DATA_HOME=/opt/app-root/.local/share \
     XDG_RUNTIME_DIR=/opt/app-root/.cache/runtime
 
+ENV VIRTUAL_ENV=/opt/venv
+RUN uv venv --system-site-packages $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Create QGIS profile + caches and make them group-writable (GID 0)
 RUN mkdir -p \
-      /opt/app-root/.cache/fontconfig \
-      /opt/app-root/.cache/runtime \
-      /opt/app-root/.local/share/QGIS/QGIS3/profiles/default \
-      /app \
- && chgrp -R 0 /opt/app-root /app \
- && chmod -R g+rwX /opt/app-root /app \
- && chmod 700 /opt/app-root/.cache/runtime
+    /opt/app-root/.cache/fontconfig \
+    /opt/app-root/.cache/runtime \
+    /opt/app-root/.local/share/QGIS/QGIS3/profiles/default \
+    /app \
+&& chgrp -R 0 /opt/app-root /app /opt/venv \
+&& chmod -R g+rwX /opt/app-root /app /opt/venv \
+&& chmod 700 /opt/app-root/.cache/runtime
 
-
-# QGIS auth DB parent directory (profile-aware)
 ENV QGIS_AUTH_DB_DIR_PATH=/opt/app-root/.local/share/QGIS/QGIS3/profiles/default
-# Seed font cache
+
 RUN fc-cache -rv || true
 
-# App layer
 WORKDIR /app
 
-# install pip
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    ln -s /usr/bin/python3 /usr/bin/python
+COPY pyproject.toml uv.lock ./
+
+RUN uv export --no-dev --output-file /tmp/requirements.txt && \
+    uv pip install -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
 
 
-# Copy source code requirements
 COPY . .
 
-# Install Python dependencies
+RUN chgrp -R 0 /app && chmod -R g+rwX /app
 
-RUN pip3 install \
-    --break-system-packages \
-    --ignore-installed \
-    -r requirements.txt
-
-
-# Install debugpy for remote debugging
-RUN pip3 install --break-system-packages debugpy && \
-    pip3 install --break-system-packages gunicorn==23.0.0
-
-# ENV
 ENV TMPDIR=/tmp
 
-
-# Set the entrypoint to run the script
 CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
-#CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "--wait-for-client", "barc_analysis.py", "K51121", "2025", "S2", "-o", "-c", "15", "-e", "2025-08-04"]
-
-

@@ -46,7 +46,6 @@ s3_client = boto3.client(
 )
 
 def s3_connected()->bool:
-    logger.info(s3_client.list_buckets())
     try:
         s3_client.list_buckets()
         return True
@@ -115,7 +114,7 @@ def format_file_size(size: float):
 
 def append_geojson_to_geoparquet_s3(
     new_geojson_s3_obj_key: str, # Can be a Feature or a FeatureCollection
-    fire_number: str,
+    fire_number: str = None,
     overwrite: bool = False,
     geoparquet_key: str = PARQUET_PATH,
 ):
@@ -217,8 +216,9 @@ def append_geojson_to_geoparquet_s3(
 def geoparquet_on_s3(geoparquet_key: str=PARQUET_PATH):
     # checks if the burn severity geoparquet exiss
     obj_list = s3_list_objects()
-    parquet_files = [doc for doc in obj_list if doc.endswith('.parquet')]
-    if PARQUET_PATH in parquet_files:
-        return True
-    else:
-        return False
+    parquet_files = [doc for doc in obj_list if doc['Key'].endswith('.parquet')]
+    for pf in parquet_files:
+        if PARQUET_PATH in pf['Key']:
+            return True
+
+    return False

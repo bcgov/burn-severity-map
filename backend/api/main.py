@@ -12,12 +12,9 @@ from contextlib import asynccontextmanager
 import os
 import json
 import re
-import logging
+import logging, traceback
 from oidc.oidcAuthorize import verify_token
 from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3, format_file_size
-from database import get_unique_fire_numbers, get_fire_features,check_connection
-from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties
-from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3
 from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList
 from routers import fires, stac_api
@@ -38,14 +35,15 @@ async def lifespan(app: FastAPI):
             geojson_pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
             fire_jsons = [doc['Key'] for doc in obj_list if geojson_pattern.match(doc['Key'])]
             # application has never been run
-            if not geoparquet_on_s3() and len(fire_jsons)==0:
+            bl_geoparquet = geoparquet_on_s3()
+            if not bl_geoparquet and len(fire_jsons)==0:
                 logger.warning('No fires on objectstore to initialize application')
-            elif not geoparquet_on_s3() and len(fire_jsons)>0:
+            elif not bl_geoparquet and len(fire_jsons)>0:
                 # initiate 
                 logger.info(f'Initializing geoparquet with {len(fire_jsons)} fires')
                 for fire_key in fire_jsons:
                     await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_key)
-            elif geoparquet_on_s3() and len(fire_jsons)>0:
+            elif bl_geoparquet and len(fire_jsons)>0:
                 # update geoparque
                 fire_list = get_unique_fire_numbers(year=None)
                 for fire_json in fire_jsons:
@@ -53,12 +51,12 @@ async def lifespan(app: FastAPI):
                     fire = fire_json.split('/')[-1].split('-')[1][:6]
                     if fire not in fire_list:
                         logger.info(f'Loading new bs to application {year}-{fire}')
-                        #await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json)
+                        await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json, fire)
         else:
             logger.error('Connection to object storage failed')
             raise ConnectionError('Connection to object storage failed') 
     except Exception as e:
-        logger.error(f"Startup error: {e}")
+        logger.error(f"Startup error: {e} \n Traceback: {traceback.print_exc()}")
     yield
     logger.info('API Shutdown')
 
