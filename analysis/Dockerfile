@@ -40,6 +40,7 @@ RUN apt-get update && \
     ln -sf /usr/bin/python3 /usr/bin/python
 
 ADD https://astral.sh/uv/0.7.9/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     chmod a+rx /usr/local/bin/uv && \
     rm /uv-installer.sh
