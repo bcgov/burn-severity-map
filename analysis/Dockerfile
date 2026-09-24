@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     QGIS_PREFIX_PATH=/usr \
     PYTHONPATH=/usr/share/qgis/python \
     UV_SYSTEM_PYTHON=1 \
-    UV_CACHE_DIR=/tmp/uv
+    UV_CACHE_DIR="/tmp/uv"
 
 # Home and writable directories
 ENV HOME=/opt/app-root \
@@ -39,9 +39,12 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends curl ca-certificates python3 && \
     ln -sf /usr/bin/python3 /usr/bin/python
 
+# Download the 0.7.9 installer
 ADD https://astral.sh/uv/0.7.9/install.sh /uv-installer.sh
+
+# Run the installer, move binary, set permissions, remove installer
 RUN sh /uv-installer.sh && \
-    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    mv ${HOME}/.local/bin/uv /usr/local/bin/uv && \
     chmod a+rx /usr/local/bin/uv && \
     rm /uv-installer.sh
 
