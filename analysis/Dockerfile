@@ -53,7 +53,9 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv export --frozen --no-dev | uv pip install -r -
+RUN uv export --no-dev --output-file /tmp/requirements.txt && \
+    uv pip install -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
 
 # Copy source code requirements
 COPY . .
