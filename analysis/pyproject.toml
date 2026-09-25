@@ -16,4 +16,6 @@ dependencies = [
     "rio-cogeo>=5.4.2",
     "topojson>=1.10",
     "scipy==1.15.0",
+    "redis>=8.1.0",
+    "pydantic>=2.13.1",
 ]
