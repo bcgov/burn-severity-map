@@ -1,13 +1,14 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Literal
-from datetime import date, datetime
+from datetime import datetime
 
+# BsJob Model
 class BsJob(BaseModel):
     fire: str = Field(pattern=r"^[A-Za-z]\d{5}$")
     year: int
     sensor: Literal["S2", "LS_8_9", "LS_5_7"]
-    start_date: str
-    end_date: str
+    start_date: str | None = None
+    end_date: str | None = None
     cloud: float = Field(default=30.0, ge=0, le=100)
     image_ids: str | None = None
     output_folder: str | None = None
