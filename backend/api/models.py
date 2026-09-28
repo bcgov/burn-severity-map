@@ -36,7 +36,6 @@ class FireYearsList(BaseModel):
 
 
 # BsJob Model
-# TODO: is start and end date required or optional
 class BsJob(BaseModel):
     fire: str = Field(pattern=r"^[A-Za-z]\d{5}$")
     year: int
