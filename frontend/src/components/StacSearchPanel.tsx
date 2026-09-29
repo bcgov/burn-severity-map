@@ -1,17 +1,16 @@
 import React, { useState, useContext, useEffect, useMemo, CSSProperties } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { MapContext } from './MapContext';
+import { useFireData } from './FireDataContext';
 import { Extent } from 'ol/extent';
 import { toLonLat } from 'ol/proj';
 import { getBottomLeft, getTopRight } from 'ol/extent';
 import { Accordion, AccordionGroup, Button, Switch } from '@bcgov/design-system-react-components';
-// import Fire from './FireSelector';
 import { PuffLoader } from 'react-spinners';
 import { proxyStacSearch, syncFireResults } from '../utils/apiService';
 import './StacSearchPanel.scss'
 import { runBurnSeverityAnalysis, AnalysisRequest } from '../utils/apiService';
 import SensorSelector, { SensorOption } from './ol-maps/SensorSelector';
-import { SessionMonitor } from 'oidc-client-ts';
 
 const SENSOR_OPTIONS: Record<string, SensorOption> = {
   'S2': { label: 'Sentinel-2', value: 'S2', platform: ['sentinel-2a','sentinel-2b','sentinel-2c'], years: [2015,], collection: 'sentinel-2-l2a' },
@@ -26,6 +25,7 @@ interface StacSearchCriteria {
   preOffset: number;
   postOffset: number;
   cloudCover: number;
+  perimeter: GeoJSON.Feature | null;
 }
 
 interface AnalysisConfig {
@@ -45,6 +45,7 @@ interface AnalysisConfig {
 const StacSearchPanel: React.FC = () => {
   const { getAccessToken } = useAuth();
   const { bounds, addPreviewLayer, removePreviewLayer, selectedFire, setAnalysisFire, addAnalysisLayer } = useContext(MapContext);
+  const { firePolysGeoJSON } = useFireData()
   const [previewLayerId, setPreviewLayerId] = useState<string | null>(null);
 
   const [searchCriteria, setSearchCriteria] = useState<StacSearchCriteria>({
@@ -53,6 +54,7 @@ const StacSearchPanel: React.FC = () => {
     preOffset: 1,
     postOffset: 1,
     cloudCover: 30,
+    perimeter: null
   });
   const [ analysisConfig, setAnalysisConfig ]= useState<AnalysisConfig>({
     fire_number: null,
@@ -99,9 +101,15 @@ const StacSearchPanel: React.FC = () => {
 
 
   useEffect(() => {
-    if (!bounds) return;
-    setSearchCriteria(prev => ({ ...prev, bbox: bounds }));
-  }, [bounds]);
+    if (!selectedFire || !bounds || !firePolysGeoJSON) return;
+    let fireShape: GeoJSON.Feature | null = null;
+    if (firePolysGeoJSON && firePolysGeoJSON.features) {
+      fireShape = firePolysGeoJSON.features.find(
+        (f: any) => f.properties.FIRE_NUMBER === selectedFire.fireNumber || f.properties.fire_number === selectedFire.fireNumber
+      );
+    }
+    setSearchCriteria(prev => ({ ...prev, perimeter: fireShape, bbox: bounds }));
+  }, [selectedFire, bounds, firePolysGeoJSON]);
 
   useEffect(() => {
     if (!selectedFire){
@@ -273,10 +281,10 @@ const StacSearchPanel: React.FC = () => {
 
 
   const handleSearch = async () => {
-    const { bbox, cloudCover, collection } = searchCriteria;
+    const { perimeter, cloudCover, collection } = searchCriteria;
     const { preDate, postDate } = computeDatesFromOffsets();
 
-    if (!bbox || !preDate || !postDate || !collection) {
+    if (!perimeter || !preDate || !postDate || !collection) {
       setError("Please select both pre and post fire offsets.");
       return;
     }
@@ -284,12 +292,14 @@ const StacSearchPanel: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    const bottomLeft = toLonLat(getBottomLeft(bbox));
-    const topRight = toLonLat(getTopRight(bbox));
+    const fireShape = (perimeter as any).type === 'Feature'
+      ? (perimeter as any).geometry
+      : perimeter;
 
     const body = {
       collections: [collection],
-      bbox: [bottomLeft[0], bottomLeft[1], topRight[0], topRight[1]],
+      // bbox: [bottomLeft[0], bottomLeft[1], topRight[0], topRight[1]],
+      intersects: fireShape,
       query: {
         "eo:cloud_cover": { lte: cloudCover !== null ? cloudCover : 30 },
       },
