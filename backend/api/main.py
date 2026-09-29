@@ -3,7 +3,7 @@
 # main.py - A fastapi backend to support burn severity document management
 # TODO: deal with year eg 2025-N75432 is the prefix for documents and the remaining app works on the fire number unique id
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -13,19 +13,33 @@ import os
 import json
 import re
 import logging, traceback
+import redis.asyncio as redis
+from uuid import uuid4
 from oidc.oidcAuthorize import verify_token
 from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3, format_file_size
 from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
-from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList
+from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList, BsJob, BarcAnalysisResult
 from routers import fires, stac_api
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+#TODO: -- pull os.getenv parameters up to into GLOBAL with fallbacks eg
+JOB_QUEUE = os.getenv('JOB_QUEUE', 'bs_queue')
 
-
+def get_redis(request: Request) -> redis.Redis:
+    return request.app.state.redis
+def create_redis_client()->redis.Redis:
+    redis_client = redis.Redis(
+        host=os.getenv('REDIS_HOST'),
+        port=os.getenv('REDIS_PORT'),
+        password=os.getenv('REDIS_PASSWORD'),
+        decode_responses=True,
+    )
+    return redis_client
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.redis = create_redis_client()
     # startup initiate geoparquet file if it doesn't exists
     # update geoparquet if new burn severity classifications exist
     try:
@@ -82,7 +96,26 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+@app.post("/burn-severity/run-analysis",response_model=BarcAnalysisResult)
+async def run_analysis(job:BsJob,redis_client: redis.Redis = Depends(get_redis)):
+    # add job to redis queue-- use stream id for tracking
+    # if a bs job id is needed in future add it to the BsJob model as str and populate
+    # with str(uuid4())
+    try:
+        job_id = await redis_client.xadd(
+            os.getenv('JOB_QUEUE', 'bs_queue'),
+            {"job": job.model_dump_json()}
+        ) 
         
+        return BarcAnalysisResult(
+            job_id=job_id,
+            fire=job.fire,
+            year=job.year,
+            status='Submitted'
+        )
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    
 @app.get("/burn-severity/{year}", response_model=FireNumberList)
 # def list_fire_numbers(token_payload: dict = Depends(verify_token)): #use this if you want to protect the route
 def list_fire_numbers(year: str, token_payload: dict = Depends(verify_token)):
