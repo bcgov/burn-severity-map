@@ -2,7 +2,9 @@
 from datetime import datetime, timedelta
 from argparse import ArgumentParser
 import logging
-import os, sys, shutil, traceback
+import os
+import shutil
+import traceback
 import numpy as np
 from collections import defaultdict
 import rasterio
@@ -16,6 +18,7 @@ import zipfile
 import tempfile
 import gc
 
+from models import BsJob, BarcAnalysisResult
 from util.environment import Environment
 from util.classes import ImageMetadata, Fire
 from util.wfs import WFS
@@ -29,67 +32,31 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+logger = Environment.setup_logger()
 
-def run_app():
-    
-        fire, year, sensor, output_folder, object_storage, s_date, e_date, cloud, image_ids, logger = get_input_parameters()
-        burn_sev = InterimBurnSeverity(fire=fire, year=year, output_folder=output_folder, object_storage=object_storage, sensor=sensor, 
-                                       start_date=s_date, end_date=e_date, cloud_cover=cloud, image_ids=image_ids, logger=logger)
-        try:
-            result = burn_sev.gather_spatial()
-            if not result:
-                return
-            barc, meta = burn_sev.calculate_severity()
-            burn_sev.conversion(barc=barc, meta=meta)
-        except Exception as e:
-            logger.error(f'Could not complete the burn severity analysis: {e} \n Traceback: {traceback.print_exc()}')
-        del burn_sev
-
-
-def get_input_parameters():
+def parse_args():
     """
     Function:
         Sets up parameters and the logger object
     Returns:
         tuple: user entered parameters required for tool execution
     """
-    try:
-        parser = ArgumentParser(description='This script is used to calculate burn severity based on Sentinel or Landsat imagery')
-        parser.add_argument('fire', type=str, help='Fire Number')
-        parser.add_argument('year', type=str, help='Fire Year')
-        parser.add_argument('sensor', type=str, help='Sensor to use')
-        parser.add_argument('-f', '--output_folder', type=str, nargs='?', help='Output local folder location')
-        parser.add_argument('-o', '--object_storage', action='store_true', help='Write to object storage')
-        parser.add_argument('-s', '--s_date', type=str, nargs='?', help='Optional start date for fire')
-        parser.add_argument('-e', '--e_date', type=str, nargs='?', help='Optional end date for fire')
-        parser.add_argument('-c', '--cloud', type=float, default=30.0, help='Cloud cover')
-        parser.add_argument('-i', '--image_ids', type=str, nargs='?', help='Optional image ids to use for processing. Image ids should be comma separated values with pre and post values separated by a semi-colon (ie. pre_id1,pre_id2:post_id1,post_id2)')
-        parser.add_argument('--log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
-                            help='Log level')
-        parser.add_argument('--log_dir', default='/tmp/app_logs', help='Path to log directory')
+    
+    parser = ArgumentParser(description='This script is used to calculate burn severity based on Sentinel or Landsat imagery')
+    parser.add_argument('fire', type=str, help='Fire Number')
+    parser.add_argument('year', type=str, help='Fire Year')
+    parser.add_argument('sensor', type=str, help='Sensor to use')
+    parser.add_argument('-f', '--output_folder', type=str, nargs='?', help='Output local folder location')
+    parser.add_argument('-o', '--object_storage', action='store_true', help='Write to object storage')
+    parser.add_argument('-s', '--s_date', type=str, nargs='?', help='Optional start date for fire')
+    parser.add_argument('-e', '--e_date', type=str, nargs='?', help='Optional end date for fire')
+    parser.add_argument('-c', '--cloud', type=float, default=30.0, help='Cloud cover')
+    parser.add_argument('-i', '--image_ids', type=str, nargs='?', help='Optional image ids to use for processing. Image ids should be comma separated values with pre and post values separated by a semi-colon (ie. pre_id1,pre_id2:post_id1,post_id2)')
+    parser.add_argument('--log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                        help='Log level')
+    parser.add_argument('--log_dir', default='/tmp/app_logs', help='Path to log directory')
 
-        args = parser.parse_args()
-        if not args.output_folder and not args.object_storage:
-            raise ValueError('An output folder and/or and the object storage folder must be indicated.  Use the -f and -o flags')
-        
-        # if str(args.sensor) != 'S2':
-        #     raise AttributeError('The analysis can only use Sentinel 2 imagery at this time.  Please change the parameter to \'S2\'')
-
-        logger = Environment.setup_logger(args)
-
-        return args.fire, args.year, args.sensor, args.output_folder, args.object_storage, args.s_date, args.e_date, args.cloud, args.image_ids, logger
-
-    except ValueError as v:
-        logging.error(f'Value Error: Missing arguments - {v}')
-        sys.exit(1)
-
-    except AttributeError as a:
-        logging.error(f'Sensor Error: Incorrect Sensor - {a}')
-        sys.exit(1)
-
-    except Exception as e:
-        logging.error(f'Unexpected exception. Program terminating: {e}')
-        sys.exit(1)
+    return parser.parse_args()
 
 class InterimBurnSeverity:
     def __init__(self, fire: str, year: str, sensor: str='S2', output_folder: str=None, object_storage: bool=False, start_date:str=None, end_date: str=None, 
@@ -132,7 +99,7 @@ class InterimBurnSeverity:
             self.fire_folder = os.path.join(self.out_folder, f'{self.fire_year}-{self.fire_number}')
             self.output_folder = os.path.join(self.fire_folder, 'output')
             self.export_folder = os.path.join(self.fire_folder, 'export')
-            self.out_gdb = os.path.join(self.export_folder, f'interim_burn_severity_temp.gdb')
+            self.out_gdb = os.path.join(self.export_folder, 'interim_burn_severity_temp.gdb')
 
             for fld in [self.output_folder, self.export_folder]:
                 if os.path.exists(fld):
@@ -426,7 +393,7 @@ class InterimBurnSeverity:
 
                 
 
-                self.logger.info(f'Creating PRE-FIRE RGB')
+                self.logger.info('Creating PRE-FIRE RGB')
                 pre_rgb, pre_meta, pre_transform = stac.create_rgb_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_rgb is None:
                     self.logger.error('Failed to create pre-fire RGB.')
@@ -439,7 +406,7 @@ class InterimBurnSeverity:
                 del pre_rgb
                 gc.collect()
                 
-                self.logger.info(f'Creating POST-FIRE RGB')
+                self.logger.info('Creating POST-FIRE RGB')
                 post_rgb, post_meta, post_transform = stac.create_rgb_mosaic(post_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if post_rgb is None:
                     self.logger.error('Failed to create post-fire RGB.')
@@ -452,7 +419,7 @@ class InterimBurnSeverity:
                 del post_rgb
                 gc.collect()
 
-                self.logger.info(f'Calculating PRE-FIRE NBR')
+                self.logger.info('Calculating PRE-FIRE NBR')
                 pre_nbr, pre_mask, pre_meta, pre_transform = stac.create_nbr_mosaic(pre_fire_items, perimeter_gdf, aws_requester_pays=False, target_crs=perimeter_gdf.crs)
                 if pre_nbr is None:
                     self.logger.error('Failed to calculate pre-fire NBR.')
@@ -464,7 +431,7 @@ class InterimBurnSeverity:
                 self.write_raster(data=pre_mask, meta=pre_meta, folder_path=output_pre_mask_path, os_path=os_pre_mask_path)
 
                 # 6. Calculate Post-fire NBR, aligning to the pre-fire grid
-                self.logger.info(f'Calculating POST-FIRE NBR')
+                self.logger.info('Calculating POST-FIRE NBR')
                 target_shape_for_post = pre_nbr.shape # (1, height, width)
                 target_crs_for_post = pre_meta['crs']
                 target_transform_for_post = pre_transform
@@ -731,7 +698,7 @@ class InterimBurnSeverity:
                     final_gdf = pd.concat([final_gdf, gdf_singlepoly])
                     final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
                 except Exception as e:
-                    gpdf_singlepoly.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
+                    final_gdf.to_file(filename=output_gdb_final, layer=gdb_name_final, driver="OpenFileGDB")
         except Exception as e:
             self.logger.error(f'Error in conversion: {e} \n Traceback: {traceback.print_exc()}')
             return
@@ -795,7 +762,7 @@ class InterimBurnSeverity:
                 with mem_src.open(**meta) as src_dataset:
                     try:
                         src_dataset.write(data)
-                    except:
+                    except Exception as e:
                         src_dataset.write_band(1, data.astype(rasterio.uint8))
 
 
@@ -907,6 +874,51 @@ class InterimBurnSeverity:
         elif x['gridcode'] == 4:
             return 'High'
         
+def run_analysis(job: BsJob):
+    bs_job = InterimBurnSeverity(
+        fire=job.fire,
+        year=job.year,
+        sensor=job.sensor,
+        output_folder=job.output_folder,
+        object_storage=job.object_storage,
+        start_date=job.start_date,
+        end_date=job.end_date,
+        cloud_cover=job.cloud,
+        image_ids=job.image_ids,
+        logger=logger
+    )
+    try:
+        result = bs_job.gather_spatial()
+        if not result:
+            raise RuntimeError("Failed to gather spatial data")
+        barc, meta = bs_job.calculate_severity()
+        if barc is None:
+            raise RuntimeError("Failed to calculate burn severity")
+        bs_job.conversion(barc, meta)
+        response = BarcAnalysisResult(
+            status="SUCCESS",
+            fire= job.fire,
+            year= job.year
+        )
+        return response
+    finally:
+        del bs_job
+
+def main():
+    # cli entry point
+    args = parse_args()
+    job = BsJob(
+        fire=args.fire,
+        year =args.year,
+        sensor=args.sensor,
+        start_date=args.s_date,
+        end_date=args.e_date,
+        cloud=args.cloud,
+        image_ids=args.image_ids,
+        output_folder=args.output_folder,
+        object_storage=args.object_storage
+    )
+    run_analysis(job)
 
 if __name__ == '__main__':
-    run_app()
+    main()
