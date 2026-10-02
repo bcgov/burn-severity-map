@@ -36,7 +36,7 @@ services:
     volumes:
       - minio-data:/data
     networks:
-      - s3-network
+      - local-s3
     
   minio-setup:
     image: quay.io/minio/mc:latest
@@ -55,7 +55,7 @@ services:
       exit 0;
       "
     networks:
-      - s3-network
+      - local-s3
 
   frontend:
     image: burn-sev-frontend:latest
@@ -74,7 +74,7 @@ services:
     volumes:
       - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
     networks:
-      - s3-network
+      - local-s3
 
   fastapi-backend:
     image: burn-sev-backend:latest
@@ -94,7 +94,7 @@ services:
       - backend-data:/app/data
     command: uv run python -m uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-8000} --reload
     networks:
-      - s3-network
+      - local-s3
 
   analysis-backend:
     image: analysis-backend:latest
@@ -114,7 +114,7 @@ services:
       - analysis-data:/app/data
     command: ["gunicorn", "--timeout", "1800" , "--bind", "0.0.0.0:${ANALYSIS_PORT:-5000}", "app:app"]
     networks:
-      - s3-network
+      - local-s3
   redis:
       image: redis:8.10-alpine
       restart: unless-stopped
@@ -132,7 +132,7 @@ services:
         timeout: 5s
         retries: 5
       networks:
-        - ast-net
+        - local-s3
       volumes:
       - redis-data:/data
 
@@ -142,7 +142,8 @@ volumes:
   backend-data:
   analysis-data:
   minio-data:
+  redis-data:
 
 networks:
-  s3-network:
+  local-s3:
     driver: bridge
