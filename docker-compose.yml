@@ -1,4 +1,6 @@
 x-shared-env: &shared-env
+  WORKER_LOG_DIR: ${WORKER_LOG_DIR}
+  WORKER_LOG_LEVEL: ${WORKER_LOG_LEVEL}
   PARQUET_FILE: ${PARQUET_FILE}
   MAIN_DIR: ${MAIN_DIR}
   TEMP_DIR: ${TEMP_DIR}
@@ -16,47 +18,31 @@ x-shared-env: &shared-env
   APP_VERSION: 'dev-local'
   OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
   OIDC_AUTHORITY: ${OIDC_AUTHORITY}
+  REDIS_HOST: ${REDIS_HOST:-redis}
   REDIS_PORT: ${REDIS_PORT:-6379}
   REDIS_PASSWORD: ${REDIS_PASSWORD}
   REDIS_DATABASE: ${REDIS_DATABASE:-0}
   REDIS_URL: redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT:-6379}/${REDIS_DATABASE:-0}
+  JOB_QUEUE: ${JOB_QUEUE}
 
 services:
-  # Object Storage infrastructure
-  minio:
-    image: quay.io/minio/minio:latest
+  #objecstore for local devs
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
     container_name: local-s3
+    command: server -s3 -s3.config=/etc/seaweedfs/s3.json
     ports:
-      - "9000:9000" # S3 API Port
-      - "9001:9001" # Web Console Port
-    environment:
-      - MINIO_ROOT_USER=${S3_ACCESS_ID:-local-access-key}
-      - MINIO_ROOT_PASSWORD=${S3_KEY:-local-secret-key}
-    command: server /data --console-address ":9001"
+      - "8333:8333" # S3 API
     volumes:
-      - minio-data:/data
+      - seaweedfs-data:/data
+      - ./s3.json:/etc/seaweedfs/s3.json:ro
     networks:
       - local-s3
-    
-  minio-setup:
-    image: quay.io/minio/mc:latest
-    container_name: local-s3_setup
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until (/usr/bin/mc alias set localS3 http://local-s3:9000 ${S3_ACCESS_ID:-local-access-key} ${S3_KEY:-local-secret-key}) do echo '...waiting...' && sleep 1; done;
-           
-      echo 'Creating bucket....';
-      /usr/bin/mc mb localS3/${S3_BUCKET:-burn-severity-local};
-      /usr/bin/mc policy set download localS3/${S3_BUCKET:-burn-severity-local};
-      
-      echo 'Setup complete';
-      exit 0;
-      "
-    networks:
-      - local-s3
-
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9333/dir/status"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
   frontend:
     image: burn-sev-frontend:latest
     build:
@@ -83,7 +69,8 @@ services:
       dockerfile: Dockerfile
     container_name: fastapi-backend
     depends_on:
-      - minio
+      seaweedfs:
+        condition: service_healthy
     ports:
       - "8000:${BACKEND_PORT:-8000}"
     environment:
@@ -92,42 +79,42 @@ services:
       - .env
     volumes:
       - backend-data:/app/data
-    command: uv run python -m uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-8000} --reload
     networks:
       - local-s3
+    command: uv run python -m uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-8000} --reload
 
-  analysis-backend:
-    image: analysis-backend:latest
+  analysis-worker:
+    image: analysis-worker:latest
     build:
       context: ./analysis
       dockerfile: Dockerfile
-    container_name: analysis-backend
+    container_name: analysis-worker
     depends_on:
-      - minio
-    ports:
-      - "5000:${ANALYSIS_PORT:-5000}"
+      seaweedfs:
+        condition: service_healthy
+      redis:
     environment:
       <<: *shared-env
     env_file:
       - .env
     volumes:
       - analysis-data:/app/data
-    command: ["gunicorn", "--timeout", "1800" , "--bind", "0.0.0.0:${ANALYSIS_PORT:-5000}", "app:app"]
     networks:
       - local-s3
   redis:
       image: redis:8.10-alpine
       restart: unless-stopped
       ports:
-        - "${REDIS_PORT}:${REDIS_PORT}"
+        - "${REDIS_PORT:-6379}:${REDIS_PORT:-6379}"
       command: > 
         redis-server
-        --port 6379
-        --appendonly yes
+        --port ${REDIS_PORT:-6379}
+        --save 60 1
+        --appendonly no
         --requirepass ${REDIS_PASSWORD}
 
       healthcheck:
-        test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD} ping| grep PONG"]
+        test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD} ping"]
         interval: 10s
         timeout: 5s
         retries: 5
@@ -135,13 +122,11 @@ services:
         - local-s3
       volumes:
       - redis-data:/data
-
-
        
 volumes:
   backend-data:
   analysis-data:
-  minio-data:
+  seaweedfs-data:
   redis-data:
 
 networks:
