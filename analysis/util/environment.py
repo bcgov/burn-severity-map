@@ -32,7 +32,7 @@ class Environment:
     # Set up variables for getting UNC paths
 
     @staticmethod
-    def setup_logger(args):
+    def setup_logger(log_level: str = 'INFO', log_directory: str = None):
         """
         ------------------------------------------------------------------------------------------------------------
             FUNCTION: Set up the logging object for message output
@@ -53,22 +53,22 @@ class Environment:
         timestamp = dt.now().strftime('%Y-%m-%d_%H-%M-%S')
         log_file = '{}_{}.{}'.format(timestamp, log_file_base_name, log_file_extension)
 
-        logger.setLevel(args.log_level)
+        logger.setLevel(log_level)
 
         sh = logging.StreamHandler()
-        sh.setLevel(args.log_level)
+        sh.setLevel(log_level)
         sh.setFormatter(log_fmt)
         sh.setStream(sys.stdout)
         logger.addHandler(sh)
 
-        if args.log_dir:
+        if log_directory:
             try:
-                os.makedirs(args.log_dir)
+                os.makedirs(log_directory)
             except OSError:
                 pass
 
-            fh = logging.FileHandler(os.path.join(args.log_dir, log_file))
-            fh.setLevel(args.log_level)
+            fh = logging.FileHandler(os.path.join(log_directory, log_file))
+            fh.setLevel(log_level)
             fh.setFormatter(log_fmt)
             logger.addHandler(fh)
 
