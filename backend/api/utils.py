@@ -47,9 +47,15 @@ s3_client = boto3.client(
 
 def s3_connected()->bool:
     try:
-        s3_client.list_buckets()
+        if 'localhost' in S3_ENDPOINT:
+            try:
+                s3_client.head_bucket(Bucket=S3_BUCKET)
+            except ClientError:
+                s3_client.create_bucket(Bucket=S3_BUCKET)    
+        else:
+            s3_client.head_bucket(Bucket=S3_BUCKET)
         return True
-    
+
     except (BotoCoreError, ClientError) as e:
         print(f"Connection failed: {e}")
         return False
