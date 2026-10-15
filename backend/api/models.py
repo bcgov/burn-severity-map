@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Any
-from datetime import date
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import List, Optional, Any, Literal
+from datetime import datetime
 
 class FeatureProperties(BaseModel):
     FIRE_NUMBER: str
@@ -59,17 +59,13 @@ class BsJob(BaseModel):
 
         return value
 
-    @field_validator("output_folder")
-    @classmethod
-    def validate_outputs(cls, value, info):
-        object_storage = info.data.get("object_storage", False)
-
-        if not value and not object_storage:
+    @model_validator(mode="after")
+    def validate_outputs(self):
+        if self.output_folder is None and not self.object_storage:
             raise ValueError(
                 "Either output_folder or object_storage must be specified"
             )
-
-        return value
+        return self
 
 class BarcAnalysisResult(BaseModel):
     job_id: str
