@@ -1,7 +1,8 @@
+#/analysis/workers/redis_worker.py
 import os
 import socket
 import redis
-from redis.exceptions import ResponseError
+from redis.exceptions import ResponseError, TimeoutError
 import logging
 from pydantic import ValidationError
 from models import BsJob
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 GROUP_NAME = 'bs-worker-group'
 
 def run():
-    queue_name = os.getenv('JOB_QUEUE')
+    queue_name = os.getenv('JOB_QUEUE','bs_queue')
     host = os.getenv('REDIS_HOST','localhost')
     redis_port = int(os.getenv('REDIS_PORT',6379))
     redis_database = int(os.getenv('REDIS_DATABASE', 0))
@@ -21,7 +22,9 @@ def run():
                                port=redis_port, 
                                db=redis_database,
                                password=redis_password,
-                               decode_responses=True
+                               decode_responses=True,
+                               socket_timeout=None,
+                               socket_keepalive=True
                                )
     consumer_name = f"{socket.gethostname()}-{os.getpid()}"
     logger.info(f"Worker[{consumer_name}] Listening for jobs on Redis queue: {queue_name}")
@@ -56,6 +59,7 @@ def run():
             message_id, fields = entries[0]
 
             job = None
+            logging.debug('Job recieved')
 
             try:
                 # Parse job payload
@@ -64,7 +68,7 @@ def run():
                     raise ValueError("Stream entry missing 'job' field")
                 
                 job = BsJob.model_validate_json(fields['job'])
-                
+                logger.info("Starting fire: %s",job.fire)
                 run_analysis(job=job)
                 # acknowledge success completion
                 redis_client.xack(
@@ -100,6 +104,8 @@ def run():
                 })
                 redis_client.xack(queue_name, GROUP_NAME, message_id)
                 logger.warning("Moved message %s to DLQ stream '%s'", message_id, dlq_stream)
+        except TimeoutError:
+            continue
         except Exception as e:
             logger.error("Unexpected error in worker loop: %s", e)
 
