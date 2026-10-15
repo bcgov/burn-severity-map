@@ -17,6 +17,7 @@ dependencies = [
     "pyarrow>=21.0.0",
     "pyproj>=3.7.1",
     "python-jose[cryptography]>=3.5.0",
+    "redis>=8.1.0",
     "requests>=2.32.4",
     "shapely>=2.1.1",
     "sqlalchemy>=2.0.41",

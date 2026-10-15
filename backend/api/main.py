@@ -1,5 +1,4 @@
-
-
+# /backend/api/main.py
 # main.py - A fastapi backend to support burn severity document management
 # TODO: deal with year eg 2025-N75432 is the prefix for documents and the remaining app works on the fire number unique id
 
@@ -31,8 +30,8 @@ def get_redis(request: Request) -> redis.Redis:
     return request.app.state.redis
 def create_redis_client()->redis.Redis:
     redis_client = redis.Redis(
-        host=os.getenv('REDIS_HOST'),
-        port=os.getenv('REDIS_PORT'),
+        host=os.getenv('REDIS_HOST','redis'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
         password=os.getenv('REDIS_PASSWORD'),
         decode_responses=True,
     )
@@ -72,6 +71,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Startup error: {e} \n Traceback: {traceback.print_exc()}")
     yield
+    await app.state.redis.close()
     logger.info('API Shutdown')
 
 
@@ -93,7 +93,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins, # or ["*"] to allow all
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 @app.post("/burn-severity/run-analysis",response_model=BarcAnalysisResult)
