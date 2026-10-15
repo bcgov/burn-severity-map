@@ -31,8 +31,9 @@ import pandas as pd
 import warnings
 warnings.filterwarnings('ignore')
 
-
-logger = Environment.setup_logger()
+LOG_LEVEL = os.getenv('WORKER_LOG_LEVEL','INFO')
+LOG_DIR = os.getenv('WORKER_LOG_DIR','/tmp/app_logs')
+logger = Environment.setup_logger(log_level=LOG_LEVEL ,log_directory=LOG_DIR)
 
 def parse_args():
     """
@@ -875,6 +876,7 @@ class InterimBurnSeverity:
             return 'High'
         
 def run_analysis(job: BsJob):
+    logger.debug(f'Run analysis on job object: \n {job}')
     bs_job = InterimBurnSeverity(
         fire=job.fire,
         year=job.year,
