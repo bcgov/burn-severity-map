@@ -30,16 +30,38 @@ services:
   seaweedfs:
     image: chrislusf/seaweedfs:latest
     container_name: local-s3
-    command: server -s3 -s3.config=/etc/seaweedfs/s3.json
+    entrypoint: ""
+    environment:
+      <<: *shared-env
+    command: > #server -s3 -s3.config=/etc/seaweedfs/s3.json
+      sh -c "mkdir -p /etc/seaweedfs && printf '{
+        \"identities\": [
+          {
+            \"name\": \"anonymous\",
+            \"actions\": [\"Read\"]
+          },
+          {
+            \"name\": \"some_admin_user\",
+            \"credentials\": [
+              {
+                \"accessKey\": \"%s\",
+                \"secretKey\": \"%s\"
+              }
+            ],
+            \"actions\": [\"Admin\", \"Read\", \"List\", \"Tagging\", \"Write\"]
+          }
+        ]
+      }' \"$$S3_ACCESS_ID\" \"$$S3_KEY\" > /etc/seaweedfs/s3.json && 
+      weed server -s3 -s3.config=/etc/seaweedfs/s3.json"
     ports:
       - "8333:8333" # S3 API
     volumes:
       - seaweedfs-data:/data
-      - ./s3.json:/etc/seaweedfs/s3.json:ro
+    #- ./s3.json:/etc/seaweedfs/s3.json:ro
     networks:
       - local-s3
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9333/dir/status"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8333/dir/status"]
       interval: 20s
       timeout: 5s
       retries: 10
