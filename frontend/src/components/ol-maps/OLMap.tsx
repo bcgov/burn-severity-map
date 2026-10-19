@@ -190,7 +190,10 @@ const OLMap: React.FC<OLMapProps> = ({
     if (firePolysLayerRef.current) mapInstanceRef.current.removeLayer(firePolysLayerRef.current);
 
     const vectorSource = new VectorSource({
-      features: new GeoJSON().readFeatures(firePolysGeoJSON)
+      features: new GeoJSON().readFeatures(firePolysGeoJSON, {
+            featureProjection: 'EPSG:3857',
+            dataProjection: 'EPSG:4326'
+          })
     });
 
     const firePolysLayer = new VectorLayer({
@@ -219,7 +222,10 @@ const OLMap: React.FC<OLMapProps> = ({
     if (firePointsLayerRef.current) mapInstanceRef.current.removeLayer(firePointsLayerRef.current);
 
     const vectorSource = new VectorSource({
-      features: new GeoJSON().readFeatures(firePointsGeoJSON)
+      features: new GeoJSON().readFeatures(firePointsGeoJSON, {
+            featureProjection: 'EPSG:3857',
+            dataProjection: 'EPSG:4326'
+          })
     });
 
     const firePointsLayer = new VectorLayer({
@@ -346,7 +352,10 @@ const OLMap: React.FC<OLMapProps> = ({
         features: [selectedFeatureJson]
       };
 
-      const features = new GeoJSON().readFeatures(featureCollection);
+      const features = new GeoJSON().readFeatures(featureCollection, {
+            featureProjection: 'EPSG:3857',
+            dataProjection: 'EPSG:4326'
+          });
       const highlightSource = new VectorSource({
         features: features,
       });

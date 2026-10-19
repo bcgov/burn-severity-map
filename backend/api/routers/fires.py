@@ -22,7 +22,7 @@ async def fetch_wfs_features(
         layer_name: str,
         cql_filter: Optional[str] = None,
         fields: Optional[List[str]] = None,
-        srs_name: str = 'EPSG:3857'
+        srs_name: str = 'EPSG:4326'
 ) -> dict:
     page_size = 10000
     params: Dict[str, Any] = {
