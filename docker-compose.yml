@@ -55,13 +55,14 @@ services:
       weed server -s3 -s3.config=/etc/seaweedfs/s3.json"
     ports:
       - "8333:8333" # S3 API
+      - "9333:9333" # Cluster Status
     volumes:
       - seaweedfs-data:/data
     #- ./s3.json:/etc/seaweedfs/s3.json:ro
     networks:
       - local-s3
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8333/dir/status"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:9333/cluster/status"]
       interval: 20s
       timeout: 5s
       retries: 10
