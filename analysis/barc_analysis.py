@@ -274,7 +274,7 @@ class InterimBurnSeverity:
                     out_date = self.gdf_fires.at[i, self.fld_fire_out_date]
                 else:
                     self.logger.warning(f'{self.fire_number} is not yet extinguished, calculating based on today\'s date instead')
-                    out_date = datetime.now() - timedelta(days=7)
+                    out_date = datetime.now().replace(microsecond=0) - timedelta(days=7)
                     self.gdf_fires.at[i, self.fld_fire_out_date] = out_date
             else:
                 out_date = self.end_date
