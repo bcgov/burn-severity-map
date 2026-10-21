@@ -19,8 +19,11 @@ from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geopa
 from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
 from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList, BsJob, BarcAnalysisResult
 from routers import fires, stac_api
-
-logging.basicConfig(level=logging.INFO)
+APP_VERSION = os.getenv('APP_VERSION')
+if APP_VERSION.upper() == 'DEV-LOCAL':
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 #TODO: -- pull os.getenv parameters up to into GLOBAL with fallbacks eg
@@ -45,26 +48,30 @@ async def lifespan(app: FastAPI):
         logger.info('API Startup -- reconciling bs')
         if s3_connected():
             obj_list = s3_list_objects()
-            geojson_pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
-            fire_jsons = [doc['Key'] for doc in obj_list if geojson_pattern.match(doc['Key'])]
-            # application has never been run
-            bl_geoparquet = geoparquet_on_s3()
-            if not bl_geoparquet and len(fire_jsons)==0:
-                logger.warning('No fires on objectstore to initialize application')
-            elif not bl_geoparquet and len(fire_jsons)>0:
-                # initiate 
-                logger.info(f'Initializing geoparquet with {len(fire_jsons)} fires')
-                for fire_key in fire_jsons:
-                    await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_key)
-            elif bl_geoparquet and len(fire_jsons)>0:
-                # update geoparque
-                fire_list = get_unique_fire_numbers(year=None)
-                for fire_json in fire_jsons:
-                    year = fire_json.split('/')[-1].split('-')[0]
-                    fire = fire_json.split('/')[-1].split('-')[1][:6]
-                    if fire not in fire_list:
-                        logger.info(f'Loading new bs to application {year}-{fire}')
-                        await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json, fire)
+            if len(obj_list)>0:
+                logger.debug('Object store contains %s items', str(len(obj_list)))
+                # check if application has never been run
+                bl_geoparquet = geoparquet_on_s3()
+                geojson_pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
+                fire_jsons = [doc['Key'] for doc in obj_list if geojson_pattern.match(doc['Key'])]
+                if not bl_geoparquet and len(fire_jsons)==0:
+                    logger.warning('No fires on objectstore to initialize application')
+                elif not bl_geoparquet and len(fire_jsons)>0:
+                    # initiate 
+                    logger.info(f'Initializing geoparquet with {len(fire_jsons)} fires')
+                    for fire_key in fire_jsons:
+                        await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_key)
+                elif bl_geoparquet and len(fire_jsons)>0:
+                    # update geoparquet
+                    fire_list = get_unique_fire_numbers(year=None)
+                    for fire_json in fire_jsons:
+                        year = fire_json.split('/')[-1].split('-')[0]
+                        fire = fire_json.split('/')[-1].split('-')[1][:6]
+                        if fire not in fire_list:
+                            logger.info(f'Loading new bs to application {year}-{fire}')
+                            await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json, fire)
+            else:
+                logger.debug('Object store is connected but contains no items')
         else:
             logger.error('Connection to object storage failed')
             raise ConnectionError('Connection to object storage failed') 
@@ -102,11 +109,11 @@ async def run_analysis(job:BsJob,redis_client: redis.Redis = Depends(get_redis))
     # if a bs job id is needed in future add it to the BsJob model as str and populate
     # with str(uuid4())
     try:
+        logger.info("Adding job to worker queue:\n %s", job.model_dump_json())
         job_id = await redis_client.xadd(
             os.getenv('JOB_QUEUE', 'bs_queue'),
             {"job": job.model_dump_json()}
         ) 
-        
         return BarcAnalysisResult(
             job_id=job_id,
             fire=job.fire,
