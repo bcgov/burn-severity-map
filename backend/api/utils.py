@@ -9,8 +9,6 @@ import io
 import json
 import logging
 
-
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +20,7 @@ MAIN_DIR = os.getenv("MAIN_DIR")
 PARQUET_FILE = os.getenv("PARQUET_FILE")
 PARQUET_PATH = f'{MAIN_DIR}/{PARQUET_FILE}'
 S3_SSL = True if os.getenv("S3_USE_SSL", 'true').lower() == 'true' else False
-
+APP_VERSION = os.getenv("APP_VERSION")
 # Assert that all required environment variables are set
 assert S3_ENDPOINT is not None, "Missing environment variable: S3_ENDPOINT"
 assert S3_ACCESS_ID is not None, "Missing environment variable: S3_ACCESS_ID"
@@ -47,16 +45,25 @@ s3_client = boto3.client(
 
 def s3_connected()->bool:
     try:
-        if 'localhost' in S3_ENDPOINT:
+        logger.debug('Checking connection to S3 Enpoint: %s', S3_ENDPOINT)
+        if APP_VERSION.upper() == 'DEV-LOCAL':
+            # local dev may not have bucket created
             try:
+                logger.debug('Accessing S3 bucket head %s', S3_BUCKET)
                 s3_client.head_bucket(Bucket=S3_BUCKET)
+                logger.debug('Access to S3 bucket head success')
             except ClientError:
-                s3_client.create_bucket(Bucket=S3_BUCKET)    
+                logger.debug('Access S3 bucket head failed, creating bucket')
+                s3_client.create_bucket(Bucket=S3_BUCKET)
+                logger.debug('Access S3 bucket head created')
         else:
+            logger.debug('Accessing S3 bucket head %s', S3_BUCKET)
             s3_client.head_bucket(Bucket=S3_BUCKET)
+            logger.debug('Access to S3 bucket head success')
         return True
 
     except (BotoCoreError, ClientError) as e:
+        logger.warning('Failed to connect to S3 Endpoint')
         print(f"Connection failed: {e}")
         return False
 
