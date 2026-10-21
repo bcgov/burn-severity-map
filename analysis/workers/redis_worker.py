@@ -6,10 +6,16 @@ from redis.exceptions import ResponseError, TimeoutError
 import logging
 from pydantic import ValidationError
 from models import BsJob
+from util.environment import Environment
+import geopandas as gp
 from barc_analysis import run_analysis
+import requests
 
-logger = logging.getLogger(__name__)
+LOG_LEVEL = os.getenv('WORKER_LOG_LEVEL','INFO')
+LOG_DIR = os.getenv('WORKER_LOG_DIR','/tmp/app_logs')
+logger = Environment.setup_logger(log_level=LOG_LEVEL ,log_directory=LOG_DIR)
 GROUP_NAME = 'bs-worker-group'
+
 
 def run():
     queue_name = os.getenv('JOB_QUEUE','bs_queue')
@@ -66,9 +72,10 @@ def run():
                 raw_job = fields.get('job')
                 if not raw_job:
                     raise ValueError("Stream entry missing 'job' field")
-                
+                logger.debug(f"Validating raw job: {raw_job}")
                 job = BsJob.model_validate_json(fields['job'])
                 logger.info("Starting fire: %s",job.fire)
+                logger.debug(f"Starting Job:{job}")
                 run_analysis(job=job)
                 # acknowledge success completion
                 redis_client.xack(
