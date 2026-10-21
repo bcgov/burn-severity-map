@@ -25,7 +25,6 @@ export const HealthProvider: React.FC<{ children: ReactNode }> = ({ children }: 
                 object_storage: 'unreachable',
                 data_status: 'unreachable',
                 fire_count: null,
-                analysis_backend: 'unreachable',
                 version: 'dev'
             });
         } finally {
