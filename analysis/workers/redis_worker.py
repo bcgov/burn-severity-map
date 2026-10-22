@@ -11,11 +11,17 @@ import geopandas as gp
 from barc_analysis import run_analysis
 import requests
 
-LOG_LEVEL = os.getenv('WORKER_LOG_LEVEL','INFO')
+LOG_LEVEL = os.getenv('WORKER_LOG_LEVEL','DEBUG')
 LOG_DIR = os.getenv('WORKER_LOG_DIR','/tmp/app_logs')
+API_HOST = os.getenv('API_HOST')
 logger = Environment.setup_logger(log_level=LOG_LEVEL ,log_directory=LOG_DIR)
-GROUP_NAME = 'bs-worker-group'
+logger.info('LOGGER ENV SET TO: %s', LOG_LEVEL)
+logger.info('LOGGER LEVEL SET TO: %s', logger.level)
 
+assert API_HOST is not None
+logger.debug('API_HOST: %s', API_HOST)
+GROUP_NAME = 'bs-worker-group'
+API_ROOT = f'http://{API_HOST}:8000'
 
 def run():
     queue_name = os.getenv('JOB_QUEUE','bs_queue')
@@ -76,7 +82,19 @@ def run():
                 job = BsJob.model_validate_json(fields['job'])
                 logger.info("Starting fire: %s",job.fire)
                 logger.debug(f"Starting Job:{job}")
-                run_analysis(job=job)
+                r = run_analysis(job=job)
+                logger.debug('Analysis Status: %s', r.status)
+                if r.status == 'SUCCESS':
+                    logging.debug('Syncing fire: %s', r.fire)
+                    # sync fire json with geoparquet
+                    url = f'{API_ROOT}/sync-burn-severity/{job.year}/{job.fire}'
+                    logging.debug('Syncing using url: %s', url)
+                    sync_response = requests.get(url=url)
+                    logging.info('Sync %s (%s) complete', job.fire, str(job.year))
+                else:
+                    # job was not a success
+                    raise Exception
+                
                 # acknowledge success completion
                 redis_client.xack(
                     queue_name,
