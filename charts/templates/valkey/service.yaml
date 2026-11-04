@@ -1,18 +1,18 @@
-{{- if .Values.backend.enabled }}
+{{- if .Values.valkey.enabled }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "backend.fullname" . }}
+  name: {{ include "valkey.fullname" . }}
   labels:
-    {{- include "backend.labels" . | nindent 4 }}
+    {{- include "valkey.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.global.ports.backend }}
-      targetPort: {{ .Values.global.ports.backend }}
+    - port: {{ .Values.global.ports.valkey }}
+      targetPort: {{ .Values.global.ports.valkey }}
       protocol: TCP
       name: http
   selector:
-    {{- include "backend.selectorLabels" . | nindent 4 }}
+    {{- include "valkey.selectorLabels" . | nindent 4 }}
 {{- end }}

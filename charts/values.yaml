@@ -263,13 +263,13 @@ valkey:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: {{ .Values.global.ports.valkey }}
-    targetPort: {{ .Values.global.ports.valkey }}
+    port: "{{ .Values.global.ports.valkey }}"
+    targetPort: "{{ .Values.global.ports.valkey }}"
   persistence:
     enabled: false
   autoscaling:
     #-- enable or disable autoscaling.
-    enabled: true
+    enabled: false
     #-- the minimum number of replicas.
     minReplicas: 3
     #-- the maximum number of replicas.
