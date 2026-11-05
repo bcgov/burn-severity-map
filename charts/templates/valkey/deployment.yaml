@@ -11,11 +11,11 @@ spec:
     type: {{ .Values.valkey.deploymentStrategy }}
   selector:
     matchLabels:
-      {{- include "valkey.selectorLabels" . | nindent 4 }}
+      {{- include "valkey.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "valkey.selectorLabels" . | nindent 4 }}
+        {{- include "valkey.selectorLabels" . | nindent 8 }}
     spec:
       containers:
         - name: {{ include "valkey.fullname" . }}

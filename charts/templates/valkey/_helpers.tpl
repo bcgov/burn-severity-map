@@ -1,14 +1,12 @@
 {{/*
-Expand the name of the chart.
+Expand the name of the chart for valkey.
 */}}
 {{- define "valkey.name" -}}
 {{- printf "valkey" }}
 {{- end }}
 
 {{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+Create a default fully qualified app name for valkey.
 */}}
 {{- define "valkey.fullname" -}}
 {{- $componentName := include "valkey.name" .  }}
@@ -20,7 +18,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{/*
-Common labels
+Common labels for valkey
 */}}
 {{- define "valkey.labels" -}}
 {{ include "valkey.selectorLabels" . }}
@@ -32,7 +30,7 @@ app.kubernetes.io/short-name: {{ include "valkey.name" . }}
 {{- end }}
 
 {{/*
-Selector labels
+Selector labels for valkey
 */}}
 {{- define "valkey.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "valkey.name" . }}
