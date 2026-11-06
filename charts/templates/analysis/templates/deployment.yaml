@@ -42,16 +42,23 @@ spec:
                 name: {{ include "analysis.fullname" . }}
             {{- end }}
           env:
+            - name: JOB_QUEUE
+              value: {{ .Values.global.valkey.jobQueue | quote }}
+            - name: REDIS_HOST
+              value: {{ include "valkey.fullname" . | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.valkey.port | default 6379 | quote }}
+            - name: REDIS_DATABASE
+              value: {{ .Values.valkey.database | default 0 | quote }}
             {{- range .Values.analysis.env }}
-              - name: {{ .name }}
+            - name: {{ .name }}
               {{- if .value }}
-                value: {{ tpl (.value | toString) $ | quote }}
+              value: {{ tpl (.value | toString) $ | quote }}
               {{- else if .valueFrom }}
-                valueFrom:
-                  {{ toYaml .valueFrom | nindent 18 }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
               {{- end }}
             {{- end }}
-
 
           ports:
             - name: http

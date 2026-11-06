@@ -15,7 +15,7 @@ global:
     enabled: true
     databasePassword: ~
     databaseName: ~
-    redisPassword: ""
+    REDIS_PASSWORD: ~
     persist: true
   s3:
     accessID: ""
@@ -40,6 +40,7 @@ global:
     host: valkey
     port: 6379
     database: 0
+    jobQueue: bs_job_queue
   
   config:
     databaseUser: ~
@@ -232,6 +233,7 @@ analysis:
       value: "{{ .Values.global.sso.clientID }}"
     - name: OIDC_AUTHORITY
       value: "{{ .Values.global.sso.authorityURL }}"
+
 
 
   resources:
