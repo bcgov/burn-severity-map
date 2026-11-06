@@ -21,6 +21,9 @@ spec:
         - name: {{ include "valkey.fullname" . }}
           image: "{{ .Values.valkey.image.registry }}/{{ .Values.valkey.image.repository }}:{{ .Values.valkey.image.tag }}"
           imagePullPolicy: {{ .Values.valkey.image.pullPolicy }}
+          args:
+            - "--bind"
+            - "0.0.0.0"
           ports:
             - containerPort: {{ .Values.global.valkey.port }}
               name: valkey
