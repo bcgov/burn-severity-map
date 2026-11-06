@@ -117,7 +117,6 @@ const PageFooter: React.FC = () => {
       health.status,
       health.object_storage,
       health.data_status,
-      health.analysis_backend
     ];
 
     if (allstatuses.includes('unreachable')) {

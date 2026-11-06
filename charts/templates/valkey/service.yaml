@@ -1,0 +1,18 @@
+{{- if .Values.valkey.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "valkey.fullname" . }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.global.ports.valkey }}
+      targetPort: {{ .Values.global.ports.valkey }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "valkey.selectorLabels" . | nindent 4 }}
+{{- end }}

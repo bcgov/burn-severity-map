@@ -16,12 +16,6 @@ http://:{{ .Values.global.ports.frontend }} {
             reverse_proxy {{ include "backend.fullname" $ }}:{{ .Values.global.ports.backend }}
         }
 
-        # Reverse proxy analysis backend using dynamic naming templates
-        handle_path /analysis/* {
-            reverse_proxy {{ include "analysis.fullname" $ }}:{{ .Values.global.ports.analysis }}
-        }
-        
-
         # Serve static frontend files
         handle {
             try_files {path} /index.html

@@ -3,6 +3,8 @@ from botocore.client import Config
 import os
 from io import BytesIO
 import hashlib # Import hashlib for MD5 calculation
+import logging
+logger = logging.getLogger(__name__)
 
 class ObjectStorage:
     def __init__(self):
@@ -97,3 +99,23 @@ class ObjectStorage:
             # ChecksumSHA256=local_sha256
         )
         return True
+    
+    def list_objects(self, file_prefix="")->list:
+        """Lists files in an S3-compliant bucket with an optional prefix."""
+        obj_list = []
+        try:
+            response = self.s3_client.list_objects_v2(Bucket=self.S3_BUCKET, Prefix=f"{self.S3_MAIN_DIR}/{file_prefix}")
+            if 'Contents' in response:
+                logger.debug(f"Files in bucket '{self.S3_BUCKET}' (prefix: '{file_prefix}'):")
+                for obj in response['Contents']:
+                    # logger.info(f"- {obj['Key']} (Size: {obj['Size']} bytes)")
+
+                    # only append file that are not directories
+                    if not obj['Key'].endswith('$') and not obj['Key'].endswith('/') and not obj['Key'].endswith('catalogs'):
+                        obj_list.append(obj)
+
+            else:
+                logger.warning(f"No files found in bucket '{self.S3_BUCKET}' with prefix '{file_prefix}'.")
+            return obj_list
+        except Exception as e:
+            logger.error(f"Error listing files: {e}")

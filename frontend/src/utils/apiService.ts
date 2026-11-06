@@ -24,7 +24,6 @@ export interface FirePerimeters {
 
 // Define your API's base URL. It's good practice to have this in an environment variable.
 const API_BASE_URL = '/api'; // Your FastAPI backend URL
-const ANALYSIS_API_BASE_URL = '/analysis'
 
 let cachedDataStatus: 'ok' | 'not created' | 'unreachable' | null = null;
 let activeHealthCheck: Promise<HealthResponse> | null = null;
@@ -76,7 +75,7 @@ async function authedFetch(endpoint: string, options: RequestInit = {}): Promise
   headers.append('Authorization', `Bearer ${user.access_token}`);
   
   // Assemble the full request URL.
-  const url = endpoint.startsWith('/') && !endpoint.startsWith(ANALYSIS_API_BASE_URL) 
+  const url = endpoint.startsWith('/')
     ? `${API_BASE_URL}${endpoint}` 
     : endpoint;
 
@@ -115,7 +114,6 @@ export interface HealthResponse {
   object_storage: 'ok' | 'connected' | 'unreachable';
   data_status: 'ok' | 'not created' | 'unreachable';
   fire_count: number | null;
-  analysis_backend: 'ok' | 'degraded' | 'unreachable';
   version: string;
 }
 
@@ -132,14 +130,12 @@ export const fetchHealth = async (): Promise<HealthResponse> => {
       api: `${API_BASE_URL}/health/api`,
       storage: `${API_BASE_URL}/health/storage`,
       data: `${API_BASE_URL}/health/data`,
-      analysis: `${ANALYSIS_API_BASE_URL}/health/analysis`,
     };
 
-    const [apiRes, storageRes, dataRes, analysisRes] = await Promise.allSettled([
+    const [apiRes, storageRes, dataRes] = await Promise.allSettled([
       fetch(endpoints.api, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
       fetch(endpoints.storage, { cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(r.status)),
       fetch(endpoints.data, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-      fetch(endpoints.analysis, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
     ]);
 
     const result: HealthResponse = {
@@ -147,7 +143,6 @@ export const fetchHealth = async (): Promise<HealthResponse> => {
       object_storage: storageRes.status === 'fulfilled' ? (storageRes.value.status || 'connected') : 'unreachable',
       data_status: dataRes.status === 'fulfilled' ? (dataRes.value.status || 'unreachable') : 'unreachable',
       fire_count: dataRes.status === 'fulfilled' ? (dataRes.value.fire_count || null) : null,
-      analysis_backend: analysisRes.status == 'fulfilled' ? (analysisRes.value.status || 'ok') : 'unreachable',
       version: apiRes.status === 'fulfilled' ? (apiRes.value.version || 'dev') :'unknown'
     };
 
@@ -168,7 +163,7 @@ export const fetchHealth = async (): Promise<HealthResponse> => {
 export const runBurnSeverityAnalysis = async (params: AnalysisRequest) => {
   // We use authedFetch to automatically include the Bearer token
   // We override the URL assembly since this goes to the ANALYSIS_API_BASE_URL
-  const response = await authedFetch(`${ANALYSIS_API_BASE_URL}/run-analysis`, {
+  const response = await authedFetch('/burn-severity/run-analysis', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

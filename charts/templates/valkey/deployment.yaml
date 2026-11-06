@@ -1,0 +1,33 @@
+{{- if .Values.valkey.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "valkey.fullname" . }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: {{ .Values.valkey.deploymentStrategy }}
+  selector:
+    matchLabels:
+      {{- include "valkey.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "valkey.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ include "valkey.fullname" . }}
+          image: "{{ .Values.valkey.image.registry }}/{{ .Values.valkey.image.repository }}:{{ .Values.valkey.image.tag }}"
+          imagePullPolicy: {{ .Values.valkey.image.pullPolicy }}
+          args:
+            - "--bind"
+            - "0.0.0.0"
+          ports:
+            - containerPort: {{ .Values.global.valkey.port }}
+              name: valkey
+          resources:
+            {{- toYaml .Values.valkey.resources | nindent 12 }}
+          # No volumeMounts or PVCs needed—running entirely in-memory (ephemeral)
+{{- end }}

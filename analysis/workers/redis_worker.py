@@ -1,0 +1,141 @@
+#/analysis/workers/redis_worker.py
+import os
+import socket
+import redis
+from redis.exceptions import ResponseError, TimeoutError
+import logging
+from pydantic import ValidationError
+from models import BsJob
+from util.environment import Environment
+import geopandas as gp
+from barc_analysis import run_analysis
+import requests
+
+LOG_LEVEL = os.getenv('WORKER_LOG_LEVEL','DEBUG')
+LOG_DIR = os.getenv('WORKER_LOG_DIR','/tmp/app_logs')
+API_HOST = os.getenv('API_HOST')
+logger = Environment.setup_logger(log_level=LOG_LEVEL ,log_directory=LOG_DIR)
+logger.info('LOGGER ENV SET TO: %s', LOG_LEVEL)
+logger.info('LOGGER LEVEL SET TO: %s', logger.level)
+
+assert API_HOST is not None
+logger.debug('API_HOST: %s', API_HOST)
+GROUP_NAME = 'bs-worker-group'
+API_ROOT = f'http://{API_HOST}:8000'
+
+def run():
+    queue_name = os.getenv('JOB_QUEUE','bs_queue')
+    host = os.getenv('REDIS_HOST','localhost')
+    redis_port = int(os.getenv('REDIS_PORT',6379))
+    redis_database = int(os.getenv('REDIS_DATABASE', 0))
+    redis_password = os.getenv('REDIS_PASSWORD')
+    
+    redis_client = redis.Redis(host=host, 
+                               port=redis_port, 
+                               db=redis_database,
+                               password=redis_password,
+                               decode_responses=True,
+                               socket_timeout=None,
+                               socket_keepalive=True
+                               )
+    consumer_name = f"{socket.gethostname()}-{os.getpid()}"
+    logger.info(f"Worker[{consumer_name}] Listening for jobs on Redis queue: {queue_name}")
+    
+    # Create consumer group if it hasn't been done
+    try:
+        redis_client.xgroup_create(
+            name=queue_name,
+            groupname=GROUP_NAME,
+            id='$',
+            mkstream=True,
+        )
+        logger.info(f'Created redis consumer group [{GROUP_NAME}] on stream [{queue_name}]')
+    except ResponseError as e:
+        if 'BUSYGROUP' not in str(e):
+            raise
+    
+    # main processing
+    while True:
+        try:
+            messages = redis_client.xreadgroup(
+                groupname=GROUP_NAME,
+                consumername=consumer_name,
+                streams={queue_name: ">"},
+                count=1,
+                block=5000)
+            
+            if not messages:
+                continue
+
+            stream_name, entries = messages[0]
+            message_id, fields = entries[0]
+
+            job = None
+            logging.debug('Job recieved')
+
+            try:
+                # Parse job payload
+                raw_job = fields.get('job')
+                if not raw_job:
+                    raise ValueError("Stream entry missing 'job' field")
+                logger.debug(f"Validating raw job: {raw_job}")
+                job = BsJob.model_validate_json(fields['job'])
+                logger.info("Starting fire: %s",job.fire)
+                logger.debug(f"Starting Job:{job}")
+                r = run_analysis(job=job)
+                logger.debug('Analysis Status: %s', r.status)
+                if r.status == 'SUCCESS':
+                    logging.debug('Syncing fire: %s', r.fire)
+                    # sync fire json with geoparquet
+                    url = f'{API_ROOT}/sync-burn-severity/{job.year}/{job.fire}'
+                    logging.debug('Syncing using url: %s', url)
+                    sync_response = requests.get(url=url)
+                    logging.info('Sync %s (%s) complete', job.fire, str(job.year))
+                else:
+                    # job was not a success
+                    raise Exception
+                
+                # acknowledge success completion
+                redis_client.xack(
+                    queue_name,
+                    GROUP_NAME,
+                    message_id,
+                )
+                logger.info("Completed fire: %s",job.fire)
+
+            except ValidationError as e:
+                logger.error("Invalid queue message: %s: %s", 
+                            message_id, 
+                            e,)
+
+                redis_client.xack(
+                    queue_name,
+                    GROUP_NAME,
+                    message_id,
+                )
+                
+            except Exception as e:
+                fire_id = getattr(job, "fire", "Unknown")
+                year_val = getattr(job, "year", "Unknown")
+                logger.exception("Analysis failed for fire=%s year=%s", fire_id, year_val)
+
+                # DEAD-LETTER QUEUE (DLQ) STRATEGY:
+                # Move failed payload to a DLQ stream for manual inspection, then ACK
+                dlq_stream = f"{queue_name}-dlq"
+                redis_client.xadd(dlq_stream, {
+                    'original_message_id': message_id,
+                    'error': str(e),
+                    'job': fields.get('job', '')
+                })
+                redis_client.xack(queue_name, GROUP_NAME, message_id)
+                logger.warning("Moved message %s to DLQ stream '%s'", message_id, dlq_stream)
+        except TimeoutError:
+            continue
+        except Exception as e:
+            logger.error("Unexpected error in worker loop: %s", e)
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    run()
+
+
