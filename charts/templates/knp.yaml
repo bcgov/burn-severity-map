@@ -39,27 +39,3 @@ spec:
               app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes:
     - Ingress
-
----
-
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ .Release.Name }}-allow-frontend-to-analysis
-  labels: {{- include "selectorLabels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: {{ template  "analysis.name"}}
-      app.kubernetes.io/instance: {{ .Release.Name }}
-  ingress:
-    - ports:
-        - protocol: TCP
-          port: 5000
-      from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ template  "frontend.name"}}
-              app.kubernetes.io/instance: {{ .Release.Name }}
-  policyTypes:
-    - Ingress
