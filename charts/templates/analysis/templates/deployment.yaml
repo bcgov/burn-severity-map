@@ -50,6 +50,8 @@ spec:
               value: {{ .Values.valkey.port | default 6379 | quote }}
             - name: REDIS_DATABASE
               value: {{ .Values.valkey.database | default 0 | quote }}
+            - name: API_HOST
+              value: {{ include "backend.fullname" . | quote }}
             {{- range .Values.analysis.env }}
             - name: {{ .name }}
               {{- if .value }}
