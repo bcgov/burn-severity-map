@@ -201,14 +201,15 @@ const StacSearchPanel: React.FC = () => {
 
     try {
       console.log('Payload:', payload)
+      console.log('Submitting bs request')
       const result = await runBurnSeverityAnalysis(payload);
-
-      console.log("Analysis result:", result);
-      if (analysisConfig.fire_number){
-        await syncFireResults(String(thisYear),analysisConfig.fire_number)
-        setAnalysisFire(analysisConfig.fire_number);
-        addAnalysisLayer()
-      }
+      console.log("BS Analysis result:", result);
+      // TODO: need to sync up results but front end will no longer be notified of completion
+      // if (analysisConfig.fire_number){
+      //   await syncFireResults(String(thisYear),analysisConfig.fire_number)
+      //   setAnalysisFire(analysisConfig.fire_number);
+      //   addAnalysisLayer()
+      // }
     } catch (error) {
         setAnalysisRunning(false);
         let errorMessage = 'Failed to start analysis.';
