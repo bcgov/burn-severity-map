@@ -32,12 +32,14 @@ JOB_QUEUE = os.getenv('JOB_QUEUE', 'bs_queue')
 def get_redis(request: Request) -> redis.Redis:
     return request.app.state.redis
 def create_redis_client()->redis.Redis:
+    logger.debug('Creating redis client from host: %s',os.getenv('REDIS_HOST','redis'))
     redis_client = redis.Redis(
         host=os.getenv('REDIS_HOST','redis'),
         port=int(os.getenv('REDIS_PORT', 6379)),
         password=os.getenv('REDIS_PASSWORD'),
         decode_responses=True,
     )
+    logger.debug('redis client created')
     return redis_client
 @asynccontextmanager
 async def lifespan(app: FastAPI):
