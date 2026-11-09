@@ -81,6 +81,7 @@ def s3_list_objects(bucket_name=S3_BUCKET, file_prefix="")->list:
 
                 # only append file that are not directories
                 if not obj['Key'].endswith('$') and not obj['Key'].endswith('/') and not obj['Key'].endswith('catalogs'):
+                    logger.debug(f"S3 Store File: {obj['Key']}")
                     obj_list.append(obj)
 
         else:
