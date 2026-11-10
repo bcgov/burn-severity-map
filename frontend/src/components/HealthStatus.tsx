@@ -57,10 +57,6 @@ const HealthStatus: React.FC<HealthStatusProps> = ({ layout = 'default' }) => {
               </span>
             )}
           </li>
-          <li>
-            <strong>Analysis Status:</strong>{' '}
-            <span style={{ color: getStatusColor(health!.analysis_backend) }}>{health!.analysis_backend}</span>
-          </li>
         </ul>
         <div style={{textAlign: 'right', fontSize: '0.7em', fontStyle: 'italic', marginTop: '0.5rem', color: '#666'}}>{health!.version}</div>
       </div>
@@ -107,14 +103,7 @@ const HealthStatus: React.FC<HealthStatusProps> = ({ layout = 'default' }) => {
             </span>
           )}
         </div>
-      </div>
-      
-      {/* Analysis Backend Block */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ opacity: 0.85, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Analysis Status</span> 
-        <strong style={{ color: getStatusColor(health!.analysis_backend), fontSize: '15px' }}>{health!.analysis_backend}</strong>
-      </div>
-
+      </div>    
     </div>
   );
 };

@@ -1,9 +1,8 @@
-
-
+# /backend/api/main.py
 # main.py - A fastapi backend to support burn severity document management
 # TODO: deal with year eg 2025-N75432 is the prefix for documents and the remaining app works on the fire number unique id
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -13,51 +12,75 @@ import os
 import json
 import re
 import logging, traceback
+import redis.asyncio as redis
+from uuid import uuid4
 from oidc.oidcAuthorize import verify_token
 from utils import s3_get_presigned_url, s3_list_objects, append_geojson_to_geoparquet_s3, s3_connected, geoparquet_on_s3, format_file_size
 from database import get_unique_fire_numbers, get_fire_features,check_connection,get_years_with_features
-from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList
+from models import FireNumberList, FeatureCollection, Feature, Geometry, FeatureProperties, FireYearsList, BsJob, BarcAnalysisResult
 from routers import fires, stac_api
-
-logging.basicConfig(level=logging.INFO)
+APP_VERSION = os.getenv('APP_VERSION')
+if APP_VERSION.upper() == 'DEV-LOCAL':
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+#TODO: -- pull os.getenv parameters up to into GLOBAL with fallbacks eg
+JOB_QUEUE = os.getenv('JOB_QUEUE', 'bs_queue')
 
-
+def get_redis(request: Request) -> redis.Redis:
+    return request.app.state.redis
+def create_redis_client()->redis.Redis:
+    logger.debug('Creating redis client from host: %s',os.getenv('REDIS_HOST','redis'))
+    redis_client = redis.Redis(
+        host=os.getenv('REDIS_HOST','redis'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
+        password=os.getenv('REDIS_PASSWORD'),
+        decode_responses=True,
+    )
+    logger.debug('redis client created')
+    return redis_client
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.redis = create_redis_client()
     # startup initiate geoparquet file if it doesn't exists
     # update geoparquet if new burn severity classifications exist
     try:
         logger.info('API Startup -- reconciling bs')
         if s3_connected():
             obj_list = s3_list_objects()
-            geojson_pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
-            fire_jsons = [doc['Key'] for doc in obj_list if geojson_pattern.match(doc['Key'])]
-            # application has never been run
-            bl_geoparquet = geoparquet_on_s3()
-            if not bl_geoparquet and len(fire_jsons)==0:
-                logger.warning('No fires on objectstore to initialize application')
-            elif not bl_geoparquet and len(fire_jsons)>0:
-                # initiate 
-                logger.info(f'Initializing geoparquet with {len(fire_jsons)} fires')
-                for fire_key in fire_jsons:
-                    await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_key)
-            elif bl_geoparquet and len(fire_jsons)>0:
-                # update geoparque
-                fire_list = get_unique_fire_numbers(year=None)
-                for fire_json in fire_jsons:
-                    year = fire_json.split('/')[-1].split('-')[0]
-                    fire = fire_json.split('/')[-1].split('-')[1][:6]
-                    if fire not in fire_list:
-                        logger.info(f'Loading new bs to application {year}-{fire}')
-                        await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json, fire)
+            if len(obj_list)>0:
+                logger.debug('Object store contains %s items', str(len(obj_list)))
+                # check if application has never been run
+                bl_geoparquet = geoparquet_on_s3()
+                geojson_pattern = re.compile(r'.*/20\d{2}-[A-Z]\d{5}.*\.json$')
+                fire_jsons = [doc['Key'] for doc in obj_list if geojson_pattern.match(doc['Key'])]
+                if not bl_geoparquet and len(fire_jsons)==0:
+                    logger.warning('No fires on objectstore to initialize application')
+                elif not bl_geoparquet and len(fire_jsons)>0:
+                    # initiate 
+                    logger.info(f'Initializing geoparquet with {len(fire_jsons)} fires')
+                    for fire_key in fire_jsons:
+                        await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_key)
+                elif bl_geoparquet and len(fire_jsons)>0:
+                    # update geoparquet
+                    fire_list = get_unique_fire_numbers(year=None)
+                    for fire_json in fire_jsons:
+                        year = fire_json.split('/')[-1].split('-')[0]
+                        fire = fire_json.split('/')[-1].split('-')[1][:6]
+                        if fire not in fire_list:
+                            logger.info(f'Loading new bs to application {year}-{fire}')
+                            await run_in_threadpool(append_geojson_to_geoparquet_s3, fire_json, fire)
+            else:
+                logger.debug('Object store is connected but contains no items')
         else:
             logger.error('Connection to object storage failed')
             raise ConnectionError('Connection to object storage failed') 
     except Exception as e:
         logger.error(f"Startup error: {e} \n Traceback: {traceback.print_exc()}")
     yield
+    await app.state.redis.close()
     logger.info('API Shutdown')
 
 
@@ -79,10 +102,29 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins, # or ["*"] to allow all
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-        
+@app.post("/burn-severity/run-analysis",response_model=BarcAnalysisResult)
+async def run_analysis(job:BsJob,redis_client: redis.Redis = Depends(get_redis)):
+    # add job to redis queue-- use stream id for tracking
+    # if a bs job id is needed in future add it to the BsJob model as str and populate
+    # with str(uuid4())
+    try:
+        logger.info("Adding job to worker queue:\n %s", job.model_dump_json())
+        job_id = await redis_client.xadd(
+            os.getenv('JOB_QUEUE', 'bs_queue'),
+            {"job": job.model_dump_json()}
+        ) 
+        return BarcAnalysisResult(
+            job_id=job_id,
+            fire=job.fire,
+            year=job.year,
+            status='Submitted'
+        )
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    
 @app.get("/burn-severity/{year}", response_model=FireNumberList)
 # def list_fire_numbers(token_payload: dict = Depends(verify_token)): #use this if you want to protect the route
 def list_fire_numbers(year: str, token_payload: dict = Depends(verify_token)):

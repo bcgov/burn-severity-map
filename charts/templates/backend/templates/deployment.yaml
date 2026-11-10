@@ -44,6 +44,14 @@ spec:
           env:
             - name: FRONTEND_URL
               value: {{ printf "https://%s" .Values.frontend.domain | quote }}
+            - name: JOB_QUEUE
+              value: {{ .Values.global.valkey.jobQueue | quote }}
+            - name: REDIS_HOST
+              value: {{ include "valkey.fullname" . | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.valkey.port | default 6379 | quote }}
+            - name: REDIS_DATABASE
+              value: {{ .Values.valkey.database | default 0 | quote }}
             {{- range .Values.backend.env }}
             - name: {{ .name }}
               {{- if .value }}

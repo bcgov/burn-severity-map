@@ -15,6 +15,7 @@ global:
     enabled: true
     databasePassword: ~
     databaseName: ~
+    REDIS_PASSWORD: ~
     persist: true
   s3:
     accessID: ""
@@ -25,6 +26,7 @@ global:
     backend: 8000
     frontend: 8080
     analysis: 5000
+    valkey: 6379
   dirs:
     tmpDir: ""
     extDir: ""
@@ -34,6 +36,11 @@ global:
   sso:
     clientID: ""
     authorityURL: ""
+  valkey:
+    host: valkey
+    port: 6379
+    database: 0
+    jobQueue: bs_job_queue
   
   config:
     databaseUser: ~
@@ -228,6 +235,7 @@ analysis:
       value: "{{ .Values.global.sso.authorityURL }}"
 
 
+
   resources:
     requests:
       cpu: 250m
@@ -245,3 +253,32 @@ analysis:
   pdb:
     enabled: false # enable it in PRODUCTION for having pod disruption budget.
     minAvailable: 1 # the minimum number of pods that must be available during the disruption budget.
+
+
+valkey:
+  enabled: true
+  deploymentStrategy: RollingUpdate
+  image:
+    registry: docker.io
+    repository: valkey/valkey
+    tag: 9.0-alpine
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: "{{ .Values.global.ports.valkey }}"
+    targetPort: "{{ .Values.global.ports.valkey }}"
+  persistence:
+    enabled: false
+  autoscaling:
+    #-- enable or disable autoscaling.
+    enabled: false
+    #-- the minimum number of replicas.
+    minReplicas: 3
+    #-- the maximum number of replicas.
+    maxReplicas: 7
+    #-- the target cpu utilization percentage, is from request cpu and NOT LIMIT CPU.
+    targetCPUUtilizationPercentage: 80
+  resources:
+    requests: 
+      cpu: 50m
+      memory: 128Mi

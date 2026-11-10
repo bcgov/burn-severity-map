@@ -201,14 +201,37 @@ const StacSearchPanel: React.FC = () => {
 
     try {
       console.log('Payload:', payload)
+      console.log('Submitting bs request')
       const result = await runBurnSeverityAnalysis(payload);
-
-      console.log("Analysis result:", result);
-      if (analysisConfig.fire_number){
-        await syncFireResults(String(thisYear),analysisConfig.fire_number)
-        setAnalysisFire(analysisConfig.fire_number);
-        addAnalysisLayer()
+      console.log("We made a thing -BS Analysis result:", result);
+      setAnalysisConfig({
+        fire_number: selectedFire ? selectedFire.fireNumber : null,
+        year: selectedFire ? selectedFire.year : null,
+        sensor: 'S2',
+        preImageDate: null,
+        postImageDate: null,
+        preImageID: null,
+        postImageID: null,
+        imageIDs: null,
+        preImageCloud: 0,
+        postImageCloud: 0,
+        cloudCover: selectedCloudCover,
+      });
+      // Clear image selections and search results
+      setSelectedPreImageId(null);
+      setSelectedPostImageId(null);
+      setSearchResults([]);
+      
+      if (previewLayerId) {
+        removePreviewLayer();
+        setPreviewLayerId(null);
       }
+      // TODO: need to sync up results but front end will no longer be notified of completion
+      // if (analysisConfig.fire_number){
+      //   await syncFireResults(String(thisYear),analysisConfig.fire_number)
+      //   setAnalysisFire(analysisConfig.fire_number);
+      //   addAnalysisLayer()
+      // }
     } catch (error) {
         setAnalysisRunning(false);
         let errorMessage = 'Failed to start analysis.';
