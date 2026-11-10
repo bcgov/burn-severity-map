@@ -31,7 +31,7 @@ spec:
   ingress:
     - ports:
         - protocol: TCP
-          port: 8000
+          port: {{ .Values.global.ports.backend }}
       from:
         - podSelector:
             matchLabels:
@@ -78,6 +78,29 @@ spec:
     - ports:
         - protocol: TCP
           port: {{ .Values.valkey.port }}
+      from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ template  "analysis.name"}}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-analysis-backend
+  labels: {{- include "selectorLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template  "backend.name"}}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: {{ .Values.global.ports.backend }}
       from:
         - podSelector:
             matchLabels:
